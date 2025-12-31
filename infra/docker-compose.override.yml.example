@@ -1,0 +1,19 @@
+# File này dùng để override docker-compose.yml khi chỉ muốn chạy infrastructure
+# Copy file này thành docker-compose.override.yml để sử dụng
+#
+# Khi có file docker-compose.override.yml, chạy:
+# docker-compose up -d
+# 
+# Sẽ chỉ chạy các services được định nghĩa trong override file
+
+version: '3.8'
+
+services:
+  postgres:
+    # Chỉ chạy postgres
+  redis:
+    # Chỉ chạy redis
+  minio:
+    # Chỉ chạy minio
+  # backend service sẽ bị bỏ qua
+
