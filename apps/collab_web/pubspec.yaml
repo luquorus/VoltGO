@@ -1,0 +1,31 @@
+name: collab_web
+description: Collaborator Web App
+version: 1.0.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.4.9
+  go_router: ^13.0.0
+  shared_ui:
+    path: ../shared/shared_ui
+  shared_auth:
+    path: ../shared/shared_auth
+  shared_network:
+    path: ../shared/shared_network
+  shared_api:
+    path: ../shared/shared_api
+  flutter_dotenv: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  assets:
+    - .env
+

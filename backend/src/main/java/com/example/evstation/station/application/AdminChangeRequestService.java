@@ -7,6 +7,8 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
+import com.example.evstation.trust.application.TrustScoringService;
+import com.example.evstation.verification.application.VerificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -25,10 +27,15 @@ public class AdminChangeRequestService {
     
     private final ChangeRequestJpaRepository changeRequestRepository;
     private final StationVersionJpaRepository stationVersionRepository;
+    private final StationJpaRepository stationRepository;
     private final StationServiceJpaRepository stationServiceRepository;
     private final ChargingPortJpaRepository chargingPortRepository;
     private final AuditLogJpaRepository auditLogRepository;
     private final UserAccountJpaRepository userAccountRepository;
+    private final TrustScoringService trustScoringService;
+    private final VerificationService verificationService;
+    
+    private static final int HIGH_RISK_THRESHOLD = 60;
 
     /**
      * Get all change requests with optional status filter
@@ -171,6 +178,17 @@ public class AdminChangeRequestService {
                     "Only APPROVED change requests can be published. Current status: " + changeRequest.getStatus());
         }
         
+        // Enforce verification PASS for high-risk CRs
+        if (changeRequest.getRiskScore() >= HIGH_RISK_THRESHOLD) {
+            if (!verificationService.hasPassedVerificationForCR(id)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+                        "High-risk change request (risk_score >= " + HIGH_RISK_THRESHOLD + 
+                        ") requires verification PASS before publishing. " +
+                        "Please create a verification task and wait for PASS review.");
+            }
+            log.info("High-risk CR {} passed verification check", id);
+        }
+        
         StationVersionEntity proposedVersion = stationVersionRepository
                 .findById(changeRequest.getProposedStationVersionId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR, "Proposed station version not found"));
@@ -192,6 +210,14 @@ public class AdminChangeRequestService {
             log.info("Publishing UPDATE_STATION: stationId={}", stationId);
         }
         
+        // CRITICAL: Lock station row to serialize publish operations for the same station.
+        // This prevents concurrent publish that could violate unique constraint.
+        // Lock is acquired even if no published version exists to ensure atomic operation.
+        stationRepository.findByIdForUpdate(stationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, 
+                        "Station not found: " + stationId));
+        log.debug("Acquired pessimistic lock on station: {}", stationId);
+        
         // Archive old published version (if exists)
         Optional<StationVersionEntity> oldPublishedVersion = stationVersionRepository
                 .findByStationIdAndWorkflowStatus(stationId, WorkflowStatus.PUBLISHED);
@@ -199,6 +225,7 @@ public class AdminChangeRequestService {
         if (oldPublishedVersion.isPresent()) {
             StationVersionEntity oldVersion = oldPublishedVersion.get();
             oldVersion.setWorkflowStatus(WorkflowStatus.ARCHIVED);
+            oldVersion.setPublishedAt(null); // Clear published_at when archiving (required by check constraint)
             stationVersionRepository.save(oldVersion);
             log.info("Archived old version: versionId={}", oldVersion.getId());
             
@@ -211,6 +238,11 @@ public class AdminChangeRequestService {
                             "newStatus", "ARCHIVED"
                     ));
         }
+        
+        // CRITICAL: Flush to ensure old version is archived in DB BEFORE publishing new one.
+        // This prevents unique constraint violation by ensuring DB state is consistent.
+        stationVersionRepository.flush();
+        log.debug("Flushed repository to ensure old version is archived in DB");
         
         // Publish the proposed version
         proposedVersion.setWorkflowStatus(WorkflowStatus.PUBLISHED);
@@ -234,6 +266,9 @@ public class AdminChangeRequestService {
                         "previousStatus", "APPROVED",
                         "newStatus", "PUBLISHED"
                 ));
+        
+        // Recalculate trust score after publishing
+        trustScoringService.recalculate(stationId);
         
         log.info("Change request published: id={}, stationId={}", id, stationId);
         return buildAdminDTO(changeRequest);

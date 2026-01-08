@@ -9,6 +9,7 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.IssueStatus;
 import com.example.evstation.station.infrastructure.jpa.*;
+import com.example.evstation.trust.application.TrustScoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class ReportIssueService {
     private final StationVersionJpaRepository stationVersionRepository;
     private final UserAccountJpaRepository userAccountRepository;
     private final AuditLogJpaRepository auditLogRepository;
+    private final TrustScoringService trustScoringService;
 
     // ========== EV User Operations ==========
 
@@ -69,6 +71,9 @@ public class ReportIssueService {
                         "stationName", publishedVersion.get().getName(),
                         "category", dto.getCategory().name()
                 ));
+        
+        // Recalculate trust score after issue creation
+        trustScoringService.recalculate(stationId);
         
         return buildUserDTO(issue, publishedVersion.get().getName());
     }
@@ -169,6 +174,9 @@ public class ReportIssueService {
         writeAuditLog(adminId, adminRole, "ADMIN_ACK_ISSUE", "REPORT_ISSUE", issueId,
                 Map.of("previousStatus", "OPEN", "newStatus", "ACKNOWLEDGED"));
         
+        // Recalculate trust score (ACKNOWLEDGED still counts as unresolved)
+        trustScoringService.recalculate(issue.getStationId());
+        
         log.info("Issue acknowledged: id={}", issueId);
         return getIssueById(issueId).orElseThrow();
     }
@@ -189,6 +197,7 @@ public class ReportIssueService {
         }
         
         String previousStatus = issue.getStatus().name();
+        UUID stationId = issue.getStationId();
         issue.setStatus(IssueStatus.RESOLVED);
         issue.setDecidedAt(Instant.now());
         issue.setAdminNote(note);
@@ -197,6 +206,9 @@ public class ReportIssueService {
         // Audit log
         writeAuditLog(adminId, adminRole, "ADMIN_RESOLVE_ISSUE", "REPORT_ISSUE", issueId,
                 Map.of("previousStatus", previousStatus, "newStatus", "RESOLVED", "note", note));
+        
+        // Recalculate trust score after resolving issue
+        trustScoringService.recalculate(stationId);
         
         log.info("Issue resolved: id={}", issueId);
         return getIssueById(issueId).orElseThrow();
@@ -218,6 +230,7 @@ public class ReportIssueService {
         }
         
         String previousStatus = issue.getStatus().name();
+        UUID stationId = issue.getStationId();
         issue.setStatus(IssueStatus.REJECTED);
         issue.setDecidedAt(Instant.now());
         issue.setAdminNote(reason);
@@ -226,6 +239,9 @@ public class ReportIssueService {
         // Audit log
         writeAuditLog(adminId, adminRole, "ADMIN_REJECT_ISSUE", "REPORT_ISSUE", issueId,
                 Map.of("previousStatus", previousStatus, "newStatus", "REJECTED", "reason", reason));
+        
+        // Recalculate trust score after rejecting issue (removes penalty)
+        trustScoringService.recalculate(stationId);
         
         log.info("Issue rejected: id={}", issueId);
         return getIssueById(issueId).orElseThrow();

@@ -1,0 +1,2660 @@
+openapi: 3.0.3
+info:
+  title: VoltGo EV Station API
+  description: |
+    API for VoltGo EV Station Management Platform.
+    
+    This API supports multiple client applications:
+    - **EV User Mobile**: Search stations, create bookings, payments
+    - **Collaborator Mobile**: Perform verification tasks, check-in, submit evidence
+    - **Collaborator Web**: View tasks, history, KPI, contracts
+    - **Admin Web**: Manage change requests, issues, verification tasks, audit logs
+    
+    All API endpoints require JWT authentication except `/auth/**` endpoints.
+  version: 1.0.0
+  contact:
+    name: VoltGo API Support
+    email: support@voltgo.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.voltgo.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Public authentication endpoints
+  - name: EV User Mobile
+    description: API for EV User Mobile application
+  - name: Bookings
+    description: API for EV Users to manage bookings
+  - name: Payments
+    description: API for payment intents and payment simulation
+  - name: Change Requests
+    description: API for managing station change requests
+  - name: EV User Issues
+    description: API for EV Users to report and track issues on stations
+  - name: Collaborator Mobile
+    description: API for Collaborator Mobile application
+  - name: Collaborator Mobile Verification
+    description: Mobile API for collaborators to perform verification tasks
+  - name: Collaborator Mobile Files
+    description: Mobile API for file upload presigned URLs
+  - name: Collaborator Web
+    description: API for Collaborator Web application
+  - name: Collaborator Web Verification
+    description: Web API for collaborators to view tasks, history, and KPI
+  - name: Collaborator Web Files
+    description: Web API for file view presigned URLs
+  - name: Admin Web
+    description: API for Admin Web Portal
+  - name: Admin Change Requests
+    description: Admin API for managing change requests
+  - name: Admin Issues
+    description: Admin API for managing reported issues
+  - name: Admin Verification
+    description: Admin API for managing verification tasks
+  - name: Admin Files
+    description: Admin API for file view presigned URLs
+  - name: Admin Stations
+    description: Admin API for station management
+  - name: Admin Audit Logs
+    description: Admin API for querying audit logs
+
+paths:
+  # ============================================
+  # Authentication
+  # ============================================
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Register EV_USER, PROVIDER, or COLLABORATOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              password: SecurePass123!
+              role: EV_USER
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Login and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: SecurePass123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # EV User Mobile - Stations
+  # ============================================
+  /api/ev/stations:
+    get:
+      tags:
+        - EV User Mobile
+      summary: Search published stations within radius
+      description: Find published charging stations within specified radius. Only returns PUBLISHED versions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 21.0285
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: 105.8542
+        - name: radiusKm
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: 0.1
+            maximum: 100
+          example: 5.0
+        - name: minPowerKw
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+          description: Minimum power in kW (DC ports only)
+          example: 50.0
+        - name: hasAC
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter stations that have AC ports
+          example: true
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: List of stations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse_StationListItem'
+              example:
+                content:
+                  - stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                    name: "EV Station Hanoi Center"
+                    address: "123 Nguyen Du, Hoan Kiem, Hanoi"
+                    lat: 21.0285
+                    lng: 105.8542
+                    distanceKm: 0.5
+                    totalPorts: 4
+                    dcPorts: 2
+                    acPorts: 2
+                    maxPowerKw: 150.0
+                    trustScore: 85
+                page: 0
+                size: 20
+                totalElements: 1
+                totalPages: 1
+                first: true
+                last: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/stations/{stationId}:
+    get:
+      tags:
+        - EV User Mobile
+      summary: Get published station detail
+      description: Get full detail of a published station including all charging ports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "d55ea94e-0367-4f80-948e-40cf789863f8"
+      responses:
+        '200':
+          description: Station detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationDetail'
+              example:
+                stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                name: "EV Station Hanoi Center"
+                address: "123 Nguyen Du, Hoan Kiem, Hanoi"
+                lat: 21.0285
+                lng: 105.8542
+                operatingHours: "24/7"
+                parking: "FREE"
+                visibility: "PUBLIC"
+                publicStatus: "OPEN"
+                trustScore: 85
+                services:
+                  - type: "CHARGING"
+                    chargingPorts:
+                      - powerType: "DC"
+                        powerKw: 150.0
+                        count: 2
+                      - powerType: "AC"
+                        powerKw: 22.0
+                        count: 2
+                chargingSummary:
+                  totalPorts: 4
+                  dcPorts: 2
+                  acPorts: 2
+                  maxPowerKw: 150.0
+                  minPowerKw: 22.0
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # EV User Mobile - Bookings
+  # ============================================
+  /api/ev/bookings:
+    post:
+      tags:
+        - Bookings
+      summary: Create a new booking
+      description: Create a booking with HOLD status. Hold expires in 10 minutes. Station must exist and have a published version.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBooking'
+            example:
+              stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+              startTime: "2026-01-08T10:00:00Z"
+              endTime: "2026-01-08T11:00:00Z"
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+              example:
+                id: "c9c62268-1fde-430b-9a0e-cc68296315f6"
+                userId: "ce5975f8-90df-489d-94dc-ff625edd1319"
+                stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                startTime: "2026-01-08T10:00:00Z"
+                endTime: "2026-01-08T11:00:00Z"
+                status: "HOLD"
+                holdExpiresAt: "2026-01-08T10:10:00Z"
+                createdAt: "2026-01-08T10:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    get:
+      tags:
+        - Bookings
+      summary: Get my bookings
+      description: Get all bookings for the current user, paginated
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse_BookingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Get a specific booking by ID (only if it belongs to the current user)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      tags:
+        - Bookings
+      summary: Cancel a booking
+      description: Cancel a booking. Allowed when status is HOLD or CONFIRMED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # EV User Mobile - Payments
+  # ============================================
+  /api/ev/bookings/{bookingId}/payment-intent:
+    post:
+      tags:
+        - Payments
+      summary: Create payment intent for a booking
+      description: Create a payment intent for a HOLD booking. Booking must be HOLD status and not expired. Only one payment intent can exist per booking.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Payment intent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentResponse'
+              example:
+                id: "1235ebbf-72da-4733-985b-090510ecde34"
+                bookingId: "c9c62268-1fde-430b-9a0e-cc68296315f6"
+                amount: 50000
+                currency: "VND"
+                status: "CREATED"
+                createdAt: "2026-01-08T10:00:00Z"
+                updatedAt: "2026-01-08T10:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/payments/{intentId}/simulate-success:
+    post:
+      tags:
+        - Payments
+      summary: Simulate payment success
+      description: Simulate a successful payment. Sets payment intent to SUCCEEDED and transitions booking HOLD -> CONFIRMED. Idempotent: calling twice returns the same result.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentResponse'
+              example:
+                id: "1235ebbf-72da-4733-985b-090510ecde34"
+                bookingId: "c9c62268-1fde-430b-9a0e-cc68296315f6"
+                amount: 50000
+                currency: "VND"
+                status: "SUCCEEDED"
+                createdAt: "2026-01-08T10:00:00Z"
+                updatedAt: "2026-01-08T10:05:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/payments/{intentId}/simulate-fail:
+    post:
+      tags:
+        - Payments
+      summary: Simulate payment failure
+      description: Simulate a failed payment. Sets payment intent to FAILED. Booking remains HOLD until it expires.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # EV User Mobile - Change Requests
+  # ============================================
+  /api/ev/change-requests:
+    post:
+      tags:
+        - Change Requests
+      summary: Create a new change request
+      description: Create a new change request for CREATE_STATION or UPDATE_STATION. Status will be DRAFT.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChangeRequest'
+            example:
+              type: "CREATE_STATION"
+              stationData:
+                name: "New EV Station"
+                address: "456 Le Loi, District 1, Ho Chi Minh City"
+                location:
+                  lat: 10.7769
+                  lng: 106.7009
+                operatingHours: "24/7"
+                parking: "FREE"
+                visibility: "PUBLIC"
+                publicStatus: "OPEN"
+                services:
+                  - type: "CHARGING"
+                    chargingPorts:
+                      - powerType: "DC"
+                        powerKw: 150.0
+                        count: 2
+                      - powerType: "AC"
+                        powerKw: 22.0
+                        count: 2
+      responses:
+        '201':
+          description: Change request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    get:
+      tags:
+        - Change Requests
+      summary: Get my change requests
+      description: Get all change requests submitted by the current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of change requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChangeRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/change-requests/{id}:
+    get:
+      tags:
+        - Change Requests
+      summary: Get a specific change request
+      description: Get details of a specific change request by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/change-requests/{id}/submit:
+    post:
+      tags:
+        - Change Requests
+      summary: Submit a change request for review
+      description: Submit a DRAFT change request for review. Status changes from DRAFT to PENDING.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change request submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeRequestResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # EV User Mobile - Issues
+  # ============================================
+  /api/ev/stations/{stationId}/issues:
+    post:
+      tags:
+        - EV User Issues
+      summary: Report an issue on a station
+      description: Report a data discrepancy (location, price, hours, ports, other) on a published station
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIssue'
+            example:
+              category: "LOCATION"
+              description: "Station location is incorrect. Actual location is 200m away from shown location."
+      responses:
+        '201':
+          description: Issue reported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/ev/issues/mine:
+    get:
+      tags:
+        - EV User Issues
+      summary: Get my reported issues
+      description: Get all issues reported by the current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IssueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Collaborator Mobile
+  # ============================================
+  /api/collab/mobile/test:
+    get:
+      tags:
+        - Collaborator Mobile
+      summary: Test endpoint
+      description: Test endpoint for Collaborator Mobile API
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Collaborator Mobile API is accessible"
+
+  # ============================================
+  # Collaborator Mobile - Verification
+  # ============================================
+  /api/collab/mobile/tasks:
+    get:
+      tags:
+        - Collaborator Mobile Verification
+      summary: Get assigned tasks for mobile
+      description: Get verification tasks assigned to the current collaborator with status ASSIGNED, CHECKED_IN, or SUBMITTED
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/VerificationTaskStatus'
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VerificationTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/collab/mobile/tasks/{id}/check-in:
+    post:
+      tags:
+        - Collaborator Mobile Verification
+      summary: Check-in at station
+      description: Check-in at the station location. Must be within 200 meters of the published station location. Requires task status to be ASSIGNED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Checkin'
+            example:
+              lat: 21.0285
+              lng: 105.8542
+      responses:
+        '200':
+          description: Check-in successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/collab/mobile/tasks/{id}/submit-evidence:
+    post:
+      tags:
+        - Collaborator Mobile Verification
+      summary: Submit verification evidence
+      description: Submit photo evidence for the verification task. Requires task status to be CHECKED_IN and collaborator must have active contract.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitEvidence'
+            example:
+              photoObjectKey: "verification/task-123/1234567890-abc12345.jpg"
+              notes: "Station is operational, all ports working"
+      responses:
+        '200':
+          description: Evidence submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Collaborator Mobile - Files
+  # ============================================
+  /api/collab/mobile/files/presign-upload:
+    post:
+      tags:
+        - Collaborator Mobile Files
+      summary: Generate presigned upload URL
+      description: Generate a presigned URL for uploading evidence photos. Client should use this URL to upload file directly to MinIO, then submit evidence with objectKey.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresignUploadRequest'
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignUploadResponse'
+              example:
+                objectKey: "verification/uploads/user-id/1234567890-abc12345.jpg"
+                uploadUrl: "http://minio:9000/voltgo-evidence/verification/uploads/user-id/1234567890-abc12345.jpg?X-Amz-Algorithm=..."
+                expiresAt: "2026-01-08T10:15:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Collaborator Web
+  # ============================================
+  /api/collab/web/test:
+    get:
+      tags:
+        - Collaborator Web
+      summary: Test endpoint
+      description: Test endpoint for Collaborator Web API
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Collaborator Web API is accessible"
+  
+  /api/collab/web/me/profile:
+    get:
+      tags:
+        - Collaborator Web
+      summary: Get my profile
+      description: Get the current collaborator's profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Collaborator profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollaboratorProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/collab/web/me/contracts:
+    get:
+      tags:
+        - Collaborator Web
+      summary: Get my contracts
+      description: Get the current collaborator's contracts with active flag
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of contracts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Collaborator Web - Verification
+  # ============================================
+  /api/collab/web/tasks:
+    get:
+      tags:
+        - Collaborator Web Verification
+      summary: Get tasks with filters
+      description: Get verification tasks assigned to the current collaborator with optional filters for status, priority, and SLA
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/VerificationTaskStatus'
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: slaDueBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_VerificationTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/collab/web/tasks/history:
+    get:
+      tags:
+        - Collaborator Web Verification
+      summary: Get task history
+      description: Get reviewed (completed) verification tasks for the current collaborator
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of completed tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_VerificationTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/collab/web/tasks/kpi:
+    get:
+      tags:
+        - Collaborator Web Verification
+      summary: Get KPI summary
+      description: Get simple KPI: count of reviewed tasks PASS/FAIL for the current month
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: KPI summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollaboratorKpi'
+              example:
+                month: "2026-01"
+                reviewedCount: 15
+                passCount: 12
+                failCount: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Collaborator Web - Files
+  # ============================================
+  /api/collab/web/files/presign-view:
+    get:
+      tags:
+        - Collaborator Web Files
+      summary: Generate presigned view URL
+      description: Generate a presigned URL for viewing/downloading files. Collaborator can only view evidence photos belonging to their assigned tasks.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: objectKey
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "verification/task-123/1234567890-abc12345.jpg"
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignViewResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web
+  # ============================================
+  /api/admin/test:
+    get:
+      tags:
+        - Admin Web
+      summary: Test endpoint
+      description: Test endpoint for Admin Web API
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin Web API is accessible"
+
+  # ============================================
+  # Admin Web - Change Requests
+  # ============================================
+  /api/admin/change-requests:
+    get:
+      tags:
+        - Admin Change Requests
+      summary: List change requests
+      description: Get all change requests with optional status filter
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ChangeRequestStatus'
+      responses:
+        '200':
+          description: List of change requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminChangeRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/change-requests/{id}:
+    get:
+      tags:
+        - Admin Change Requests
+      summary: Get change request details
+      description: Get full details of a specific change request including audit logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminChangeRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/change-requests/{id}/approve:
+    post:
+      tags:
+        - Admin Change Requests
+      summary: Approve change request
+      description: Approve a PENDING change request. Status changes to APPROVED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        '200':
+          description: Change request approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminChangeRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/change-requests/{id}/reject:
+    post:
+      tags:
+        - Admin Change Requests
+      summary: Reject change request
+      description: Reject a PENDING change request. Reason is required.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+            example:
+              reason: "Location coordinates are invalid"
+      responses:
+        '200':
+          description: Change request rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminChangeRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/change-requests/{id}/publish:
+    post:
+      tags:
+        - Admin Change Requests
+      summary: Publish change request
+      description: Publish an APPROVED change request. This makes the station version publicly visible.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Change request published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminChangeRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web - Issues
+  # ============================================
+  /api/admin/issues:
+    get:
+      tags:
+        - Admin Issues
+      summary: List issues
+      description: Get all issues with optional status filter
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/IssueStatus'
+      responses:
+        '200':
+          description: List of issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminIssueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/issues/{id}:
+    get:
+      tags:
+        - Admin Issues
+      summary: Get issue details
+      description: Get full details of a specific issue
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Issue details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminIssueResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/issues/{id}/acknowledge:
+    post:
+      tags:
+        - Admin Issues
+      summary: Acknowledge an issue
+      description: Mark an OPEN issue as ACKNOWLEDGED (seen by admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Issue acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminIssueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/issues/{id}/resolve:
+    post:
+      tags:
+        - Admin Issues
+      summary: Resolve an issue
+      description: Mark an OPEN or ACKNOWLEDGED issue as RESOLVED
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueAction'
+            example:
+              note: "Issue resolved. Station location updated."
+      responses:
+        '200':
+          description: Issue resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminIssueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/issues/{id}/reject:
+    post:
+      tags:
+        - Admin Issues
+      summary: Reject an issue
+      description: Mark an OPEN or ACKNOWLEDGED issue as REJECTED (invalid report)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueAction'
+            example:
+              note: "Issue is invalid. Location is correct."
+      responses:
+        '200':
+          description: Issue rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminIssueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web - Verification
+  # ============================================
+  /api/admin/verification-tasks:
+    post:
+      tags:
+        - Admin Verification
+      summary: Create a verification task
+      description: Create a new verification task for a station. Optionally link to a change request.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTask'
+            example:
+              stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+              changeRequestId: "abc12345-6789-0123-4567-890123456789"
+              priority: 5
+              slaDueHours: 48
+      responses:
+        '200':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    get:
+      tags:
+        - Admin Verification
+      summary: Get verification tasks
+      description: Get verification tasks with optional status filter
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/VerificationTaskStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_VerificationTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/verification-tasks/{id}:
+    get:
+      tags:
+        - Admin Verification
+      summary: Get verification task by ID
+      description: Get a specific verification task with all details including evidence and review
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/verification-tasks/{id}/assign:
+    post:
+      tags:
+        - Admin Verification
+      summary: Assign task to collaborator
+      description: Assign an OPEN verification task to a collaborator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTask'
+            example:
+              collaboratorUserId: "ce5975f8-90df-489d-94dc-ff625edd1319"
+      responses:
+        '200':
+          description: Task assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/verification-tasks/{id}/review:
+    post:
+      tags:
+        - Admin Verification
+      summary: Review verification task
+      description: Review a SUBMITTED verification task as PASS or FAIL
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewTask'
+            example:
+              result: "PASS"
+              note: "All ports verified and working correctly"
+      responses:
+        '200':
+          description: Task reviewed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web - Files
+  # ============================================
+  /api/admin/files/presign-view:
+    get:
+      tags:
+        - Admin Files
+      summary: Generate presigned view URL
+      description: Generate a presigned URL for viewing/downloading files. Admin can view any file by objectKey.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: objectKey
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "verification/task-123/1234567890-abc12345.jpg"
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignViewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web - Stations
+  # ============================================
+  /api/admin/stations/{stationId}/trust:
+    get:
+      tags:
+        - Admin Stations
+      summary: Get station trust score breakdown
+      description: Get full trust score with detailed breakdown for a station (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trust score details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationTrust'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/stations/{stationId}/trust/recalculate:
+    post:
+      tags:
+        - Admin Stations
+      summary: Recalculate station trust score
+      description: Force recalculation of trust score for a station
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trust score recalculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationTrust'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================
+  # Admin Web - Audit Logs
+  # ============================================
+  /api/admin/audit:
+    get:
+      tags:
+        - Admin Audit Logs
+      summary: Query audit logs
+      description: Query audit logs with optional filters: entityType, entityId, from, to
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: entityType
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by entity type: CHANGE_REQUEST, STATION, STATION_VERSION
+        - name: entityId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of audit logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse_AuditLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/stations/{stationId}/audit:
+    get:
+      tags:
+        - Admin Audit Logs
+      summary: Get station audit logs
+      description: Get all audit logs related to a station (including versions and change requests)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/admin/change-requests/{id}/audit:
+    get:
+      tags:
+        - Admin Audit Logs
+      summary: Get change request audit logs
+      description: Get all audit logs for a specific change request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login or /auth/register
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: Page number (0-indexed)
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Page size
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            traceId: "abc12345-6789-0123-4567-890123456789"
+            code: "EVS-0002"
+            message: "Validation error"
+            timestamp: "2026-01-08T10:00:00Z"
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            traceId: "abc12345-6789-0123-4567-890123456789"
+            code: "EVS-0004"
+            message: "Unauthorized"
+            timestamp: "2026-01-08T10:00:00Z"
+    
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            traceId: "abc12345-6789-0123-4567-890123456789"
+            code: "EVS-0005"
+            message: "Forbidden"
+            timestamp: "2026-01-08T10:00:00Z"
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            traceId: "abc12345-6789-0123-4567-890123456789"
+            code: "EVS-0003"
+            message: "Resource not found"
+            timestamp: "2026-01-08T10:00:00Z"
+
+  schemas:
+    # ============================================
+    # Common Schemas
+    # ============================================
+    ApiError:
+      type: object
+      properties:
+        traceId:
+          type: string
+          format: uuid
+          description: Request trace ID
+        code:
+          type: string
+          description: Error code (e.g., EVS-0001)
+        message:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+
+    PaginationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items: {}
+        page:
+          type: integer
+          description: Current page number (0-indexed)
+        size:
+          type: integer
+          description: Page size
+        totalElements:
+          type: integer
+          description: Total number of elements
+        totalPages:
+          type: integer
+          description: Total number of pages
+        first:
+          type: boolean
+          description: Is first page
+        last:
+          type: boolean
+          description: Is last page
+
+    PaginationResponse_StationListItem:
+      allOf:
+        - $ref: '#/components/schemas/PaginationResponse'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/StationListItem'
+
+    PaginationResponse_BookingResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginationResponse'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookingResponse'
+
+    PaginationResponse_AuditLog:
+      allOf:
+        - $ref: '#/components/schemas/PaginationResponse'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditLogResponse'
+
+    Page_VerificationTask:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationTask'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+
+    # ============================================
+    # Authentication Schemas
+    # ============================================
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "SecurePass123!"
+        role:
+          type: string
+          enum: [EV_USER, PROVIDER, COLLABORATOR]
+          example: "EV_USER"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "SecurePass123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        userId:
+          type: string
+          format: uuid
+          example: "ce5975f8-90df-489d-94dc-ff625edd1319"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        role:
+          type: string
+          example: "EV_USER"
+
+    # ============================================
+    # Station Schemas
+    # ============================================
+    StationListItem:
+      type: object
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        operatingHours:
+          type: string
+        parking:
+          type: string
+          enum: [PAID, FREE, UNKNOWN]
+        visibility:
+          type: string
+          enum: [PUBLIC, PRIVATE, RESTRICTED]
+        publicStatus:
+          type: string
+          enum: [ACTIVE, INACTIVE, MAINTENANCE]
+        chargingSummary:
+          $ref: '#/components/schemas/ChargingSummary'
+        trustScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    StationDetail:
+      type: object
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        operatingHours:
+          type: string
+        parking:
+          type: string
+          enum: [PAID, FREE, UNKNOWN]
+        visibility:
+          type: string
+          enum: [PUBLIC, PRIVATE, RESTRICTED]
+        publicStatus:
+          type: string
+          enum: [ACTIVE, INACTIVE, MAINTENANCE]
+        publishedAt:
+          type: string
+          format: date-time
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortInfo'
+        trustScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    ChargingSummary:
+      type: object
+      properties:
+        totalPorts:
+          type: integer
+        dcPorts:
+          type: integer
+        acPorts:
+          type: integer
+        maxPowerKw:
+          type: number
+          format: double
+        minPowerKw:
+          type: number
+          format: double
+
+    PortInfo:
+      type: object
+      properties:
+        powerType:
+          type: string
+          enum: [DC, AC]
+        powerKw:
+          type: number
+          format: double
+        count:
+          type: integer
+
+    # ============================================
+    # Booking Schemas
+    # ============================================
+    CreateBooking:
+      type: object
+      required:
+        - stationId
+        - startTime
+        - endTime
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+
+    BookingResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        stationId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [HOLD, CONFIRMED, CANCELLED, EXPIRED]
+        holdExpiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    # ============================================
+    # Payment Schemas
+    # ============================================
+    PaymentIntentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          description: Amount in smallest currency unit (VND)
+        currency:
+          type: string
+          default: "VND"
+        status:
+          type: string
+          enum: [CREATED, SUCCEEDED, FAILED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ============================================
+    # Change Request Schemas
+    # ============================================
+    CreateChangeRequest:
+      type: object
+      required:
+        - type
+        - stationData
+      properties:
+        type:
+          $ref: '#/components/schemas/ChangeRequestType'
+        stationId:
+          type: string
+          format: uuid
+          description: Required for UPDATE_STATION, must be null for CREATE_STATION
+        stationData:
+          $ref: '#/components/schemas/StationData'
+
+    ChangeRequestResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeRequestType'
+        status:
+          $ref: '#/components/schemas/ChangeRequestStatus'
+        stationId:
+          type: string
+          format: uuid
+        proposedStationVersionId:
+          type: string
+          format: uuid
+        submittedBy:
+          type: string
+          format: uuid
+        riskScore:
+          type: integer
+        riskReasons:
+          type: array
+          items:
+            type: string
+        adminNote:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: string
+          format: date-time
+        stationData:
+          $ref: '#/components/schemas/StationData'
+
+    AdminChangeRequest:
+      allOf:
+        - $ref: '#/components/schemas/ChangeRequestResponse'
+        - type: object
+          properties:
+            submitterEmail:
+              type: string
+              format: email
+            auditLogs:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditLogDTO'
+
+    StationData:
+      type: object
+      required:
+        - name
+        - address
+        - location
+        - parking
+        - visibility
+        - publicStatus
+        - services
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+        address:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        operatingHours:
+          type: string
+        parking:
+          $ref: '#/components/schemas/ParkingType'
+        visibility:
+          $ref: '#/components/schemas/VisibilityType'
+        publicStatus:
+          $ref: '#/components/schemas/PublicStatus'
+        services:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Service'
+
+    Location:
+      type: object
+      required:
+        - lat
+        - lng
+      properties:
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    Service:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/ServiceType'
+        chargingPorts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargingPort'
+
+    ChargingPort:
+      type: object
+      required:
+        - powerType
+        - count
+      properties:
+        powerType:
+          $ref: '#/components/schemas/PowerType'
+        powerKw:
+          type: number
+          format: double
+          description: Required for DC, optional for AC
+        count:
+          type: integer
+          minimum: 1
+
+    ApproveRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional admin note
+
+    RejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Rejection reason
+
+    # ============================================
+    # Issue Schemas
+    # ============================================
+    CreateIssue:
+      type: object
+      required:
+        - category
+        - description
+      properties:
+        category:
+          $ref: '#/components/schemas/IssueCategory'
+        description:
+          type: string
+
+    IssueResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stationId:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/IssueCategory'
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/IssueStatus'
+        reportedBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminIssueResponse:
+      allOf:
+        - $ref: '#/components/schemas/IssueResponse'
+        - type: object
+          properties:
+            reporterEmail:
+              type: string
+              format: email
+            acknowledgedBy:
+              type: string
+              format: uuid
+            acknowledgedAt:
+              type: string
+              format: date-time
+            resolvedBy:
+              type: string
+              format: uuid
+            resolvedAt:
+              type: string
+              format: date-time
+            adminNote:
+              type: string
+
+    IssueAction:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: Admin note for the action
+
+    # ============================================
+    # Verification Schemas
+    # ============================================
+    CreateTask:
+      type: object
+      required:
+        - stationId
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        changeRequestId:
+          type: string
+          format: uuid
+          description: Optional link to change request
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+        slaDueHours:
+          type: integer
+          description: SLA in hours from task creation
+
+    AssignTask:
+      type: object
+      required:
+        - collaboratorUserId
+      properties:
+        collaboratorUserId:
+          type: string
+          format: uuid
+
+    VerificationTask:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stationId:
+          type: string
+          format: uuid
+        stationName:
+          type: string
+        changeRequestId:
+          type: string
+          format: uuid
+        priority:
+          type: integer
+        slaDueAt:
+          type: string
+          format: date-time
+        assignedTo:
+          type: string
+          format: uuid
+        assignedToEmail:
+          type: string
+          format: email
+        status:
+          $ref: '#/components/schemas/VerificationTaskStatus'
+        createdAt:
+          type: string
+          format: date-time
+        checkin:
+          $ref: '#/components/schemas/CheckinInfo'
+        evidences:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+        review:
+          $ref: '#/components/schemas/Review'
+
+    Checkin:
+      type: object
+      required:
+        - lat
+        - lng
+      properties:
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        deviceNote:
+          type: string
+
+    CheckinInfo:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        checkedInAt:
+          type: string
+          format: date-time
+        distanceM:
+          type: integer
+          description: Distance from station in meters
+        deviceNote:
+          type: string
+
+    SubmitEvidence:
+      type: object
+      required:
+        - photoObjectKey
+      properties:
+        photoObjectKey:
+          type: string
+          description: Object key from presigned upload
+        note:
+          type: string
+
+    Evidence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        photoObjectKey:
+          type: string
+        note:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        submittedBy:
+          type: string
+          format: uuid
+
+    ReviewTask:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          type: string
+          enum: [PASS, FAIL]
+        note:
+          type: string
+
+    Review:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [PASS, FAIL]
+        adminNote:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        reviewedBy:
+          type: string
+          format: uuid
+
+    CollaboratorKpi:
+      type: object
+      properties:
+        month:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          example: "2026-01"
+        reviewedCount:
+          type: integer
+        passCount:
+          type: integer
+        failCount:
+          type: integer
+
+    # ============================================
+    # File Storage Schemas
+    # ============================================
+    PresignUploadRequest:
+      type: object
+      properties:
+        contentType:
+          type: string
+          default: "image/jpeg"
+          example: "image/jpeg"
+
+    PresignUploadResponse:
+      type: object
+      properties:
+        objectKey:
+          type: string
+          description: Object key (path) in the bucket
+        uploadUrl:
+          type: string
+          format: uri
+          description: Presigned URL for PUT operation
+        expiresAt:
+          type: string
+          format: date-time
+
+    PresignViewResponse:
+      type: object
+      properties:
+        viewUrl:
+          type: string
+          format: uri
+          description: Presigned URL for GET operation
+        expiresAt:
+          type: string
+          format: date-time
+
+    # ============================================
+    # Collaborator Schemas
+    # ============================================
+    CollaboratorProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userAccountId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+
+    Contract:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        collaboratorId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        active:
+          type: boolean
+
+    # ============================================
+    # Admin Schemas
+    # ============================================
+    StationTrust:
+      type: object
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        breakdown:
+          type: object
+          description: Detailed breakdown of trust score components
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuditLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+        actorRole:
+          type: string
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLogDTO:
+      type: object
+      properties:
+        action:
+          type: string
+        actorId:
+          type: string
+          format: uuid
+        actorRole:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    # ============================================
+    # Enum Schemas
+    # ============================================
+    ChangeRequestType:
+      type: string
+      enum: [CREATE_STATION, UPDATE_STATION]
+
+    ChangeRequestStatus:
+      type: string
+      enum: [DRAFT, PENDING, APPROVED, REJECTED, PUBLISHED]
+
+    IssueCategory:
+      type: string
+      enum: [LOCATION, PRICE, HOURS, PORTS, OTHER]
+
+    IssueStatus:
+      type: string
+      enum: [OPEN, ACKNOWLEDGED, RESOLVED, REJECTED]
+
+    VerificationTaskStatus:
+      type: string
+      enum: [OPEN, ASSIGNED, CHECKED_IN, SUBMITTED, REVIEWED]
+
+    ParkingType:
+      type: string
+      enum: [PAID, FREE, UNKNOWN]
+
+    VisibilityType:
+      type: string
+      enum: [PUBLIC, PRIVATE, RESTRICTED]
+
+    PublicStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, MAINTENANCE]
+
+    ServiceType:
+      type: string
+      enum: [CHARGING, PARKING, RESTROOM, CAFE, OTHER]
+
+    PowerType:
+      type: string
+      enum: [DC, AC]

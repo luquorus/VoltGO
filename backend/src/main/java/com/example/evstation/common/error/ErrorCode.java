@@ -12,6 +12,8 @@ public enum ErrorCode {
     NOT_FOUND("EVS-0003", "Resource not found"),
     UNAUTHORIZED("EVS-0004", "Unauthorized"),
     FORBIDDEN("EVS-0005", "Forbidden"),
+    INVALID_INPUT("EVS-0006", "Invalid input"),
+    INVALID_STATE("EVS-0007", "Invalid state"),
     
     // Add more error codes as needed
     ;

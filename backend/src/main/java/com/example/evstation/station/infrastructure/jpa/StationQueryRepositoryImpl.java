@@ -6,6 +6,7 @@ import com.example.evstation.api.ev_user_mobile.dto.StationDetailDTO;
 import com.example.evstation.api.ev_user_mobile.dto.StationListItemDTO;
 import com.example.evstation.station.application.port.StationQueryRepository;
 import com.example.evstation.station.domain.PowerType;
+import com.example.evstation.trust.infrastructure.jpa.StationTrustJpaRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -25,6 +26,8 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
 
     @PersistenceContext
     private final EntityManager entityManager;
+    
+    private final StationTrustJpaRepository trustRepository;
 
     @Override
     public Page<StationListItemDTO> findPublishedStationsWithinRadius(
@@ -159,6 +162,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
 
             // Fetch charging summary
             ChargingSummaryDTO chargingSummary = getChargingSummaryForStationVersion(stationId);
+            
+            // Get real trust score, default to 50 if not calculated yet
+            Integer trustScore = trustRepository.findById(stationId)
+                    .map(trust -> trust.getScore())
+                    .orElse(50);
 
             stations.add(StationListItemDTO.builder()
                     .stationId(stationId.toString())
@@ -171,7 +179,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                     .visibility(visibility)
                     .publicStatus(publicStatus)
                     .chargingSummary(chargingSummary)
-                    .trustScore(50) // tạm 50
+                    .trustScore(trustScore)
                     .build());
         }
 
@@ -222,6 +230,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
 
         // Fetch charging ports
         List<PortInfoDTO> ports = getChargingPortsForStation(stationId);
+        
+        // Get real trust score, default to 50 if not calculated yet
+        Integer trustScore = trustRepository.findById(stationId)
+                .map(trust -> trust.getScore())
+                .orElse(50);
 
         return Optional.of(StationDetailDTO.builder()
                 .stationId(foundStationId.toString())
@@ -235,7 +248,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 .publicStatus(publicStatus)
                 .publishedAt(publishedAt)
                 .ports(ports)
-                .trustScore(50) // tạm 50
+                .trustScore(trustScore)
                 .build());
     }
 

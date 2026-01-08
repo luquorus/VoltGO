@@ -16,6 +16,10 @@ cd infra
 docker-compose up -d
 ```
 
+Admin account: 
+Email: admin@local
+Password: Admin@123
+
 ## Bước 3: Tạo Gradle Wrapper (nếu chưa có)
 
 ```powershell
