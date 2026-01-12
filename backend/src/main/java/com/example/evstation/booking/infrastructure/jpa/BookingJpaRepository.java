@@ -41,22 +41,20 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
             @Param("now") Instant now);
     
     /**
-     * Count active bookings (HOLD or CONFIRMED) for a station in a time range
-     * Used for future slot availability checks
+     * Find bookings for charger units in a time range (for availability check)
+     * Returns bookings that overlap with the time range and are active (HOLD or CONFIRMED)
      */
     @Query("""
-        SELECT COUNT(b) FROM BookingEntity b 
-        WHERE b.stationId = :stationId 
+        SELECT b FROM BookingEntity b 
+        WHERE b.chargerUnitId IN :chargerUnitIds
         AND b.status IN ('HOLD', 'CONFIRMED')
-        AND (
-            (b.startTime <= :startTime AND b.endTime > :startTime)
-            OR (b.startTime < :endTime AND b.endTime >= :endTime)
-            OR (b.startTime >= :startTime AND b.endTime <= :endTime)
-        )
+        AND b.startTime < :dayEnd
+        AND b.endTime > :dayStart
+        ORDER BY b.chargerUnitId, b.startTime
         """)
-    long countOverlappingBookings(
-            @Param("stationId") UUID stationId,
-            @Param("startTime") Instant startTime,
-            @Param("endTime") Instant endTime);
+    List<BookingEntity> findBookingsForAvailability(
+            @Param("chargerUnitIds") List<UUID> chargerUnitIds,
+            @Param("dayStart") Instant dayStart,
+            @Param("dayEnd") Instant dayEnd);
 }
 

@@ -93,6 +93,70 @@ services:
       - voltgo-network
     restart: unless-stopped
 
+  # Frontend: EV User Mobile Web
+  frontend-ev-user:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.flutter-web
+      args:
+        APP_NAME: ev_user_mobile
+    container_name: voltgo-frontend-ev-user
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    networks:
+      - voltgo-network
+    restart: unless-stopped
+
+  # Frontend: Admin Web Portal
+  frontend-admin:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.flutter-web
+      args:
+        APP_NAME: admin_web
+    container_name: voltgo-frontend-admin
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+    networks:
+      - voltgo-network
+    restart: unless-stopped
+
+  # Frontend: Collaborator Web
+  frontend-collab-web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.flutter-web
+      args:
+        APP_NAME: collab_web
+    container_name: voltgo-frontend-collab-web
+    ports:
+      - "3003:80"
+    depends_on:
+      - backend
+    networks:
+      - voltgo-network
+    restart: unless-stopped
+
+  # Frontend: Collaborator Mobile Web
+  frontend-collab-mobile:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.flutter-web
+      args:
+        APP_NAME: collab_mobile
+    container_name: voltgo-frontend-collab-mobile
+    ports:
+      - "3004:80"
+    depends_on:
+      - backend
+    networks:
+      - voltgo-network
+    restart: unless-stopped
+
 
 volumes:
   postgres_data:

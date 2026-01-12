@@ -332,5 +332,91 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public Page<StationListItemDTO> searchPublishedStationsByName(
+            String nameQuery,
+            Pageable pageable) {
+        
+        // Build search query with case-insensitive LIKE
+        String searchPattern = "%" + nameQuery.toLowerCase() + "%";
+        
+        String query = """
+            SELECT 
+                sv.station_id,
+                sv.name,
+                sv.address,
+                ST_Y(CAST(sv.location AS geometry)) as lat,
+                ST_X(CAST(sv.location AS geometry)) as lng,
+                sv.operating_hours,
+                sv.parking,
+                sv.visibility,
+                sv.public_status
+            FROM station_version sv
+            WHERE sv.workflow_status = 'PUBLISHED'
+            AND LOWER(sv.name) LIKE :searchPattern
+            ORDER BY sv.name
+            LIMIT :limit OFFSET :offset
+            """;
+
+        String countQuery = """
+            SELECT COUNT(DISTINCT sv.station_id)
+            FROM station_version sv
+            WHERE sv.workflow_status = 'PUBLISHED'
+            AND LOWER(sv.name) LIKE :searchPattern
+            """;
+
+        // Count total
+        Query countNativeQuery = entityManager.createNativeQuery(countQuery);
+        countNativeQuery.setParameter("searchPattern", searchPattern);
+        long total = ((Number) countNativeQuery.getSingleResult()).longValue();
+
+        // Get paginated results
+        Query nativeQuery = entityManager.createNativeQuery(query);
+        nativeQuery.setParameter("searchPattern", searchPattern);
+        nativeQuery.setParameter("limit", pageable.getPageSize());
+        nativeQuery.setParameter("offset", pageable.getOffset());
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = nativeQuery.getResultList();
+
+        // Map to DTOs
+        List<StationListItemDTO> stations = new ArrayList<>();
+        for (Object[] row : results) {
+            UUID stationId = (UUID) row[0];
+            String name = (String) row[1];
+            String address = (String) row[2];
+            Double stationLat = ((Number) row[3]).doubleValue();
+            Double stationLng = ((Number) row[4]).doubleValue();
+            String operatingHours = (String) row[5];
+            String parking = (String) row[6];
+            String visibility = (String) row[7];
+            String publicStatus = (String) row[8];
+
+            // Fetch charging summary
+            ChargingSummaryDTO chargingSummary = getChargingSummaryForStationVersion(stationId);
+            
+            // Get real trust score, default to 50 if not calculated yet
+            Integer trustScore = trustRepository.findById(stationId)
+                    .map(trust -> trust.getScore())
+                    .orElse(50);
+
+            stations.add(StationListItemDTO.builder()
+                    .stationId(stationId.toString())
+                    .name(name)
+                    .address(address)
+                    .lat(stationLat)
+                    .lng(stationLng)
+                    .operatingHours(operatingHours)
+                    .parking(parking)
+                    .visibility(visibility)
+                    .publicStatus(publicStatus)
+                    .chargingSummary(chargingSummary)
+                    .trustScore(trustScore)
+                    .build());
+        }
+
+        return new PageImpl<>(stations, pageable, total);
+    }
 }
 

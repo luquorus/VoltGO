@@ -1,0 +1,35 @@
+# Development Dockerfile for Flutter Web with hot reload
+ARG APP_NAME
+FROM ghcr.io/cirruslabs/flutter:stable AS build
+
+ARG APP_NAME
+
+WORKDIR /app
+
+# Copy apps directory
+COPY apps ./apps
+
+# Get dependencies for shared packages
+WORKDIR /app/apps/shared/shared_ui
+RUN flutter pub get
+
+WORKDIR /app/apps/shared/shared_auth
+RUN flutter pub get
+
+WORKDIR /app/apps/shared/shared_network
+RUN flutter pub get
+
+WORKDIR /app/apps/shared/shared_api
+RUN flutter pub get
+
+# Get dependencies for target app
+ARG APP_NAME
+WORKDIR /app/apps/${APP_NAME}
+RUN flutter pub get
+
+# Expose port for dev server
+EXPOSE 80
+
+# Default command (can be overridden in docker-compose)
+CMD ["flutter", "run", "-d", "web-server", "--web-port=80", "--web-hostname=0.0.0.0"]
+

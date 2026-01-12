@@ -66,5 +66,8 @@ public interface VerificationTaskJpaRepository extends JpaRepository<Verificatio
     List<VerificationTaskEntity> findByStationIdOrderByCreatedAtDesc(UUID stationId);
     
     Page<VerificationTaskEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    
+    // For candidate query: get all tasks assigned to a user
+    List<VerificationTaskEntity> findByAssignedTo(UUID assignedTo);
 }
 

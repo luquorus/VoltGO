@@ -1,0 +1,77 @@
+# Multi-stage build for Flutter Web
+ARG APP_NAME
+FROM ghcr.io/cirruslabs/flutter:stable AS build
+
+# Re-declare ARG for use in RUN commands
+ARG APP_NAME
+
+WORKDIR /app
+
+# Copy apps directory (shared packages are inside apps/shared/)
+# Apps reference shared with path: ../shared/shared_ui (relative to apps/)
+COPY apps ./apps
+
+# Note: Flutter image may already have a non-root user or run as root
+# Flutter will warn but still work as root in Docker
+
+# Enable verbose output for debugging
+ENV FLUTTER_VERBOSE=true
+
+# Verify structure
+RUN echo "=== Project structure ===" && \
+    ls -la /app/ && \
+    echo "=== Apps ===" && \
+    ls -la /app/apps/ && \
+    echo "=== Shared ===" && \
+    ls -la /app/apps/shared/ || true
+
+# Get dependencies for shared packages in correct order
+# Order: shared_ui (no deps) -> shared_auth -> shared_network -> shared_api
+WORKDIR /app/apps/shared/shared_ui
+RUN echo "=== Installing shared_ui ===" && \
+    flutter pub get
+
+WORKDIR /app/apps/shared/shared_auth
+RUN echo "=== Installing shared_auth ===" && \
+    flutter pub get
+
+WORKDIR /app/apps/shared/shared_network
+RUN echo "=== Installing shared_network ===" && \
+    flutter pub get
+
+WORKDIR /app/apps/shared/shared_api
+RUN echo "=== Installing shared_api ===" && \
+    flutter pub get
+
+# Get dependencies for target app
+# Re-declare ARG before using in RUN
+ARG APP_NAME
+WORKDIR /app/apps/${APP_NAME}
+RUN echo "=== Installing app: ${APP_NAME} ===" && \
+    echo "Current directory: $(pwd)" && \
+    echo "Checking shared packages:" && \
+    ls -la ../shared/ && \
+    flutter pub get
+
+# Build Flutter web (removed --web-renderer, deprecated in newer Flutter)
+ARG APP_NAME
+WORKDIR /app/apps/${APP_NAME}
+RUN echo "=== Building ${APP_NAME} web ===" && \
+    flutter build web --release --base-href /
+
+# Production stage - nginx
+FROM nginx:alpine
+
+# Re-declare ARG for COPY command
+ARG APP_NAME
+
+# Copy built web files
+COPY --from=build /app/apps/${APP_NAME}/build/web /usr/share/nginx/html
+
+# Copy nginx config
+COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+

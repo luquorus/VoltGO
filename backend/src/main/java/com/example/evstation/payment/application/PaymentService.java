@@ -30,7 +30,7 @@ public class PaymentService {
     private final AuditLogJpaRepository auditLogRepository;
     private final Clock clock;
     
-    // Mock fixed amount for Phase 1 (can be computed based on duration later)
+    // Fallback amount if price snapshot is missing or invalid
     private static final int MOCK_AMOUNT_VND = 50000; // 50,000 VND
     
     /**
@@ -69,8 +69,8 @@ public class PaymentService {
                     "Payment intent already exists for this booking");
         }
         
-        // Calculate amount (mock: fixed amount, can be computed based on duration later)
-        int amount = calculateAmount(booking.getStartTime(), booking.getEndTime());
+        // Get amount from booking price snapshot
+        int amount = getAmountFromPriceSnapshot(booking.getPriceSnapshot());
         
         // Create payment intent
         Instant createdAt = now;
@@ -236,18 +236,32 @@ public class PaymentService {
     }
     
     /**
-     * Calculate payment amount based on booking duration
-     * Phase 1: Mock fixed amount
-     * Phase 2: Can compute based on duration, station pricing, etc.
+     * Get payment amount from booking price snapshot
      */
-    private int calculateAmount(Instant startTime, Instant endTime) {
-        // Phase 1: Fixed mock amount
-        return MOCK_AMOUNT_VND;
+    private int getAmountFromPriceSnapshot(Map<String, Object> priceSnapshot) {
+        if (priceSnapshot == null || priceSnapshot.isEmpty()) {
+            log.warn("Price snapshot is null or empty, using fallback amount");
+            return MOCK_AMOUNT_VND;
+        }
         
-        // Phase 2: Can compute based on duration
-        // Duration duration = Duration.between(startTime, endTime);
-        // long minutes = duration.toMinutes();
-        // return (int) (minutes * PRICE_PER_MINUTE);
+        Object amountObj = priceSnapshot.get("amount");
+        if (amountObj == null) {
+            log.warn("Amount not found in price snapshot, using fallback amount");
+            return MOCK_AMOUNT_VND;
+        }
+        
+        // Handle different numeric types (Integer, Long, Double, etc.)
+        if (amountObj instanceof Number) {
+            return ((Number) amountObj).intValue();
+        }
+        
+        // Try to parse as string
+        try {
+            return Integer.parseInt(amountObj.toString());
+        } catch (NumberFormatException e) {
+            log.warn("Cannot parse amount from price snapshot: {}, using fallback amount", amountObj);
+            return MOCK_AMOUNT_VND;
+        }
     }
     
     private PaymentIntentResponseDTO toDTO(PaymentIntentEntity entity) {

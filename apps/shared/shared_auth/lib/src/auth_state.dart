@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_response.dart';
 import 'token_storage.dart';
 import 'auth_service.dart';
+import 'package:shared_api/shared_api.dart';
 
 /// Auth state model
 class AuthState {
@@ -63,21 +64,39 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Login via API
+  /// Login via API (using AuthService or ApiClientFactory)
   Future<void> login(String email, String password) async {
-    if (_authService == null) {
-      throw Exception('AuthService not provided');
+    if (_authService != null) {
+      // Legacy: using AuthService
+      final response = await _authService!.login(email, password);
+      await _saveAuthResponse(response);
+    } else {
+      throw Exception('AuthService or ApiClientFactory must be provided');
     }
-    final response = await _authService!.login(email, password);
+  }
+
+  /// Register via API (using AuthService or ApiClientFactory)
+  Future<void> register(String email, String password, String role) async {
+    if (_authService != null) {
+      // Legacy: using AuthService
+      final response = await _authService!.register(email, password, role);
+      await _saveAuthResponse(response);
+    } else {
+      throw Exception('AuthService or ApiClientFactory must be provided');
+    }
+  }
+
+  /// Login via ApiClientFactory (new method)
+  Future<void> loginWithApiClient(AuthApiClient authClient, String email, String password) async {
+    final responseData = await authClient.login(email: email, password: password);
+    final response = AuthResponse.fromJson(responseData);
     await _saveAuthResponse(response);
   }
 
-  /// Register via API
-  Future<void> register(String email, String password, String role) async {
-    if (_authService == null) {
-      throw Exception('AuthService not provided');
-    }
-    final response = await _authService!.register(email, password, role);
+  /// Register via ApiClientFactory (new method)
+  Future<void> registerWithApiClient(AuthApiClient authClient, String email, String password, String role) async {
+    final responseData = await authClient.register(email: email, password: password, role: role);
+    final response = AuthResponse.fromJson(responseData);
     await _saveAuthResponse(response);
   }
 

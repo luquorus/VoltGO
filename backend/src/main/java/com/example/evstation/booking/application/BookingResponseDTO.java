@@ -13,10 +13,12 @@ public class BookingResponseDTO {
     private UUID id;
     private UUID userId;
     private UUID stationId;
+    private UUID chargerUnitId;
     private Instant startTime;
     private Instant endTime;
     private String status; // HOLD, CONFIRMED, CANCELLED, EXPIRED
     private Instant holdExpiresAt;
     private Instant createdAt;
+    private java.util.Map<String, Object> priceSnapshot; // Snapshot of pricing at booking time
 }
 

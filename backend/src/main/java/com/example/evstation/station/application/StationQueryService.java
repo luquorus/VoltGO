@@ -46,5 +46,14 @@ public class StationQueryService {
     public Optional<StationDetailDTO> findStationDetail(UUID stationId) {
         return queryRepository.findPublishedStationDetail(stationId);
     }
+
+    /**
+     * Search published stations by name
+     */
+    public Page<StationListItemDTO> searchStationsByName(
+            String nameQuery,
+            Pageable pageable) {
+        return queryRepository.searchPublishedStationsByName(nameQuery, pageable);
+    }
 }
 

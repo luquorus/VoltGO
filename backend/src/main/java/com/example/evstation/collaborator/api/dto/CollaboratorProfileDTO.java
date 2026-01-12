@@ -15,5 +15,8 @@ public class CollaboratorProfileDTO {
     private String phone;
     private Instant createdAt;
     private Boolean hasActiveContract;
+    
+    // Location fields
+    private CollaboratorLocationDTO location;
 }
 

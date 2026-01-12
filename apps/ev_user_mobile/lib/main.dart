@@ -18,6 +18,11 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
+        // Initialize ApiClientFactory
+        apiClientFactoryProvider.overrideWith((ref) {
+          return ApiClientFactory.create(ref, baseUrl: baseUrl);
+        }),
+        // Keep AuthService for backward compatibility (will migrate to ApiClientFactory)
         authServiceProvider.overrideWith((ref) {
           final dio = ref.read(dioClientProvider(baseUrl));
           return AuthService(dio);
@@ -37,8 +42,17 @@ class EvUserMobileApp extends ConsumerWidget {
     
     return MaterialApp.router(
       title: 'VoltGo - EV User',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme.copyWith(
+        // Add Noto Sans font for Vietnamese support
+        textTheme: AppTheme.lightTheme.textTheme.apply(
+          fontFamily: 'Noto Sans',
+        ),
+      ),
+      darkTheme: AppTheme.darkTheme.copyWith(
+        textTheme: AppTheme.darkTheme.textTheme.apply(
+          fontFamily: 'Noto Sans',
+        ),
+      ),
       themeMode: ThemeMode.light,
       routerConfig: router,
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class AppScaffold extends StatelessWidget {
   final String? title;
   final List<Widget>? actions;
+  final Widget? leading;
   final Widget body;
   final bool isLoading;
   final Widget? floatingActionButton;
@@ -11,11 +12,13 @@ class AppScaffold extends StatelessWidget {
   final Widget? drawer;
   final Widget? endDrawer;
   final Color? backgroundColor;
+  final bool automaticallyImplyLeading;
 
   const AppScaffold({
     super.key,
     this.title,
     this.actions,
+    this.leading,
     required this.body,
     this.isLoading = false,
     this.floatingActionButton,
@@ -23,6 +26,7 @@ class AppScaffold extends StatelessWidget {
     this.drawer,
     this.endDrawer,
     this.backgroundColor,
+    this.automaticallyImplyLeading = true,
   });
 
   @override
@@ -32,6 +36,8 @@ class AppScaffold extends StatelessWidget {
       appBar: title != null
           ? AppBar(
               title: Text(title!),
+              leading: leading,
+              automaticallyImplyLeading: automaticallyImplyLeading,
               actions: actions,
             )
           : null,

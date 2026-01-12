@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Toast/Snack helper for consistent messaging
 class AppToast {
@@ -12,7 +13,7 @@ class AppToast {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white),
+            const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
@@ -37,7 +38,7 @@ class AppToast {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error, color: Colors.white),
+            const FaIcon(FontAwesomeIcons.circleExclamation, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
@@ -62,7 +63,7 @@ class AppToast {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.info, color: Colors.white),
+            const FaIcon(FontAwesomeIcons.circleInfo, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
@@ -87,7 +88,7 @@ class AppToast {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.warning, color: Colors.white),
+            const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],

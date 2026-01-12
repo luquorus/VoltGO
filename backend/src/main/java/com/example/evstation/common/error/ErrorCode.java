@@ -15,7 +15,11 @@ public enum ErrorCode {
     INVALID_INPUT("EVS-0006", "Invalid input"),
     INVALID_STATE("EVS-0007", "Invalid state"),
     
-    // Add more error codes as needed
+    // Booking errors
+    SLOT_UNAVAILABLE("EVS-0008", "Slot unavailable"),
+    CHARGER_UNIT_NOT_FOUND("EVS-0009", "Charger unit not found"),
+    CHARGER_UNIT_INACTIVE("EVS-0010", "Charger unit is not active"),
+    INVALID_TIME_RANGE("EVS-0011", "Invalid time range"),
     ;
 
     private final String code;

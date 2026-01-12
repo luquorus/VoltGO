@@ -1,7 +1,10 @@
 package com.example.evstation.api.collaborator_web.controller;
 
+import com.example.evstation.collaborator.api.dto.CollaboratorLocationDTO;
 import com.example.evstation.collaborator.api.dto.CollaboratorProfileDTO;
 import com.example.evstation.collaborator.api.dto.ContractDTO;
+import com.example.evstation.collaborator.api.dto.UpdateLocationDTO;
+import com.example.evstation.collaborator.application.CollaboratorLocationService;
 import com.example.evstation.collaborator.application.CollaboratorService;
 import com.example.evstation.collaborator.application.ContractService;
 import com.example.evstation.collaborator.infrastructure.jpa.CollaboratorProfileEntity;
@@ -10,14 +13,13 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class CollaboratorWebController {
     
     private final CollaboratorService collaboratorService;
     private final ContractService contractService;
+    private final CollaboratorLocationService locationService;
     private final CollaboratorProfileJpaRepository collaboratorRepository;
 
     @Operation(summary = "Test endpoint", description = "Test endpoint for Collaborator Web API")
@@ -72,6 +75,22 @@ public class CollaboratorWebController {
         
         List<ContractDTO> contracts = contractService.getContractsByCollaboratorId(profile.getId());
         return ResponseEntity.ok(contracts);
+    }
+
+    @Operation(
+        summary = "Update my location (manual)",
+        description = "Update the current collaborator's location manually from web interface"
+    )
+    @PutMapping("/me/location")
+    public ResponseEntity<CollaboratorLocationDTO> updateMyLocation(
+            @Valid @RequestBody UpdateLocationDTO dto,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        log.info("Collaborator web updating location: userId={}, lat={}, lng={}", 
+                userId, dto.getLat(), dto.getLng());
+        
+        CollaboratorLocationDTO result = locationService.updateLocationFromWeb(userId, dto);
+        return ResponseEntity.ok(result);
     }
     
     private UUID extractUserId(Authentication authentication) {

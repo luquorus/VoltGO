@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import 'package:shared_network/shared_network.dart';
+import 'package:shared_api/shared_api.dart';
 
 /// Register screen
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   String _selectedRole = 'EV_USER';
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _errorMessage;
 
   @override
@@ -40,11 +44,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     try {
       final authNotifier = ref.read(authStateNotifierProvider.notifier);
-      await authNotifier.register(
-        _emailController.text.trim(),
-        _passwordController.text,
-        _selectedRole,
-      );
+      final factory = ref.read(apiClientFactoryProvider);
+      
+      if (factory != null) {
+        // Use ApiClientFactory (new way)
+        await authNotifier.registerWithApiClient(
+          factory.auth,
+          _emailController.text.trim(),
+          _passwordController.text,
+          _selectedRole,
+        );
+      } else {
+        // Fallback to AuthService (legacy)
+        await authNotifier.register(
+          _emailController.text.trim(),
+          _passwordController.text,
+          _selectedRole,
+        );
+      }
       
       if (mounted) {
         context.go('/home');
@@ -100,7 +117,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 AppTextField(
                   label: 'Password',
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -111,12 +128,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }
                     return null;
                   },
+                  suffixIcon: IconButton(
+                    icon: FaIcon(
+                      _obscurePassword ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'Confirm Password',
                   controller: _confirmPasswordController,
-                  obscureText: true,
+                  obscureText: _obscureConfirmPassword,
                   enabled: !_isLoading,
                   validator: (value) {
                     if (value != _passwordController.text) {
@@ -124,6 +151,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }
                     return null;
                   },
+                  suffixIcon: IconButton(
+                    icon: FaIcon(
+                      _obscureConfirmPassword ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(

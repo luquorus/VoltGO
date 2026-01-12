@@ -3,6 +3,7 @@ package com.example.evstation.collaborator.application;
 import com.example.evstation.auth.domain.Role;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.collaborator.api.dto.CollaboratorLocationDTO;
 import com.example.evstation.collaborator.api.dto.CollaboratorProfileDTO;
 import com.example.evstation.collaborator.api.dto.CreateCollaboratorDTO;
 import com.example.evstation.collaborator.infrastructure.jpa.CollaboratorProfileEntity;
@@ -135,6 +136,16 @@ public class CollaboratorService {
     // ========== Helper Methods ==========
     
     private CollaboratorProfileDTO buildDTO(CollaboratorProfileEntity profile, String email, boolean hasActiveContract) {
+        CollaboratorLocationDTO locationDTO = null;
+        if (profile.getCurrentLocation() != null) {
+            locationDTO = CollaboratorLocationDTO.builder()
+                    .lat(profile.getLatitude())
+                    .lng(profile.getLongitude())
+                    .updatedAt(profile.getLocationUpdatedAt())
+                    .source(profile.getLocationSource() != null ? profile.getLocationSource().name() : null)
+                    .build();
+        }
+        
         return CollaboratorProfileDTO.builder()
                 .id(profile.getId().toString())
                 .userAccountId(profile.getUserAccountId().toString())
@@ -143,6 +154,7 @@ public class CollaboratorService {
                 .phone(profile.getPhone())
                 .createdAt(profile.getCreatedAt())
                 .hasActiveContract(hasActiveContract)
+                .location(locationDTO)
                 .build();
     }
     

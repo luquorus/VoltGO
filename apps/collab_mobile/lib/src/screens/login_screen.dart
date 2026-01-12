@@ -17,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -34,7 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/tasks');
     } on ApiError catch (e) {
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
@@ -69,9 +70,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 AppTextField(
                   label: 'Password',
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   enabled: !_isLoading,
                   validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 24),
                 PrimaryButton(label: 'Login', onPressed: _isLoading ? null : _handleLogin, isLoading: _isLoading),

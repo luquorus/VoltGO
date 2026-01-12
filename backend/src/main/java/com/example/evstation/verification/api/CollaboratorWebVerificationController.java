@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -33,7 +34,7 @@ public class CollaboratorWebVerificationController {
     public ResponseEntity<Page<VerificationTaskDTO>> getTasks(
             @RequestParam(required = false) VerificationTaskStatus status,
             @RequestParam(required = false) Integer priority,
-            @RequestParam(required = false) Instant slaDueBefore,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant slaDueBefore,
             Pageable pageable,
             Authentication authentication) {
         

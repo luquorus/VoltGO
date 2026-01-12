@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -167,6 +168,51 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolationException(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+        
+        // Check if this is a double-booking constraint violation
+        String exceptionMessage = ex.getMessage() != null ? ex.getMessage() : "";
+        Throwable cause = ex.getCause();
+        String fullMessage = exceptionMessage;
+        
+        // Check all causes for constraint name
+        while (cause != null) {
+            if (cause.getMessage() != null) {
+                fullMessage += " " + cause.getMessage();
+            }
+            cause = cause.getCause();
+        }
+        
+        if (fullMessage.contains("ck_booking_no_overlap_active")) {
+            log.warn("Double-booking detected: traceId={}, constraint=ck_booking_no_overlap_active", traceId);
+            
+            ApiError error = ApiError.builder()
+                    .traceId(traceId)
+                    .code(ErrorCode.SLOT_UNAVAILABLE.getCode())
+                    .message("Slot is already booked or held. Please choose a different time slot.")
+                    .timestamp(Instant.now())
+                    .build();
+            
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
+        
+        // For other constraint violations, return generic error
+        log.error("DataIntegrityViolationException: traceId={}, message={}", traceId, exceptionMessage);
+        
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.INTERNAL_ERROR.getCode())
+                .message("Database constraint violation")
+                .timestamp(Instant.now())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiError> handleBusinessException(
             BusinessException ex,
@@ -177,10 +223,12 @@ public class GlobalExceptionHandler {
                 traceId, ex.getErrorCode().getCode(), ex.getMessage());
 
         HttpStatus status = switch (ex.getErrorCode()) {
-            case NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;
+            case NOT_FOUND, CHARGER_UNIT_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case VALIDATION_ERROR, INVALID_INPUT, INVALID_TIME_RANGE -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case SLOT_UNAVAILABLE, CHARGER_UNIT_INACTIVE -> HttpStatus.CONFLICT;
+            case INVALID_STATE -> HttpStatus.BAD_REQUEST;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 

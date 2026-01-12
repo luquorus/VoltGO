@@ -29,6 +29,10 @@ tags:
     description: API for EV User Mobile application
   - name: Bookings
     description: API for EV Users to manage bookings
+  - name: Charger Units
+    description: API for EV Users to view charger units
+  - name: Availability
+    description: API for EV Users to check slot availability
   - name: Payments
     description: API for payment intents and payment simulation
   - name: Change Requests
@@ -256,6 +260,142 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/ev/stations/{stationId}/charger-units:
+    get:
+      tags:
+        - EV User Mobile
+      summary: Get charger units for a station
+      description: Get all active charger units for a published station
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "d55ea94e-0367-4f80-948e-40cf789863f8"
+      responses:
+        '200':
+          description: List of charger units
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChargerUnit'
+              example:
+                - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                  label: "DC250-01"
+                  powerType: "DC"
+                  powerKw: 250.0
+                  pricePerHour: 50000
+                  status: "ACTIVE"
+                - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                  stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                  label: "DC250-02"
+                  powerType: "DC"
+                  powerKw: 250.0
+                  pricePerHour: 50000
+                  status: "ACTIVE"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/ev/stations/{stationId}/availability:
+    get:
+      tags:
+        - EV User Mobile
+      summary: Get availability for a station
+      description: Get slot availability matrix for charger units on a specific date. Returns availability status (AVAILABLE, HELD, BOOKED) for each slot.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "d55ea94e-0367-4f80-948e-40cf789863f8"
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format
+          example: "2026-01-09"
+        - name: tz
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Timezone (default: Asia/Bangkok)
+          example: "Asia/Bangkok"
+        - name: slotMinutes
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+          description: Slot duration in minutes (default: 30)
+          example: 30
+        - name: powerType
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/PowerType'
+          description: Filter by power type (DC or AC)
+        - name: minPowerKw
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+          description: Minimum power in kW
+          example: 50.0
+      responses:
+        '200':
+          description: Availability matrix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+              example:
+                stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                date: "2026-01-09"
+                slotTimes:
+                  - "2026-01-09T00:00:00Z"
+                  - "2026-01-09T00:30:00Z"
+                  - "2026-01-09T01:00:00Z"
+                availability:
+                  - chargerUnit:
+                      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
+                      label: "DC250-01"
+                      powerType: "DC"
+                      powerKw: 250.0
+                      pricePerHour: 50000
+                      status: "ACTIVE"
+                    slots:
+                      - startTime: "2026-01-09T00:00:00Z"
+                        endTime: "2026-01-09T00:30:00Z"
+                        status: "AVAILABLE"
+                      - startTime: "2026-01-09T00:30:00Z"
+                        endTime: "2026-01-09T01:00:00Z"
+                        status: "BOOKED"
+                      - startTime: "2026-01-09T01:00:00Z"
+                        endTime: "2026-01-09T01:30:00Z"
+                        status: "AVAILABLE"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # ============================================
   # EV User Mobile - Bookings
   # ============================================
@@ -264,7 +404,7 @@ paths:
       tags:
         - Bookings
       summary: Create a new booking
-      description: Create a booking with HOLD status. Hold expires in 10 minutes. Station must exist and have a published version.
+      description: Create a booking with HOLD status for a specific charger unit. Hold expires in 10 minutes. Station must exist and have a published version. Charger unit must be active. Slot must be available (no overlapping bookings). Returns 409 CONFLICT if slot is unavailable.
       security:
         - bearerAuth: []
       requestBody:
@@ -275,8 +415,9 @@ paths:
               $ref: '#/components/schemas/CreateBooking'
             example:
               stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
-              startTime: "2026-01-08T10:00:00Z"
-              endTime: "2026-01-08T11:00:00Z"
+              chargerUnitId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+              startTime: "2026-01-09T10:00:00Z"
+              endTime: "2026-01-09T11:00:00Z"
       responses:
         '201':
           description: Booking created
@@ -288,15 +429,22 @@ paths:
                 id: "c9c62268-1fde-430b-9a0e-cc68296315f6"
                 userId: "ce5975f8-90df-489d-94dc-ff625edd1319"
                 stationId: "d55ea94e-0367-4f80-948e-40cf789863f8"
-                startTime: "2026-01-08T10:00:00Z"
-                endTime: "2026-01-08T11:00:00Z"
+                chargerUnitId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                startTime: "2026-01-09T10:00:00Z"
+                endTime: "2026-01-09T11:00:00Z"
                 status: "HOLD"
-                holdExpiresAt: "2026-01-08T10:10:00Z"
-                createdAt: "2026-01-08T10:00:00Z"
+                holdExpiresAt: "2026-01-09T10:10:00Z"
+                createdAt: "2026-01-09T10:00:00Z"
+                priceSnapshot:
+                  pricePerHour: 50000
+                  durationHours: 1.0
+                  amount: 50000
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
     
     get:
       tags:
@@ -344,7 +492,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
-    
+  
+  /api/ev/bookings/{id}/cancel:
     post:
       tags:
         - Bookings
@@ -1735,6 +1884,18 @@ components:
             code: "EVS-0003"
             message: "Resource not found"
             timestamp: "2026-01-08T10:00:00Z"
+    
+    Conflict:
+      description: Conflict (e.g., slot unavailable, charger unit inactive)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            traceId: "abc12345-6789-0123-4567-890123456789"
+            code: "EVS-0008"
+            message: "Slot is unavailable"
+            timestamp: "2026-01-08T10:00:00Z"
 
   schemas:
     # ============================================
@@ -2005,18 +2166,26 @@ components:
       type: object
       required:
         - stationId
+        - chargerUnitId
         - startTime
         - endTime
       properties:
         stationId:
           type: string
           format: uuid
+          description: Station ID
+        chargerUnitId:
+          type: string
+          format: uuid
+          description: Charger unit ID (must belong to the station and be ACTIVE)
         startTime:
           type: string
           format: date-time
+          description: Booking start time (must be in the future)
         endTime:
           type: string
           format: date-time
+          description: Booking end time (must be after startTime, duration 15min-4h)
 
     BookingResponse:
       type: object
@@ -2030,6 +2199,10 @@ components:
         stationId:
           type: string
           format: uuid
+        chargerUnitId:
+          type: string
+          format: uuid
+          description: ID of the booked charger unit
         startTime:
           type: string
           format: date-time
@@ -2042,9 +2215,104 @@ components:
         holdExpiresAt:
           type: string
           format: date-time
+          description: Expiration time for HOLD status (10 minutes from creation)
         createdAt:
           type: string
           format: date-time
+        priceSnapshot:
+          type: object
+          description: Snapshot of pricing details at booking time
+          properties:
+            pricePerHour:
+              type: integer
+              description: Price per hour in VND
+            durationHours:
+              type: number
+              format: double
+              description: Booking duration in hours
+            amount:
+              type: integer
+              description: Total amount in VND
+
+    # ============================================
+    # Charger Unit Schemas
+    # ============================================
+    ChargerUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stationId:
+          type: string
+          format: uuid
+        label:
+          type: string
+          description: Charger unit label (e.g., "DC250-01")
+          example: "DC250-01"
+        powerType:
+          type: string
+          enum: [DC, AC]
+        powerKw:
+          type: number
+          format: double
+          description: Power in kW
+        pricePerHour:
+          type: integer
+          description: Price per hour in VND
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, MAINTENANCE]
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+          description: Date in YYYY-MM-DD format
+        slotTimes:
+          type: array
+          items:
+            type: string
+            format: date-time
+          description: List of slot start times
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargerUnitAvailability'
+          description: Availability matrix per charger unit
+
+    ChargerUnitAvailability:
+      type: object
+      properties:
+        chargerUnit:
+          $ref: '#/components/schemas/ChargerUnit'
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilitySlot'
+          description: List of availability slots for this charger unit
+
+    AvailabilitySlot:
+      type: object
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [AVAILABLE, HELD, BOOKED]
+          description: |
+            AVAILABLE: Slot is free and can be booked
+            HELD: Slot is held by another user (expires in 10 minutes)
+            BOOKED: Slot is confirmed by another user
 
     # ============================================
     # Payment Schemas

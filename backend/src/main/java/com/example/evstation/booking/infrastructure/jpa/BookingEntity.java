@@ -6,8 +6,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -36,6 +39,9 @@ public class BookingEntity {
     @Column(name = "station_id", nullable = false, columnDefinition = "UUID")
     private UUID stationId;
     
+    @Column(name = "charger_unit_id", nullable = false, columnDefinition = "UUID")
+    private UUID chargerUnitId;
+    
     @Column(name = "start_time", nullable = false)
     private Instant startTime;
     
@@ -49,6 +55,11 @@ public class BookingEntity {
     
     @Column(name = "hold_expires_at", nullable = false)
     private Instant holdExpiresAt;
+    
+    @Column(name = "price_snapshot", nullable = false, columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    private Map<String, Object> priceSnapshot = Map.of();
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

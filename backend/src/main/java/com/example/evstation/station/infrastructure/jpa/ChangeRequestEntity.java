@@ -63,6 +63,11 @@ public class ChangeRequestEntity {
     @Column(name = "decided_at")
     private Instant decidedAt;
 
+    @Column(name = "image_urls", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    private List<String> imageUrls = List.of();
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

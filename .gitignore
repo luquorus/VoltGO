@@ -1,195 +1,70 @@
-# ============================================
-# VoltGO - Git Ignore File
-# Bảo vệ các file nhạy cảm và build artifacts
-# ============================================
-
-# ============================================
-# Environment Variables & Secrets
-# ============================================
-.env
-.env.local
-.env.*.local
-.env.production
-.env.development
-*.env
-secrets/
-*.secret
-*.key
-*.pem
-*.p12
-*.jks
-*.keystore
-*.truststore
-
-# ============================================
-# Docker Compose Override Files (chứa credentials thực tế)
-# ============================================
-docker-compose.override.yml
-infra/docker-compose.override.yml
-**/docker-compose.override.yml
-
-# ============================================
-# Application Configuration Files (có thể chứa credentials)
-# ============================================
-# Giữ lại các file example nhưng ignore các file thực tế có credentials
-application-secret.yml
-application-prod.yml
-application-local-secret.yml
-**/application-*.secret.yml
-**/application-*.prod.yml
-
-# ============================================
-# Build Artifacts
-# ============================================
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-# Maven (nếu có)
-target/
-!.mvn/wrapper/maven-wrapper.jar
-
-# ============================================
-# IDE Files
-# ============================================
-# IntelliJ IDEA
+# IDE
 .idea/
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
-# Eclipse
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings/
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-# NetBeans
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-# VS Code
 .vscode/
-*.code-workspace
-
-# ============================================
-# Logs
-# ============================================
-*.log
-logs/
-*.log.*
-*.out
-
-# ============================================
-# OS Files
-# ============================================
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-*.lnk
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-
-# Linux
-*~
-.directory
-.Trash-*
-
-# ============================================
-# Temporary Files
-# ============================================
-*.tmp
-*.temp
+*.iml
 *.swp
 *.swo
 *~
-.cache/
-tmp/
-temp/
 
-# ============================================
-# Database Files
-# ============================================
-*.db
-*.sqlite
-*.sqlite3
-*.h2.db
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/build/
+*.lock
 
-# ============================================
-# Coverage Reports
-# ============================================
-.nyc_output/
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/ephemeral/
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/.idea/
+**/android/app/build/
+**/android/build/
+**/android/.dart_tool/
+**/android/.flutter-plugins
+**/android/.flutter-plugins-dependencies
+**/android/key.properties
+*.jks
+*.keystore
+
+# Web
+**/web/favicon.png
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/build/
+backend/.gradle/
+backend/out/
+
+# Generated files
+apps/shared/shared_api/lib/generated/
+
+# Test outputs
+test_outputs/
 coverage/
-*.lcov
-.coveralls.yml
 
-# ============================================
-# Package Files
-# ============================================
-*.jar
-!gradle/wrapper/gradle-wrapper.jar
-*.war
-*.ear
-*.nar
-
-# ============================================
-# Spring Boot
-# ============================================
-spring-boot-*.log
-application-*.log
-
-# ============================================
-# Node.js (nếu có frontend)
-# ============================================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
-
-# ============================================
-# Python (nếu có scripts)
-# ============================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
-
-# ============================================
-# Backup Files
-# ============================================
-*.bak
-*.backup
-*.old
-*.orig
-
-# ============================================
-# Documentation Build
-# ============================================
-docs/_build/
-site/
-
+# Temporary files
+*.tmp
+*.temp

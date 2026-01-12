@@ -83,12 +83,42 @@ public class VerificationService {
     }
 
     /**
-     * Assign task to collaborator (Admin only)
+     * Assign task to collaborator by email (Admin only) - backward compatibility
      */
     @Transactional
     public VerificationTaskDTO assignTask(UUID taskId, AssignTaskDTO dto, UUID adminId, String adminRole) {
-        log.info("Assigning task: taskId={}, collaboratorUserId={}", taskId, dto.getCollaboratorUserId());
+        log.info("Assigning task: taskId={}, collaboratorEmail={}", taskId, dto.getCollaboratorEmail());
         
+        // Find collaborator by email
+        UserAccountEntity user = userAccountRepository.findByEmail(dto.getCollaboratorEmail())
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, 
+                        "User not found with email: " + dto.getCollaboratorEmail()));
+        
+        return assignTaskToUser(taskId, user, adminId, adminRole, null);
+    }
+
+    /**
+     * Assign task to collaborator by user ID (Admin only) - preferred method from candidates list
+     */
+    @Transactional
+    public VerificationTaskDTO assignTaskByUserId(UUID taskId, UUID collaboratorUserId, UUID adminId, String adminRole) {
+        log.info("Assigning task: taskId={}, collaboratorUserId={}", taskId, collaboratorUserId);
+        
+        // Find collaborator by user ID
+        UserAccountEntity user = userAccountRepository.findById(collaboratorUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, 
+                        "User not found with ID: " + collaboratorUserId));
+        
+        // Compute distance for audit log
+        VerificationTaskEntity task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
+        
+        Integer distance = computeDistanceForAssignment(task.getStationId(), collaboratorUserId);
+        
+        return assignTaskToUser(taskId, user, adminId, adminRole, distance);
+    }
+
+    private VerificationTaskDTO assignTaskToUser(UUID taskId, UserAccountEntity user, UUID adminId, String adminRole, Integer distanceMeters) {
         VerificationTaskEntity task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
         
@@ -97,31 +127,76 @@ public class VerificationService {
                     "Can only assign OPEN tasks. Current status: " + task.getStatus());
         }
         
-        // Verify collaborator exists and has COLLABORATOR role
-        UserAccountEntity user = userAccountRepository.findById(dto.getCollaboratorUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User not found"));
-        
         if (user.getRole() != Role.COLLABORATOR) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
-                    "User must have COLLABORATOR role");
+                    "User must have COLLABORATOR role. Found role: " + user.getRole());
         }
         
         // Verify collaborator has profile
-        if (!collaboratorRepository.existsByUserAccountId(dto.getCollaboratorUserId())) {
+        if (!collaboratorRepository.existsByUserAccountId(user.getId())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
-                    "Collaborator profile not found for user");
+                    "Collaborator profile not found for user: " + user.getEmail());
         }
         
-        task.setAssignedTo(dto.getCollaboratorUserId());
+        // Verify contract is active
+        contractPolicyService.requireActiveContract(user.getId());
+        
+        task.setAssignedTo(user.getId());
         task.setStatus(VerificationTaskStatus.ASSIGNED);
         taskRepository.save(task);
         
-        writeAuditLog(adminId, adminRole, "ASSIGN_VERIFICATION_TASK", "VERIFICATION_TASK", taskId,
-                Map.of("assignedTo", dto.getCollaboratorUserId().toString(),
-                       "assignedToEmail", user.getEmail()));
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("assignedTo", user.getId().toString());
+        metadata.put("assignedToEmail", user.getEmail());
+        if (distanceMeters != null) {
+            metadata.put("distanceMeters", distanceMeters);
+        }
         
-        log.info("Task assigned: taskId={}, assignedTo={}", taskId, dto.getCollaboratorUserId());
+        writeAuditLog(adminId, adminRole, "ASSIGN_VERIFICATION_TASK", "VERIFICATION_TASK", taskId, metadata);
+        
+        log.info("Task assigned: taskId={}, assignedTo={} ({})", taskId, user.getId(), user.getEmail());
         return buildTaskDTO(task);
+    }
+
+    private Integer computeDistanceForAssignment(UUID stationId, UUID collaboratorUserId) {
+        try {
+            // Get collaborator location
+            var profile = collaboratorRepository.findByUserAccountId(collaboratorUserId);
+            if (profile.isEmpty() || profile.get().getCurrentLocation() == null) {
+                return null;
+            }
+            
+            Double collabLat = profile.get().getLatitude();
+            Double collabLng = profile.get().getLongitude();
+            
+            // Get station location
+            var stationVersion = stationVersionRepository.findPublishedByStationId(stationId);
+            if (stationVersion.isEmpty() || stationVersion.get().getLocation() == null) {
+                return null;
+            }
+            
+            Double stationLat = stationVersion.get().getLocation().getY();
+            Double stationLng = stationVersion.get().getLocation().getX();
+            
+            String sql = """
+                SELECT CAST(ST_Distance(
+                    CAST(ST_SetSRID(ST_MakePoint(?1, ?2), 4326) AS geography),
+                    CAST(ST_SetSRID(ST_MakePoint(?3, ?4), 4326) AS geography)
+                ) AS INTEGER) as distance
+                """;
+            
+            Query query = entityManager.createNativeQuery(sql);
+            query.setParameter(1, stationLng);
+            query.setParameter(2, stationLat);
+            query.setParameter(3, collabLng);
+            query.setParameter(4, collabLat);
+            
+            Object result = query.getSingleResult();
+            return result != null ? ((Number) result).intValue() : null;
+        } catch (Exception e) {
+            log.warn("Failed to compute distance for assignment: {}", e.getMessage());
+            return null;
+        }
     }
 
     /**

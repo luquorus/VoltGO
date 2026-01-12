@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 
@@ -16,7 +17,7 @@ class HomeScreen extends ConsumerWidget {
       title: 'Home',
       actions: [
         IconButton(
-          icon: const Icon(Icons.logout),
+          icon: const FaIcon(FontAwesomeIcons.rightFromBracket),
           onPressed: () async {
             await ref.read(authStateNotifierProvider.notifier).logout();
             if (context.mounted) {

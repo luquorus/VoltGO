@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
@@ -19,8 +20,8 @@ class ForbiddenScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.block,
+              FaIcon(
+                FontAwesomeIcons.ban,
                 size: 64,
                 color: Theme.of(context).colorScheme.error,
               ),

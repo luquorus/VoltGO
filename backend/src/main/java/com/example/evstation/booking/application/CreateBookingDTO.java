@@ -12,6 +12,9 @@ public class CreateBookingDTO {
     @NotNull(message = "stationId is required")
     private UUID stationId;
     
+    @NotNull(message = "chargerUnitId is required")
+    private UUID chargerUnitId;
+    
     @NotNull(message = "startTime is required")
     private Instant startTime;
     

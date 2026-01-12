@@ -35,15 +35,19 @@ public class MinIOService implements CommandLineRunner {
     private final MinioClient minioClient; // Internal client for all MinIO operations
     private final String bucketName;
     private final String region;
+    private final String publicEndpoint; // Public endpoint for replacing hostname in presigned URLs
     
     public MinIOService(
             MinioClient minioClient,
+            @org.springframework.beans.factory.annotation.Qualifier("publicMinioClient") @SuppressWarnings("unused") MinioClient publicMinioClient,
             @Value("${MINIO_BUCKET:voltgo-evidence}") String bucketName,
-            @Value("${MINIO_REGION:us-east-1}") String region) {
+            @Value("${MINIO_REGION:us-east-1}") String region,
+            @Value("${MINIO_PUBLIC_ENDPOINT:${MINIO_ENDPOINT}}") String publicEndpoint) {
         this.minioClient = minioClient;
         this.bucketName = bucketName;
         this.region = region;
-        log.info("MinIOService initialized: bucket={}", bucketName);
+        this.publicEndpoint = publicEndpoint;
+        log.info("MinIOService initialized: bucket={}, publicEndpoint={}", bucketName, publicEndpoint);
     }
     
     /**
@@ -119,6 +123,8 @@ public class MinIOService implements CommandLineRunner {
         try {
             Duration expiration = Duration.ofMinutes(expiresInMinutes);
             
+            // Use minioClient (connects to minio:9000) to generate presigned URL
+            // Then replace hostname with publicEndpoint (localhost:9000) for clients
             String url = minioClient.getPresignedObjectUrl(
                     io.minio.GetPresignedObjectUrlArgs.builder()
                             .method(io.minio.http.Method.PUT)
@@ -127,10 +133,19 @@ public class MinIOService implements CommandLineRunner {
                             .expiry((int) expiration.getSeconds())
                             .build());
             
-            log.debug("Generated presigned upload URL for objectKey: {}, contentType: {}, expires in {} minutes", 
-                    objectKey, contentType, expiresInMinutes);
+            // Replace hostname in URL with public endpoint for client access
+            // Extract hostname from publicEndpoint (e.g., "http://localhost:9000" -> "localhost:9000")
+            java.net.URL publicUrl = new java.net.URL(publicEndpoint);
+            String publicHost = publicUrl.getHost() + (publicUrl.getPort() != -1 ? ":" + publicUrl.getPort() : "");
             
-            return url;
+            // Replace hostname in presigned URL
+            java.net.URL originalUrl = new java.net.URL(url);
+            String replacedUrl = url.replace(originalUrl.getHost() + (originalUrl.getPort() != -1 ? ":" + originalUrl.getPort() : ""), publicHost);
+            
+            log.debug("Generated presigned upload URL for objectKey: {}, contentType: {}, expires in {} minutes. Original: {}, Replaced: {}", 
+                    objectKey, contentType, expiresInMinutes, url, replacedUrl);
+            
+            return replacedUrl;
         } catch (Exception e) {
             log.error("Failed to generate presigned upload URL for objectKey: {}", objectKey, e);
             throw new RuntimeException("Failed to generate presigned upload URL", e);
@@ -148,6 +163,7 @@ public class MinIOService implements CommandLineRunner {
         try {
             Duration expiration = Duration.ofMinutes(expiresInMinutes);
             
+            // Use minioClient to generate presigned URL, then replace hostname with publicEndpoint
             String url = minioClient.getPresignedObjectUrl(
                     io.minio.GetPresignedObjectUrlArgs.builder()
                             .method(io.minio.http.Method.GET)
@@ -156,10 +172,17 @@ public class MinIOService implements CommandLineRunner {
                             .expiry((int) expiration.getSeconds())
                             .build());
             
+            // Replace hostname in URL with public endpoint for client access
+            java.net.URL publicUrl = new java.net.URL(publicEndpoint);
+            String publicHost = publicUrl.getHost() + (publicUrl.getPort() != -1 ? ":" + publicUrl.getPort() : "");
+            
+            java.net.URL originalUrl = new java.net.URL(url);
+            String replacedUrl = url.replace(originalUrl.getHost() + (originalUrl.getPort() != -1 ? ":" + originalUrl.getPort() : ""), publicHost);
+            
             log.debug("Generated presigned view URL for objectKey: {}, expires in {} minutes", 
                     objectKey, expiresInMinutes);
             
-            return url;
+            return replacedUrl;
         } catch (Exception e) {
             log.error("Failed to generate presigned view URL for objectKey: {}", objectKey, e);
             throw new RuntimeException("Failed to generate presigned view URL", e);

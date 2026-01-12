@@ -30,6 +30,9 @@ public class MinIOConfig {
     @Value("${MINIO_SECRET_KEY}")
     private String secretKey;
     
+    @Value("${MINIO_PUBLIC_ENDPOINT:${MINIO_ENDPOINT}}")
+    private String publicEndpoint;
+    
     @Bean
     public MinioClient minioClient() {
         log.info("Initializing MinIO client: endpoint={}", endpoint);
@@ -40,6 +43,28 @@ public class MinIOConfig {
                 .build();
         
         log.info("MinIO client initialized successfully. Presigned URLs will use host: {}", endpoint);
+        return client;
+    }
+    
+    /**
+     * MinIO client configured with public endpoint for generating presigned URLs for clients.
+     * NOTE: This client still connects to the internal endpoint (minio:9000) for authentication,
+     * but the MinIOService will replace the hostname in presigned URLs with the public endpoint.
+     */
+    @Bean(name = "publicMinioClient")
+    public MinioClient publicMinioClient() {
+        // Use internal endpoint for connection (minio:9000), not publicEndpoint
+        // The hostname replacement happens in MinIOService.generatePresignedUploadUrl()
+        log.info("Initializing public MinIO client: endpoint={} (for connection), publicEndpoint={} (for URL replacement)", 
+                endpoint, publicEndpoint);
+        
+        MinioClient client = MinioClient.builder()
+                .endpoint(endpoint) // Use internal endpoint for connection
+                .credentials(accessKey, secretKey)
+                .build();
+        
+        log.info("Public MinIO client initialized. Will connect to: {}, but presigned URLs will use: {}", 
+                endpoint, publicEndpoint);
         return client;
     }
 }

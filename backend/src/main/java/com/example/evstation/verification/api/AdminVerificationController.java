@@ -3,6 +3,7 @@ package com.example.evstation.verification.api;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.verification.api.dto.*;
+import com.example.evstation.verification.application.CollaboratorCandidateQueryService;
 import com.example.evstation.verification.application.VerificationService;
 import com.example.evstation.verification.domain.VerificationTaskStatus;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class AdminVerificationController {
     
     private final VerificationService verificationService;
+    private final CollaboratorCandidateQueryService candidateQueryService;
 
     @Operation(summary = "Create a verification task", 
                description = "Create a new verification task for a station. Optionally link to a change request.")
@@ -45,8 +47,25 @@ public class AdminVerificationController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Get collaborator candidates for task", 
+               description = "Get list of collaborators sorted by distance to station with workload stats")
+    @GetMapping("/{id}/collaborator-candidates")
+    public ResponseEntity<CandidateListResponseDTO> getCollaboratorCandidates(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "true") boolean onlyActiveContract,
+            @RequestParam(defaultValue = "false") boolean includeUnlocated,
+            Pageable pageable) {
+        
+        log.info("Admin getting candidates for task {}: onlyActiveContract={}, includeUnlocated={}", 
+                id, onlyActiveContract, includeUnlocated);
+        
+        CandidateListResponseDTO result = candidateQueryService.listCandidatesForTask(
+                id, onlyActiveContract, includeUnlocated, pageable);
+        return ResponseEntity.ok(result);
+    }
+
     @Operation(summary = "Assign task to collaborator", 
-               description = "Assign an OPEN verification task to a collaborator")
+               description = "Assign an OPEN verification task to a collaborator by user ID (selected from candidates)")
     @PostMapping("/{id}/assign")
     public ResponseEntity<VerificationTaskDTO> assignTask(
             @PathVariable UUID id,
@@ -56,10 +75,19 @@ public class AdminVerificationController {
         UUID adminId = extractUserId(authentication);
         String role = extractRole(authentication);
         
-        log.info("Admin {} assigning task {} to {}", adminId, id, dto.getCollaboratorUserId());
-        
-        VerificationTaskDTO result = verificationService.assignTask(id, dto, adminId, role);
-        return ResponseEntity.ok(result);
+        // Support both collaboratorUserId and collaboratorEmail for backward compatibility
+        if (dto.getCollaboratorUserId() != null) {
+            log.info("Admin {} assigning task {} to user {}", adminId, id, dto.getCollaboratorUserId());
+            VerificationTaskDTO result = verificationService.assignTaskByUserId(id, dto.getCollaboratorUserId(), adminId, role);
+            return ResponseEntity.ok(result);
+        } else if (dto.getCollaboratorEmail() != null) {
+            log.info("Admin {} assigning task {} to {}", adminId, id, dto.getCollaboratorEmail());
+            VerificationTaskDTO result = verificationService.assignTask(id, dto, adminId, role);
+            return ResponseEntity.ok(result);
+        } else {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+                    "Either collaboratorUserId or collaboratorEmail is required");
+        }
     }
 
     @Operation(summary = "Get verification tasks", 

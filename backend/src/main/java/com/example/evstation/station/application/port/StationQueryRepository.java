@@ -40,5 +40,16 @@ public interface StationQueryRepository {
      * @return StationDetailDTO or empty if not found or not published
      */
     Optional<StationDetailDTO> findPublishedStationDetail(UUID stationId);
+
+    /**
+     * Search published stations by name (case-insensitive, partial match)
+     * @param nameQuery Search query for station name
+     * @param pageable Pagination
+     * @return Page of StationListItemDTO
+     */
+    Page<StationListItemDTO> searchPublishedStationsByName(
+            String nameQuery,
+            Pageable pageable
+    );
 }
 

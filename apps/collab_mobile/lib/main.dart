@@ -8,6 +8,7 @@ import 'package:shared_network/shared_network.dart';
 import 'package:shared_api/shared_api.dart';
 import 'package:dio/dio.dart';
 import 'src/routing/app_router.dart';
+import 'src/theme/collab_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,9 @@ void main() async {
         authServiceProvider.overrideWith((ref) {
           final dio = ref.read(dioClientProvider(baseUrl));
           return AuthService(dio);
+        }),
+        apiClientFactoryProvider.overrideWith((ref) {
+          return ApiClientFactory.create(ref, baseUrl: baseUrl);
         }),
       ],
       child: const CollabMobileApp(),
@@ -37,8 +41,7 @@ class CollabMobileApp extends ConsumerWidget {
     
     return MaterialApp.router(
       title: 'VoltGo - Collaborator',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: CollabTheme.lightTheme,
       themeMode: ThemeMode.light,
       routerConfig: router,
     );

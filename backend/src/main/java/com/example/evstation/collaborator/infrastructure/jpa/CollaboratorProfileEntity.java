@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.locationtech.jts.geom.Point;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,6 +32,16 @@ public class CollaboratorProfileEntity {
     @Column(name = "phone")
     private String phone;
     
+    @Column(name = "current_location", columnDefinition = "geography(Point, 4326)")
+    private Point currentLocation;
+    
+    @Column(name = "location_updated_at")
+    private Instant locationUpdatedAt;
+    
+    @Column(name = "location_source")
+    @Enumerated(EnumType.STRING)
+    private LocationSource locationSource;
+    
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     
@@ -42,6 +53,20 @@ public class CollaboratorProfileEntity {
         if (createdAt == null) {
             createdAt = Instant.now();
         }
+    }
+    
+    /**
+     * Get latitude from location point
+     */
+    public Double getLatitude() {
+        return currentLocation != null ? currentLocation.getY() : null;
+    }
+    
+    /**
+     * Get longitude from location point
+     */
+    public Double getLongitude() {
+        return currentLocation != null ? currentLocation.getX() : null;
     }
 }
 

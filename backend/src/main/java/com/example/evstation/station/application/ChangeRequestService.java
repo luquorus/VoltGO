@@ -134,6 +134,7 @@ public class ChangeRequestService {
                 .submittedBy(userId)
                 .riskScore(0)
                 .riskReasons(List.of())
+                .imageUrls(request.getImageUrls() != null ? request.getImageUrls() : List.of())
                 .createdAt(Instant.now())
                 .build();
         changeRequestRepository.save(changeRequest);
@@ -232,6 +233,39 @@ public class ChangeRequestService {
         return changeRequestRepository.findById(changeRequestId)
                 .filter(cr -> cr.getSubmittedBy().equals(userId))
                 .map(this::loadAndBuildResponse);
+    }
+
+    /**
+     * Update image URLs for a change request
+     * Only allowed for DRAFT status and by the owner
+     */
+    @Transactional
+    public ChangeRequestResponseDTO updateChangeRequestImageUrls(UUID changeRequestId, UUID userId, List<String> imageUrls) {
+        log.info("Updating change request image URLs: id={}, userId={}, imageCount={}", 
+                changeRequestId, userId, imageUrls.size());
+        
+        ChangeRequestEntity changeRequest = changeRequestRepository.findById(changeRequestId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Change request not found"));
+        
+        // Verify ownership
+        if (!changeRequest.getSubmittedBy().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "You can only update your own change requests");
+        }
+        
+        // Verify status is DRAFT (only DRAFT can be updated)
+        if (changeRequest.getStatus() != ChangeRequestStatus.DRAFT) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+                    "Only DRAFT change requests can be updated. Current status: " + changeRequest.getStatus());
+        }
+        
+        // Update image URLs
+        changeRequest.setImageUrls(imageUrls);
+        changeRequestRepository.save(changeRequest);
+        
+        log.info("Updated change request image URLs: id={}, newImageCount={}", changeRequestId, imageUrls.size());
+        
+        // Return updated response
+        return loadAndBuildResponse(changeRequest);
     }
 
     // ========== Private Helper Methods ==========
@@ -357,6 +391,7 @@ public class ChangeRequestService {
                 .riskScore(changeRequest.getRiskScore())
                 .riskReasons(changeRequest.getRiskReasons())
                 .adminNote(changeRequest.getAdminNote())
+                .imageUrls(changeRequest.getImageUrls() != null ? changeRequest.getImageUrls() : List.of())
                 .createdAt(changeRequest.getCreatedAt())
                 .submittedAt(changeRequest.getSubmittedAt())
                 .decidedAt(changeRequest.getDecidedAt())

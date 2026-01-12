@@ -41,3 +41,11 @@ logging:
     root: INFO
     com.example.evstation: DEBUG
 
+app:
+  recommendation:
+    default-average-speed-kmph: 30.0
+    default-consumption-kwh-per-km: 0.18
+    default-vehicle-max-charge-kw: 120.0
+    default-target-percent: 80
+    default-limit: 10
+

@@ -18,6 +18,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -37,7 +39,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _passwordController.text,
         'COLLABORATOR',
       );
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/tasks');
     } on ApiError catch (e) {
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
@@ -71,17 +73,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 AppTextField(
                   label: 'Password',
                   controller: _passwordController,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   enabled: !_isLoading,
                   validator: (v) => (v?.length ?? 0) < 8 ? 'Min 8 chars' : null,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'Confirm Password',
                   controller: _confirmPasswordController,
-                  obscureText: true,
+                  obscureText: _obscureConfirmPassword,
                   enabled: !_isLoading,
                   validator: (v) => v != _passwordController.text ? 'Mismatch' : null,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 24),
                 PrimaryButton(label: 'Register', onPressed: _isLoading ? null : _handleRegister, isLoading: _isLoading),
