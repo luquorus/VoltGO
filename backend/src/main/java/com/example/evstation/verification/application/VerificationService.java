@@ -37,7 +37,6 @@ public class VerificationService {
     
     private final VerificationTaskJpaRepository taskRepository;
     private final VerificationCheckinJpaRepository checkinRepository;
-    private final VerificationEvidenceJpaRepository evidenceRepository;
     private final VerificationReviewJpaRepository reviewRepository;
     private final StationJpaRepository stationRepository;
     private final StationVersionJpaRepository stationVersionRepository;
@@ -254,7 +253,7 @@ public class VerificationService {
         // Recalculate trust score
         trustScoringService.recalculate(task.getStationId());
         
-        writeAuditLog(adminId, adminRole, "REVIEW_EVIDENCE", "VERIFICATION_TASK", taskId,
+        writeAuditLog(adminId, adminRole, "REVIEW_VERIFICATION_TASK", "VERIFICATION_TASK", taskId,
                 Map.of("result", dto.getResult().name(),
                        "adminNote", dto.getAdminNote() != null ? dto.getAdminNote() : "",
                        "stationId", task.getStationId().toString()));
@@ -335,53 +334,6 @@ public class VerificationService {
         return buildTaskDTO(task);
     }
 
-    /**
-     * Submit evidence (Collaborator Mobile)
-     */
-    @Transactional
-    public VerificationTaskDTO submitEvidence(UUID taskId, SubmitEvidenceDTO dto, UUID userId) {
-        log.info("Submit evidence: taskId={}, userId={}", taskId, userId);
-        
-        VerificationTaskEntity task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
-        
-        // Validate task status
-        if (task.getStatus() != VerificationTaskStatus.CHECKED_IN) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
-                    "Can only submit evidence for CHECKED_IN tasks. Current status: " + task.getStatus());
-        }
-        
-        // Validate assignment
-        if (!task.getAssignedTo().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "Task is not assigned to you");
-        }
-        
-        // Check contract is active
-        contractPolicyService.requireActiveContract(userId);
-        
-        // Create evidence record
-        VerificationEvidenceEntity evidence = VerificationEvidenceEntity.builder()
-                .taskId(taskId)
-                .photoObjectKey(dto.getPhotoObjectKey())
-                .note(dto.getNote())
-                .submittedAt(Instant.now(clock))
-                .submittedBy(userId)
-                .build();
-        
-        evidenceRepository.save(evidence);
-        
-        // Update task status
-        task.setStatus(VerificationTaskStatus.SUBMITTED);
-        taskRepository.save(task);
-        
-        writeAuditLog(userId, "COLLABORATOR", "SUBMIT_EVIDENCE", "VERIFICATION_TASK", taskId,
-                Map.of("photoObjectKey", dto.getPhotoObjectKey(),
-                       "note", dto.getNote() != null ? dto.getNote() : "",
-                       "stationId", task.getStationId().toString()));
-        
-        log.info("Evidence submitted: taskId={}", taskId);
-        return buildTaskDTO(task);
-    }
 
     // ========== Collaborator Web Operations ==========
 
@@ -523,17 +475,6 @@ public class VerificationService {
                         .build())
                 .orElse(null);
         
-        List<VerificationTaskDTO.EvidenceDTO> evidenceDTOs = evidenceRepository.findByTaskIdOrderBySubmittedAtDesc(task.getId())
-                .stream()
-                .map(e -> VerificationTaskDTO.EvidenceDTO.builder()
-                        .id(e.getId().toString())
-                        .photoObjectKey(e.getPhotoObjectKey())
-                        .note(e.getNote())
-                        .submittedAt(e.getSubmittedAt())
-                        .submittedBy(e.getSubmittedBy().toString())
-                        .build())
-                .collect(Collectors.toList());
-        
         VerificationTaskDTO.ReviewDTO reviewDTO = reviewRepository.findByTaskId(task.getId())
                 .map(r -> VerificationTaskDTO.ReviewDTO.builder()
                         .result(r.getResult().name())
@@ -555,7 +496,6 @@ public class VerificationService {
                 .status(task.getStatus())
                 .createdAt(task.getCreatedAt())
                 .checkin(checkinDTO)
-                .evidences(evidenceDTOs)
                 .review(reviewDTO)
                 .build();
     }

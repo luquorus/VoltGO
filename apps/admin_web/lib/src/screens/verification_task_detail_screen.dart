@@ -9,6 +9,7 @@ import '../providers/verification_task_providers.dart';
 import '../providers/file_viewer_providers.dart';
 import '../services/file_viewer_service.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 import 'assign_task_modal.dart';
 
 /// Verification Task Detail Screen
@@ -25,11 +26,11 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final taskAsync = ref.watch(verificationTaskProvider(id));
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Verification Task Details',
       body: taskAsync.when(
         data: (task) => _buildContent(context, theme, ref, task),
-        loading: () => const Center(child: LoadingState(message: 'Loading...')),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
           message: error.toString(),
           onRetry: () {

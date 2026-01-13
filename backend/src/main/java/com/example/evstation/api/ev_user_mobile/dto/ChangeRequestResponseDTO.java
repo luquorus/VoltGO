@@ -25,12 +25,6 @@ public class ChangeRequestResponseDTO {
     private Instant submittedAt;
     private Instant decidedAt;
     
-    /**
-     * List of MinIO object keys for uploaded images.
-     * Use /api/ev/files/presign-view?objectKey={key} to get view URLs.
-     */
-    private List<String> imageUrls;
-    
     // Embedded station data for convenience
     private StationDataDTO stationData;
     

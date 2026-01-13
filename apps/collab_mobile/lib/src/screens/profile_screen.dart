@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import 'package:shared_api/shared_api.dart';
@@ -284,6 +285,17 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Edit Profile button
+            ElevatedButton.icon(
+              onPressed: () => context.push('/profile/edit'),
+              icon: const FaIcon(FontAwesomeIcons.pen, size: 16),
+              label: const Text('Edit Profile'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 16),
 
             // Logout button
             ElevatedButton.icon(

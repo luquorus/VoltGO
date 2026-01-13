@@ -7,6 +7,7 @@ import '../screens/register_screen.dart';
 import '../screens/task_list_screen.dart';
 import '../screens/task_detail_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/edit_profile_screen.dart';
 import '../screens/forbidden_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -52,6 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
       GoRoute(path: '/forbidden', builder: (_, __) => const ForbiddenScreen()),
     ],
   );

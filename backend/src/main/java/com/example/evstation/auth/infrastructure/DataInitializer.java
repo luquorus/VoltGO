@@ -33,6 +33,8 @@ public class DataInitializer implements CommandLineRunner {
         UserAccount admin = new UserAccount(
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 adminEmail,
+                "Admin",
+                null, // phone
                 passwordHash,
                 Role.ADMIN,
                 com.example.evstation.auth.domain.UserStatus.ACTIVE,

@@ -2,7 +2,6 @@ package com.example.evstation.api.ev_user_mobile.controller;
 
 import com.example.evstation.api.ev_user_mobile.dto.ChangeRequestResponseDTO;
 import com.example.evstation.api.ev_user_mobile.dto.CreateChangeRequestDTO;
-import com.example.evstation.api.ev_user_mobile.dto.UpdateChangeRequestDTO;
 import com.example.evstation.station.application.ChangeRequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -96,26 +95,6 @@ public class ChangeRequestController {
         return changeRequestService.getChangeRequest(id, userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }
-
-    @Operation(
-        summary = "Update change request image URLs",
-        description = "Update the image URLs for a DRAFT change request. Only the owner can update their own change request."
-    )
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
-    public ResponseEntity<ChangeRequestResponseDTO> updateChangeRequest(
-            @Parameter(description = "Change request ID", required = true)
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateChangeRequestDTO request,
-            Authentication authentication) {
-        
-        UUID userId = extractUserId(authentication);
-        log.info("Updating change request images: id={}, userId={}, imageCount={}", 
-                id, userId, request.getImageUrls().size());
-        
-        ChangeRequestResponseDTO response = changeRequestService.updateChangeRequestImageUrls(id, userId, request.getImageUrls());
-        return ResponseEntity.ok(response);
     }
     
     private UUID extractUserId(Authentication authentication) {

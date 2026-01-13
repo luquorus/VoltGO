@@ -6,15 +6,19 @@ import java.util.UUID;
 public class UserAccount {
     private UUID id;
     private String email;
+    private String name;
+    private String phone;
     private String passwordHash;
     private Role role;
     private UserStatus status;
     private Instant createdAt;
 
     // Constructor for new account
-    public UserAccount(String email, String passwordHash, Role role) {
+    public UserAccount(String email, String name, String passwordHash, Role role) {
         this.id = UUID.randomUUID();
         this.email = email;
+        this.name = name;
+        this.phone = null;
         this.passwordHash = passwordHash;
         this.role = role;
         this.status = UserStatus.ACTIVE;
@@ -22,9 +26,11 @@ public class UserAccount {
     }
 
     // Constructor for existing account
-    public UserAccount(UUID id, String email, String passwordHash, Role role, UserStatus status, Instant createdAt) {
+    public UserAccount(UUID id, String email, String name, String phone, String passwordHash, Role role, UserStatus status, Instant createdAt) {
         this.id = id;
         this.email = email;
+        this.name = name;
+        this.phone = phone;
         this.passwordHash = passwordHash;
         this.role = role;
         this.status = status;
@@ -56,8 +62,28 @@ public class UserAccount {
         return email;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public Role getRole() {

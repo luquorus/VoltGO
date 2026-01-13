@@ -6,6 +6,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/audit_log.dart';
 import '../providers/audit_log_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Change Request Audit Screen
 /// Shows audit logs for a specific change request
@@ -54,7 +55,7 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Change Request Audit Logs',
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -151,7 +152,7 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
                             .watch(changeRequestAuditLogsProvider(_currentChangeRequestId!))
                             .when(
                           data: (logs) => _buildAuditLogsTable(theme, logs),
-                          loading: () => const LoadingState(
+                          loading: () => LoadingState(
                             message: 'Loading audit logs...',
                           ),
                           error: (error, stack) => ErrorState(

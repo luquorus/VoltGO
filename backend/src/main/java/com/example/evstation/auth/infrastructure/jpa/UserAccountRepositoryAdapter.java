@@ -41,6 +41,8 @@ public class UserAccountRepositoryAdapter implements UserAccountRepository {
         return UserAccountEntity.builder()
                 .id(domain.getId())
                 .email(domain.getEmail())
+                .name(domain.getName())
+                .phone(domain.getPhone())
                 .passwordHash(domain.getPasswordHash())
                 .role(domain.getRole())
                 .status(domain.getStatus())
@@ -52,6 +54,8 @@ public class UserAccountRepositoryAdapter implements UserAccountRepository {
         return new UserAccount(
                 entity.getId(),
                 entity.getEmail(),
+                entity.getName(),
+                entity.getPhone(),
                 entity.getPasswordHash(),
                 entity.getRole(),
                 entity.getStatus(),

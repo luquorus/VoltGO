@@ -104,7 +104,7 @@ public class AdminVerificationController {
     }
 
     @Operation(summary = "Get verification task by ID", 
-               description = "Get a specific verification task with all details including evidence and review")
+               description = "Get a specific verification task with all details including check-in and review")
     @GetMapping("/{id}")
     public ResponseEntity<VerificationTaskDTO> getTask(@PathVariable UUID id) {
         log.info("Admin getting task: {}", id);

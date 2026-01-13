@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import '../providers/change_request_providers.dart';
 import '../repositories/change_request_repository.dart';
 import '../widgets/main_scaffold.dart';
@@ -38,11 +35,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   
   // Services
   final List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
-  
-  // Images
-  final List<XFile> _selectedImages = [];
-  final List<String> _uploadedImageKeys = []; // MinIO object keys
-  bool _isUploadingImage = false;
   
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
@@ -289,9 +281,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                 ),
               ),
               const SizedBox(height: 16),
-              _buildImageUploadSection(theme),
-              const SizedBox(height: 32),
-              
               // Submit Button
               PrimaryButton(
                 label: 'Create Station Proposal',
@@ -612,188 +601,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     );
   }
 
-  Widget _buildImageUploadSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Selected images grid
-        if (_selectedImages.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _selectedImages.asMap().entries.map((entry) {
-              final index = entry.key;
-              final image = entry.value;
-              return _buildImageThumbnail(theme, image, index);
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-        ],
-        // Upload button
-        Row(
-          children: [
-            Expanded(
-              child: SecondaryButton(
-                label: 'Select Photo',
-                onPressed: _isSubmitting ? null : _pickImage,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildImageThumbnail(ThemeData theme, XFile image, int index) {
-    final isUploaded = index < _uploadedImageKeys.length;
-    
-    return Stack(
-      children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isUploaded ? Colors.green : Colors.grey,
-              width: 2,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: FutureBuilder<Uint8List>(
-              future: image.readAsBytes(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return Image.memory(
-                    snapshot.data!,
-                    fit: BoxFit.cover,
-                  );
-                } else if (snapshot.hasError) {
-                  return const FaIcon(FontAwesomeIcons.circleExclamation, color: Colors.red);
-                } else {
-                  return const Center(child: CircularProgressIndicator());
-                }
-              },
-            ),
-          ),
-        ),
-        if (isUploaded)
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                shape: BoxShape.circle,
-              ),
-              child: const FaIcon(
-                FontAwesomeIcons.check,
-                size: 12,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        Positioned(
-          top: 4,
-          left: 4,
-          child: IconButton(
-            icon: const FaIcon(FontAwesomeIcons.xmark, size: 16),
-            color: Colors.red,
-            onPressed: _isSubmitting ? null : () {
-              setState(() {
-                _selectedImages.removeAt(index);
-                if (index < _uploadedImageKeys.length) {
-                  _uploadedImageKeys.removeAt(index);
-                }
-              });
-            },
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
-              padding: const EdgeInsets.all(4),
-              minimumSize: const Size(24, 24),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-
-      if (image == null) return;
-
-      setState(() {
-        _selectedImages.add(image);
-      });
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, 'Failed to pick image: ${e.toString()}');
-      }
-    }
-  }
-
-  Future<List<String>> _uploadImages() async {
-    if (_selectedImages.isEmpty) {
-      return [];
-    }
-
-    final List<String> uploadedKeys = [];
-    
-    for (int i = 0; i < _selectedImages.length; i++) {
-      final image = _selectedImages[i];
-      try {
-        // Get presigned URL
-        final repository = ref.read(changeRequestRepositoryProvider);
-        final presignResponse = await repository.presignUpload(
-          contentType: 'image/jpeg',
-        );
-
-        String uploadUrl = presignResponse['uploadUrl'] as String;
-        final objectKey = presignResponse['objectKey'] as String;
-
-        // Backend now returns URL with public endpoint, no need to replace
-
-        // Validate URL before uploading
-        final uri = Uri.tryParse(uploadUrl);
-        if (uri == null) {
-          throw Exception('Invalid upload URL: $uploadUrl');
-        }
-
-        // Upload file to MinIO
-        final bytes = await image.readAsBytes();
-        debugPrint('Uploading image ${i + 1}/${_selectedImages.length}: ${bytes.length} bytes...');
-
-        final response = await http.put(
-          uri,
-          body: bytes,
-        );
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          uploadedKeys.add(objectKey);
-          debugPrint('Image ${i + 1} uploaded successfully: $objectKey');
-        } else {
-          debugPrint('Failed to upload image ${i + 1}: ${response.statusCode}');
-          debugPrint('Response: ${response.body}');
-          throw Exception('Failed to upload image ${i + 1}: ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('Error uploading image ${i + 1}: $e');
-        // Continue with other images, but throw error at the end
-        throw Exception('Failed to upload image ${i + 1}: ${e.toString()}');
-      }
-    }
-
-    return uploadedKeys;
-  }
-
   Future<void> _getCurrentLocation() async {
     setState(() {
       _isGettingLocation = true;
@@ -970,7 +777,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         if (_type == 'UPDATE_STATION' && _stationIdController.text.isNotEmpty)
           'stationId': _stationIdController.text.trim(),
         'stationData': stationData,
-        // Don't include imageUrls yet - will upload after creation
       };
 
       if (mounted) {
@@ -982,35 +788,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
 
       if (mounted) {
         AppToast.showSuccess(context, 'Station proposal created successfully');
-      }
-
-      // Upload images after proposal is created successfully
-      if (_selectedImages.isNotEmpty) {
-        if (mounted) {
-          AppToast.showInfo(context, 'Uploading ${_selectedImages.length} photo(s)...');
-        }
-        try {
-          final uploadedKeys = await _uploadImages();
-          
-          // Update change request with image URLs
-          if (mounted) {
-            AppToast.showInfo(context, 'Linking photos to proposal...');
-          }
-          await repository.updateChangeRequestImageUrls(changeRequestId, uploadedKeys);
-          
-          setState(() {
-            _uploadedImageKeys.clear();
-            _uploadedImageKeys.addAll(uploadedKeys);
-          });
-          if (mounted) {
-            AppToast.showSuccess(context, 'Photos uploaded and linked successfully');
-          }
-        } catch (e) {
-          debugPrint('Failed to upload images after creating proposal: $e');
-          if (mounted) {
-            AppToast.showWarning(context, 'Proposal created but image upload failed. You can add images later.');
-          }
-        }
       }
 
       if (mounted) {

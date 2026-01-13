@@ -27,6 +27,12 @@ public class UserAccountEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false)
+    private String name;
+
+    @Column(length = 20)
+    private String phone;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 

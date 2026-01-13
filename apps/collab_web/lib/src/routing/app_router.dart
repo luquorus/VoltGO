@@ -8,6 +8,7 @@ import '../screens/tasks_screen.dart';
 import '../screens/task_history_screen.dart';
 import '../screens/task_kpi_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/edit_profile_screen.dart';
 import '../screens/contracts_screen.dart';
 
 /// Route paths for Collaborator Web
@@ -91,6 +92,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: CollabRoutes.profile,
         builder: (_, __) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/me/profile/edit',
+        builder: (_, __) => const EditProfileScreen(),
       ),
       GoRoute(
         path: CollabRoutes.contracts,

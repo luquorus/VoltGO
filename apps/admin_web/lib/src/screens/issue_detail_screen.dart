@@ -7,6 +7,7 @@ import 'package:shared_api/shared_api.dart';
 import '../models/admin_issue.dart';
 import '../providers/issue_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Issue Detail Screen
 class IssueDetailScreen extends ConsumerWidget {
@@ -22,11 +23,11 @@ class IssueDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final issueAsync = ref.watch(issueProvider(id));
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Issue Details',
       body: issueAsync.when(
         data: (issue) => _buildContent(context, theme, ref, issue),
-        loading: () => const Center(child: LoadingState(message: 'Loading...')),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
           message: error.toString(),
           onRetry: () {

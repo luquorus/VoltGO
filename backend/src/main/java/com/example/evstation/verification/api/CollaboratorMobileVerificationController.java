@@ -64,20 +64,6 @@ public class CollaboratorMobileVerificationController {
         return ResponseEntity.ok(result);
     }
 
-    @Operation(summary = "Submit verification evidence", 
-               description = "Submit photo evidence for the verification task. Requires task status to be CHECKED_IN and collaborator must have active contract.")
-    @PostMapping("/{id}/submit-evidence")
-    public ResponseEntity<VerificationTaskDTO> submitEvidence(
-            @PathVariable UUID id,
-            @Valid @RequestBody SubmitEvidenceDTO dto,
-            Authentication authentication) {
-        
-        UUID userId = extractUserId(authentication);
-        log.info("Collaborator {} submitting evidence for task {}", userId, id);
-        
-        VerificationTaskDTO result = verificationService.submitEvidence(id, dto, userId);
-        return ResponseEntity.ok(result);
-    }
 
     private UUID extractUserId(Authentication authentication) {
         return UUID.fromString(authentication.getName());

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
+import '../widgets/admin_scaffold.dart';
 
 class ForbiddenScreen extends ConsumerWidget {
   const ForbiddenScreen({super.key});
@@ -11,7 +12,9 @@ class ForbiddenScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     
-    return AppScaffold(
+    return AdminScaffold(
+      title: 'Access Forbidden',
+      showSidebar: false,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

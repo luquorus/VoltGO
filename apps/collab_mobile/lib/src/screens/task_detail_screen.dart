@@ -6,7 +6,6 @@ import 'package:shared_ui/shared_ui.dart';
 import '../providers/task_providers.dart';
 import '../models/verification_task.dart';
 import '../widgets/main_scaffold.dart';
-import '../widgets/evidence_upload_stepper.dart';
 
 /// Task Detail Screen with GPS Check-in
 class TaskDetailScreen extends ConsumerStatefulWidget {
@@ -47,7 +46,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   Widget _buildTaskDetail(BuildContext context, VerificationTask task) {
     final theme = Theme.of(context);
     final canCheckIn = task.status == VerificationTaskStatus.assigned;
-    final canSubmitEvidence = task.status == VerificationTaskStatus.checkedIn;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -219,96 +217,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                         value: task.checkin!.deviceNote!,
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-
-          // Evidence Upload Section
-          if (canSubmitEvidence) ...[
-            const SizedBox(height: 16),
-            EvidenceUploadStepper(
-              task: task,
-              onSuccess: () {
-                // Task will be refreshed automatically
-              },
-            ),
-          ],
-
-          // Evidences List
-          if (task.evidences.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.photo_library,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Submitted Evidences',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ...task.evidences.map((evidence) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.image,
-                                  size: 20,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Photo: ${evidence.photoObjectKey.split('/').last}',
-                                        style: theme.textTheme.bodyMedium,
-                                      ),
-                                      if (evidence.note != null) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          evidence.note!,
-                                          style: theme.textTheme.bodySmall,
-                                        ),
-                                      ],
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Submitted: ${_formatFullDateTime(evidence.submittedAt)}',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
                   ],
                 ),
               ),

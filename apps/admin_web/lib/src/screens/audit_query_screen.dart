@@ -7,6 +7,7 @@ import '../models/audit_log.dart';
 import '../models/pagination_response.dart';
 import '../providers/audit_log_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 import 'dart:convert';
 
 /// Audit Query Screen
@@ -128,7 +129,7 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
     final filters = ref.watch(auditQueryFiltersProvider);
     final auditLogsAsync = ref.watch(auditLogsQueryProvider(filters));
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Audit Logs',
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -149,7 +150,7 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
                       margin: EdgeInsets.zero,
                       child: auditLogsAsync.when(
                         data: (pagination) => _buildAuditLogsTable(theme, pagination),
-                        loading: () => const LoadingState(message: 'Loading audit logs...'),
+                        loading: () => LoadingState(message: 'Loading audit logs...'),
                         error: (error, stack) => ErrorState(
                           message: error.toString(),
                           onRetry: () {

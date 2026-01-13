@@ -11,6 +11,8 @@ public class RegisterRequest {
     @Email
     private String email;
 
+    private String name; // Optional, defaults to email if not provided
+
     @NotBlank
     @Size(min = 8)
     private String password;

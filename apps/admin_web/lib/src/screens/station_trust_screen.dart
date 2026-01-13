@@ -8,6 +8,7 @@ import '../models/station_trust.dart';
 import '../providers/station_trust_providers.dart';
 import '../repositories/station_trust_repository.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Station Trust Screen
 /// 
@@ -121,7 +122,7 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Station Trust Score',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -147,11 +148,14 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: AppTextField(
-                              label: 'Station ID (UUID) *',
+                            child: TextFormField(
                               controller: _stationIdController,
-                              hint: 'Enter station UUID...',
                               enabled: _currentStationId == null,
+                              decoration: InputDecoration(
+                                labelText: 'Station ID (UUID) *',
+                                hintText: 'Enter station UUID...',
+                                border: const OutlineInputBorder(),
+                              ),
                               validator: (v) {
                                 if (v == null || v.isEmpty) {
                                   return 'Station ID is required';

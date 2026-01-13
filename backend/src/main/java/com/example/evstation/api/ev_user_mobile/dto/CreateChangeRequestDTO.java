@@ -27,12 +27,6 @@ public class CreateChangeRequestDTO {
     @Valid
     private StationDataDTO stationData;
     
-    /**
-     * Optional list of MinIO object keys for uploaded images.
-     * Images should be uploaded first using /api/ev/files/presign-upload endpoint.
-     */
-    private List<String> imageUrls;
-    
     @Data
     public static class StationDataDTO {
         @NotBlank(message = "Name is required")

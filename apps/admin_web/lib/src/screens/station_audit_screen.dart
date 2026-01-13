@@ -6,6 +6,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/audit_log.dart';
 import '../providers/audit_log_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Station Audit Screen
 /// Shows audit logs for a specific station
@@ -54,7 +55,7 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Station Audit Logs',
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -149,7 +150,7 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
                         margin: EdgeInsets.zero,
                         child: ref.watch(stationAuditLogsProvider(_currentStationId!)).when(
                           data: (logs) => _buildAuditLogsTable(theme, logs),
-                          loading: () => const LoadingState(
+                          loading: () => LoadingState(
                             message: 'Loading audit logs...',
                           ),
                           error: (error, stack) => ErrorState(

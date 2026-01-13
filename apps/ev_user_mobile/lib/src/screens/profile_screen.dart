@@ -5,15 +5,34 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../widgets/main_scaffold.dart';
+import '../providers/profile_providers.dart';
 
 /// Profile Screen
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load profile when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(profileProvider.notifier).loadProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final profileState = ref.watch(profileProvider);
     final theme = Theme.of(context);
+
+    final displayName = profileState.profile?['name'] as String? ?? 
+                       authState.email ?? 'User';
 
     return MainScaffold(
       title: 'Profile',
@@ -46,20 +65,58 @@ class ProfileScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                authState.email ?? 'User',
+                                displayName,
                                 style: theme.textTheme.titleLarge,
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                authState.role ?? 'EV_USER',
+                                authState.email ?? '',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface.withOpacity(0.6),
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              Text(
+                                authState.role ?? 'EV_USER',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                              ),
+                              if (profileState.profile?['phone'] != null) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.phone_outlined,
+                                      size: 14,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      profileState.profile!['phone'] as String,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push('/profile/edit'),
+                        icon: const FaIcon(FontAwesomeIcons.pen, size: 14),
+                        label: const Text('Edit Profile'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
                   ],
                 ),

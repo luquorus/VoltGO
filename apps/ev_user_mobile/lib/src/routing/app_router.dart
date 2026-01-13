@@ -13,6 +13,7 @@ import '../screens/create_booking_with_charger_unit_screen.dart';
 import '../screens/booking_list_screen.dart';
 import '../screens/booking_detail_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/edit_profile_screen.dart';
 import '../screens/change_request_list_screen.dart';
 import '../screens/change_request_detail_screen.dart';
 import '../screens/change_request_create_screen.dart';
@@ -96,6 +97,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => const EditProfileScreen(),
       ),
       GoRoute(
         path: '/change-requests',

@@ -15,6 +15,8 @@ import '../screens/station_trust_screen.dart';
 import '../screens/audit_query_screen.dart';
 import '../screens/station_audit_screen.dart';
 import '../screens/change_request_audit_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/edit_profile_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -101,6 +103,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/audit/change-requests',
         builder: (_, __) => const ChangeRequestAuditScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (_, __) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (_, __) => const EditProfileScreen(),
       ),
     ],
   );

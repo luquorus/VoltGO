@@ -55,9 +55,6 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     
-    // MinIO Client
-    implementation 'io.minio:minio:8.5.7'
-    
     // Development
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     

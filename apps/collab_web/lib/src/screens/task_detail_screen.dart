@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../models/verification_task.dart';
 import '../theme/collab_theme.dart';
-import '../widgets/evidence_photo_widget.dart';
 
 /// Task Detail Dialog - Shows full task details
 /// Since OpenAPI doesn't have GET /api/collab/web/tasks/{id},
@@ -185,17 +184,6 @@ class TaskDetailDialog extends StatelessWidget {
                       ),
                     ],
 
-                    // Evidences
-                    if (task.evidences.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      _buildSection(
-                        theme,
-                        title: 'Evidences (${task.evidences.length})',
-                        children: task.evidences.map((evidence) {
-                          return EvidencePhotoWidget(evidence: evidence);
-                        }).toList(),
-                      ),
-                    ],
 
                     // Review
                     if (task.review != null) ...[

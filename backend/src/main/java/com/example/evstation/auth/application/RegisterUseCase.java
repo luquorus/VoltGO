@@ -15,7 +15,7 @@ public class RegisterUseCase {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserAccount execute(String email, String password, Role role) {
+    public UserAccount execute(String email, String name, String password, Role role) {
         // Validate role
         if (role == Role.ADMIN) {
             throw new IllegalArgumentException("Cannot register as ADMIN");
@@ -28,7 +28,7 @@ public class RegisterUseCase {
 
         // Create account
         String passwordHash = passwordEncoder.encode(password);
-        UserAccount account = new UserAccount(email, passwordHash, role);
+        UserAccount account = new UserAccount(email, name != null ? name : email, passwordHash, role);
         
         return repository.save(account);
     }

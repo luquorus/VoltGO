@@ -54,26 +54,5 @@ class ChangeRequestRepository {
     }
   }
 
-  /// Get presigned upload URL for image upload
-  Future<Map<String, dynamic>> presignUpload({String? contentType}) async {
-    try {
-      return await _apiClient.presignUpload(contentType: contentType);
-    } on ApiError {
-      rethrow;
-    } catch (e) {
-      throw Exception('Failed to get presigned upload URL: $e');
-    }
-  }
-
-  /// Update change request image URLs
-  Future<Map<String, dynamic>> updateChangeRequestImageUrls(String id, List<String> imageUrls) async {
-    try {
-      return await _apiClient.updateChangeRequest(id, {'imageUrls': imageUrls});
-    } on ApiError {
-      rethrow;
-    } catch (e) {
-      throw Exception('Failed to update change request image URLs: $e');
-    }
-  }
 }
 

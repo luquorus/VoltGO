@@ -7,7 +7,7 @@ public enum VerificationTaskStatus {
     OPEN,       // Task created, not assigned
     ASSIGNED,   // Assigned to collaborator
     CHECKED_IN, // Collaborator checked in at location
-    SUBMITTED,  // Evidence submitted
+    SUBMITTED,  // Task submitted for review
     REVIEWED    // Admin reviewed
 }
 

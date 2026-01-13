@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
-import java.util.List;
 
 @Data
 @Builder
@@ -23,7 +22,6 @@ public class VerificationTaskDTO {
     
     // Nested details
     private CheckinDTO checkin;
-    private List<EvidenceDTO> evidences;
     private ReviewDTO review;
     
     @Data
@@ -34,16 +32,6 @@ public class VerificationTaskDTO {
         private Instant checkedInAt;
         private Integer distanceM;
         private String deviceNote;
-    }
-    
-    @Data
-    @Builder
-    public static class EvidenceDTO {
-        private String id;
-        private String photoObjectKey;
-        private String note;
-        private Instant submittedAt;
-        private String submittedBy;
     }
     
     @Data

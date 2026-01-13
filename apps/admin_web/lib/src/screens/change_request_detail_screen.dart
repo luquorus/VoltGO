@@ -7,6 +7,7 @@ import 'package:shared_api/shared_api.dart';
 import '../models/admin_change_request.dart';
 import '../providers/change_request_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Change Request Detail Screen
 class ChangeRequestDetailScreen extends ConsumerWidget {
@@ -22,11 +23,11 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final changeRequestAsync = ref.watch(changeRequestProvider(id));
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Change Request Details',
       body: changeRequestAsync.when(
         data: (cr) => _buildContent(context, theme, ref, cr),
-        loading: () => const Center(child: LoadingState(message: 'Loading...')),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
           message: error.toString(),
           onRetry: () {
@@ -678,7 +679,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
+              backgroundColor: AdminTheme.primaryTeal,
               foregroundColor: Colors.white,
             ),
             child: const Text('Publish'),

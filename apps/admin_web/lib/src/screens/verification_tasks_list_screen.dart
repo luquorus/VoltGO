@@ -5,6 +5,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_verification_task.dart';
 import '../providers/verification_task_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 import 'create_task_modal.dart';
 import 'assign_task_modal.dart';
 
@@ -25,7 +26,7 @@ class _VerificationTasksListScreenState
     final filters = ref.watch(verificationTaskFiltersProvider);
     final tasksPageAsync = ref.watch(verificationTasksPageProvider);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Verification Tasks',
       actions: [
         ElevatedButton.icon(
@@ -64,7 +65,7 @@ class _VerificationTasksListScreenState
                 margin: EdgeInsets.zero,
                 child: tasksPageAsync.when(
                   data: (page) => _buildTasksTable(theme, page),
-                  loading: () => const LoadingState(
+                  loading: () => LoadingState(
                       message: 'Loading verification tasks...'),
                   error: (error, stack) => ErrorState(
                     message: error.toString(),

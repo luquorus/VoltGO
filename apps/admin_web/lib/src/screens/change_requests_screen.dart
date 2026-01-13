@@ -5,6 +5,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_change_request.dart';
 import '../providers/change_request_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Change Requests List Screen
 class ChangeRequestsScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _ChangeRequestsScreenState extends ConsumerState<ChangeRequestsScreen> {
     final filters = ref.watch(changeRequestFiltersProvider);
     final changeRequestsAsync = ref.watch(changeRequestsProvider);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Change Requests',
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -43,7 +44,7 @@ class _ChangeRequestsScreenState extends ConsumerState<ChangeRequestsScreen> {
                 margin: EdgeInsets.zero,
                 child: changeRequestsAsync.when(
                   data: (requests) => _buildChangeRequestsTable(theme, requests),
-                  loading: () => const LoadingState(message: 'Loading change requests...'),
+                  loading: () => LoadingState(message: 'Loading change requests...'),
                   error: (error, stack) => ErrorState(
                     message: error.toString(),
                     onRetry: () {
@@ -351,7 +352,7 @@ class _ChangeRequestsScreenState extends ConsumerState<ChangeRequestsScreen> {
                     case ChangeRequestStatus.rejected:
                       return Colors.red;
                     case ChangeRequestStatus.published:
-                      return AppTheme.primaryGreen;
+                      return AdminTheme.primaryTeal;
                     case ChangeRequestStatus.draft:
                       return Colors.grey;
                   }

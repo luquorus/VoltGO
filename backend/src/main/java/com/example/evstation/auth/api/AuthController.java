@@ -35,7 +35,11 @@ public class AuthController {
             return ResponseEntity.badRequest().build();
         }
 
-        UserAccount account = registerUseCase.execute(request.getEmail(), request.getPassword(), role);
+        UserAccount account = registerUseCase.execute(
+                request.getEmail(), 
+                request.getName(), 
+                request.getPassword(), 
+                role);
         
         // Generate token for registered user
         String token = loginUseCase.execute(request.getEmail(), request.getPassword())
@@ -45,6 +49,7 @@ public class AuthController {
                 .token(token)
                 .userId(account.getId())
                 .email(account.getEmail())
+                .name(account.getName())
                 .role(account.getRole().name())
                 .build();
 
@@ -63,6 +68,7 @@ public class AuthController {
                             .token(token)
                             .userId(account.getId())
                             .email(account.getEmail())
+                            .name(account.getName())
                             .role(account.getRole().name())
                             .build());
                 })

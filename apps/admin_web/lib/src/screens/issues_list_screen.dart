@@ -5,6 +5,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_issue.dart';
 import '../providers/issue_providers.dart';
 import '../theme/admin_theme.dart';
+import '../widgets/admin_scaffold.dart';
 
 /// Issues List Screen
 class IssuesListScreen extends ConsumerStatefulWidget {
@@ -21,7 +22,7 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
     final statusFilter = ref.watch(issueStatusFilterProvider);
     final issuesAsync = ref.watch(issuesProvider);
 
-    return AppScaffold(
+    return AdminScaffold(
       title: 'Reported Issues',
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -42,7 +43,7 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
                 margin: EdgeInsets.zero,
                 child: issuesAsync.when(
                   data: (issues) => _buildIssuesTable(context, theme, issues),
-                  loading: () => const LoadingState(message: 'Loading issues...'),
+                  loading: () => LoadingState(message: 'Loading issues...'),
                   error: (error, stack) => ErrorState(
                     message: error.toString(),
                     onRetry: () {
