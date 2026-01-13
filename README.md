@@ -5,7 +5,7 @@
 VoltGo là hệ thống quản lý trạm sạc xe điện với các tính năng:
 - Quản lý trạm sạc với versioning và workflow phê duyệt
 - Risk score và Trust score có thể giải thích
-- Xác minh thực địa bởi Collaborator (GPS check-in + evidence)
+- Xác minh thực địa bởi Collaborator (GPS check-in)
 - Booking theo slot + payment mô phỏng
 - 4 ứng dụng: EV User Mobile, Collaborator Mobile/Web, Admin Web Portal
 
@@ -15,7 +15,6 @@ VoltGo là hệ thống quản lý trạm sạc xe điện với các tính năn
 - **Frontend**: Flutter (Mobile + Web)
 - **Database**: PostgreSQL 16 với PostGIS extension
 - **Cache**: Redis 7
-- **Object Storage**: MinIO
 
 ## Yêu cầu hệ thống
 
@@ -49,7 +48,6 @@ VoltGo là hệ thống quản lý trạm sạc xe điện với các tính năn
    - Build backend Spring Boot application
    - Khởi động PostgreSQL 16 với PostGIS (port 5432)
    - Khởi động Redis 7 (port 6379)
-   - Khởi động MinIO (port 9000, console 9001)
    - Khởi động Backend API (port 8080)
 
 4. **Kiểm tra backend đã chạy**:
@@ -67,7 +65,7 @@ Nếu bạn muốn chạy backend trên máy để dễ debug/hot reload:
 1. **Chỉ chạy infrastructure**:
    ```powershell
    cd infra
-   docker-compose up -d postgres redis minio
+   docker-compose up -d postgres redis
    ```
 
 2. **Chạy backend trên máy** (cần Java 17+ và Gradle):
@@ -101,19 +99,6 @@ Nếu bạn muốn chạy backend trên máy để dễ debug/hot reload:
    -- Thoát
    \q
    ```
-
-#### Truy cập MinIO Console
-
-1. Mở trình duyệt và truy cập: **http://localhost:9001**
-
-2. Đăng nhập với thông tin từ file `.env`:
-   - Access Key: `minioadmin` (mặc định)
-   - Secret Key: `minioadmin` (mặc định)
-
-3. Tạo bucket cho evidence:
-   - Vào **Buckets** → **Create Bucket**
-   - Tên bucket: `voltgo-evidence` (hoặc tên trong `.env`)
-   - Chọn **Versioning** nếu cần
 
 #### Kiểm tra Redis
 
@@ -167,18 +152,12 @@ VoltGo/
 | **Backend API** | localhost | 8080 | - |
 | PostgreSQL | localhost | 5432 | User: `voltgo_user`, Password: `voltgo_pass`, DB: `voltgo` |
 | Redis | localhost | 6379 | - |
-| MinIO API | localhost | 9000 | Access Key: `minioadmin`, Secret Key: `minioadmin` |
-| MinIO Console | localhost | 9001 | Access Key: `minioadmin`, Secret Key: `minioadmin` |
 
 ## Troubleshooting
 
 ### PostgreSQL không khởi động được
 - Kiểm tra port 5432 có bị chiếm không: `netstat -ano | findstr :5432`
 - Xem logs: `docker logs voltgo-postgres`
-
-### MinIO không truy cập được
-- Kiểm tra port 9000 và 9001 có bị chiếm không
-- Xem logs: `docker logs voltgo-minio`
 
 ### Redis không kết nối được
 - Kiểm tra port 6379 có bị chiếm không
@@ -188,11 +167,10 @@ VoltGo/
 - Kiểm tra port 8080 có bị chiếm không: `netstat -ano | findstr :8080`
 - Xem logs: `docker logs voltgo-backend`
 - Kiểm tra backend đã build thành công: `docker-compose build backend`
-- Đảm bảo các services khác (postgres, redis, minio) đã healthy trước khi backend start
+- Đảm bảo các services khác (postgres, redis) đã healthy trước khi backend start
 
 ## Tài liệu tham khảo
 
 - [PostGIS Documentation](https://postgis.net/documentation/)
 - [Redis Documentation](https://redis.io/docs/)
-- [MinIO Documentation](https://min.io/docs/)
 
