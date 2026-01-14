@@ -17,6 +17,9 @@ import '../screens/station_audit_screen.dart';
 import '../screens/change_request_audit_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/edit_profile_screen.dart';
+import '../screens/collaborators_list_screen.dart';
+import '../screens/collaborator_detail_screen.dart';
+import '../screens/contract_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -111,6 +114,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/edit',
         builder: (_, __) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/collaborators',
+        builder: (_, __) => const CollaboratorsListScreen(),
+      ),
+      GoRoute(
+        path: '/collaborators/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CollaboratorDetailScreen(id: id);
+        },
+      ),
+      GoRoute(
+        path: '/contracts/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ContractDetailScreen(id: id);
+        },
       ),
     ],
   );

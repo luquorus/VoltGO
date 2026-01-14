@@ -765,5 +765,87 @@ class AdminWebApiClient extends BaseApiClient {
   Future<List<dynamic>> getChangeRequestAuditLogs(String changeRequestId) {
     return get<List<dynamic>>('/api/admin/change-requests/$changeRequestId/audit');
   }
+
+  // ============================================
+  // Collaborator Management Endpoints
+  // ============================================
+
+  /// POST /api/admin/collaborators
+  /// Create a collaborator profile for a user account with COLLABORATOR role
+  Future<Map<String, dynamic>> createCollaborator({
+    required String userAccountId,
+    String? fullName,
+    String? phone,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/collaborators',
+      data: {
+        'userAccountId': userAccountId,
+        if (fullName != null) 'fullName': fullName,
+        if (phone != null) 'phone': phone,
+      },
+    );
+  }
+
+  /// GET /api/admin/collaborators
+  /// Get all collaborator profiles with pagination
+  Future<Map<String, dynamic>> getCollaborators({
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/collaborators',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/admin/collaborators/{id}
+  /// Get a specific collaborator profile by ID
+  Future<Map<String, dynamic>> getCollaborator(String id) {
+    return get<Map<String, dynamic>>('/api/admin/collaborators/$id');
+  }
+
+  // ============================================
+  // Contract Management Endpoints
+  // ============================================
+
+  /// POST /api/admin/contracts
+  /// Create a new contract for a collaborator
+  Future<Map<String, dynamic>> createContract(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/admin/contracts', data: data);
+  }
+
+  /// GET /api/admin/contracts?collaboratorId=...
+  /// Get all contracts for a specific collaborator
+  Future<List<dynamic>> getContracts({required String collaboratorId}) {
+    return get<List<dynamic>>(
+      '/api/admin/contracts',
+      queryParameters: {'collaboratorId': collaboratorId},
+    );
+  }
+
+  /// GET /api/admin/contracts/{id}
+  /// Get a specific contract by ID
+  Future<Map<String, dynamic>> getContract(String id) {
+    return get<Map<String, dynamic>>('/api/admin/contracts/$id');
+  }
+
+  /// PUT /api/admin/contracts/{id}
+  /// Update contract dates, region, or note
+  Future<Map<String, dynamic>> updateContract(String id, Map<String, dynamic> data) {
+    return put<Map<String, dynamic>>('/api/admin/contracts/$id', data: data);
+  }
+
+  /// POST /api/admin/contracts/{id}/terminate
+  /// Terminate an active contract
+  Future<Map<String, dynamic>> terminateContract(String id, {String? reason}) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/contracts/$id/terminate',
+      data: reason != null ? {'reason': reason} : null,
+    );
+  }
 }
 

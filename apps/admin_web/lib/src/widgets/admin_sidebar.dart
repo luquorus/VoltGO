@@ -93,14 +93,6 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem(
                   context,
                   theme,
-                  icon: Icons.assignment_rounded,
-                  label: 'Verification Tasks',
-                  route: '/verification-tasks',
-                  isActive: currentRoute.startsWith('/verification-tasks'),
-                ),
-                _buildNavItem(
-                  context,
-                  theme,
                   icon: Icons.report_problem_rounded,
                   label: 'Reported Issues',
                   route: '/issues',
@@ -113,6 +105,22 @@ class AdminSidebar extends StatelessWidget {
                   label: 'Station Trust',
                   route: '/stations/trust',
                   isActive: currentRoute.startsWith('/stations/trust'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.people_rounded,
+                  label: 'Collaborators',
+                  route: '/collaborators',
+                  isActive: currentRoute.startsWith('/collaborators'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.assignment_rounded,
+                  label: 'Verification Tasks',
+                  route: '/verification-tasks',
+                  isActive: currentRoute.startsWith('/verification-tasks'),
                 ),
                 _buildNavItem(
                   context,

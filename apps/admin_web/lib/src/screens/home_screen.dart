@@ -116,56 +116,83 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            Wrap(
-              spacing: 20,
-              runSpacing: 20,
-              children: [
-                _buildActionCard(
-                  context,
-                  theme,
-                  icon: Icons.description_rounded,
-                  title: 'Change Requests',
-                  description: 'Review and manage change requests',
-                  color: AdminTheme.primaryTeal,
-                  onTap: () => context.push('/change-requests'),
-                ),
-                _buildActionCard(
-                  context,
-                  theme,
-                  icon: Icons.assignment_rounded,
-                  title: 'Verification Tasks',
-                  description: 'Create and manage verification tasks',
-                  color: AdminTheme.primaryTeal,
-                  onTap: () => context.push('/verification-tasks'),
-                ),
-                _buildActionCard(
-                  context,
-                  theme,
-                  icon: Icons.report_problem_rounded,
-                  title: 'Reported Issues',
-                  description: 'Manage EV user reported issues',
-                  color: AdminTheme.primaryTeal,
-                  onTap: () => context.push('/issues'),
-                ),
-                _buildActionCard(
-                  context,
-                  theme,
-                  icon: Icons.verified_user_rounded,
-                  title: 'Station Trust',
-                  description: 'View and recalculate station trust scores',
-                  color: AdminTheme.primaryTeal,
-                  onTap: () => context.push('/stations/trust'),
-                ),
-                _buildActionCard(
-                  context,
-                  theme,
-                  icon: Icons.history_rounded,
-                  title: 'Audit Logs',
-                  description: 'Query and view system audit logs',
-                  color: AdminTheme.primaryTeal,
-                  onTap: () => context.push('/audit'),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate number of columns based on screen width
+                final crossAxisCount = constraints.maxWidth > 1200
+                    ? 3
+                    : constraints.maxWidth > 800
+                        ? 2
+                        : 1;
+                final cardWidth = (constraints.maxWidth - (crossAxisCount - 1) * 20) / crossAxisCount;
+                
+                return Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  children: [
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.description_rounded,
+                      title: 'Change Requests',
+                      description: 'Review and manage change requests submitted by providers',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/change-requests'),
+                    ),
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.report_problem_rounded,
+                      title: 'Reported Issues',
+                      description: 'Manage issues reported by EV users about stations',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/issues'),
+                    ),
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.verified_user_rounded,
+                      title: 'Station Trust',
+                      description: 'View and recalculate station trust scores',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/stations/trust'),
+                    ),
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.people_rounded,
+                      title: 'Collaborators',
+                      description: 'Manage collaborator profiles and contracts',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/collaborators'),
+                    ),
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.assignment_rounded,
+                      title: 'Verification Tasks',
+                      description: 'Create and manage verification tasks for collaborators',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/verification-tasks'),
+                    ),
+                    _buildActionCard(
+                      context,
+                      theme,
+                      width: cardWidth,
+                      icon: Icons.history_rounded,
+                      title: 'Audit Logs',
+                      description: 'Query and view system audit logs for tracking changes',
+                      color: AdminTheme.primaryTeal,
+                      onTap: () => context.push('/audit'),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -176,92 +203,98 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildActionCard(
     BuildContext context,
     ThemeData theme, {
+    required double width,
     required IconData icon,
     required String title,
     required String description,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: 300,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AdminTheme.outlineLight,
-              width: 1,
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            height: 240,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AdminTheme.outlineLight,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color.withOpacity(0.15),
-                      color.withOpacity(0.08),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AdminTheme.primaryTealDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Text(
-                    'Open',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withOpacity(0.15),
+                        color.withOpacity(0.08),
+                      ],
                     ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 16,
+                  child: Icon(
+                    icon,
                     color: color,
+                    size: 28,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AdminTheme.primaryTealDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Text(
+                      'Open',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: color,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

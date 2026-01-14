@@ -138,6 +138,8 @@ public class AdminChangeRequestService {
                 .findById(changeRequest.getProposedStationVersionId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR, "Station version not found"));
         stationVersion.setWorkflowStatus(WorkflowStatus.REJECTED);
+        // Clear published_at when rejecting (required by constraint: published_at must be NULL when status != PUBLISHED)
+        stationVersion.setPublishedAt(null);
         stationVersionRepository.save(stationVersion);
         
         changeRequestRepository.save(changeRequest);
