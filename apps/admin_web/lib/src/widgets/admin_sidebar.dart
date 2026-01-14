@@ -101,6 +101,14 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  icon: Icons.ev_station,
+                  label: 'Stations',
+                  route: '/stations',
+                  isActive: currentRoute.startsWith('/stations') && !currentRoute.startsWith('/stations/trust'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
                   icon: Icons.verified_user_rounded,
                   label: 'Station Trust',
                   route: '/stations/trust',

@@ -1,0 +1,5 @@
+name,address,latitude,longitude,ports_250kw,ports_180kw,ports_150kw,ports_120kw,ports_80kw,ports_60kw,ports_40kw,ports_ac,operatingHours,parking,stationType,status
+Nhuong quyen - Ho kinh doanh Ha Thi Xuan Thanh,"Phu Xuyen District, Hanoi",20.785429,105.919281,0,0,0,4,0,2,0,0,24/7,Paid,Public,active
+Vincom Plaza Long Bien,"Hoa Phuong Street, Vinhomes Riverside, Long Bien District, Hanoi City",21.05052,105.91581,4,0,0,8,0,0,0,1,24/7,Paid,Public,active
+Vincom Mega Mall Ocean Park,"Ocean Park Shopping Mall Parking Lot, Vinhomes Ocean Park, Kieu Ky Commune, Gia Lam District, Hanoi City",20.994547,105.959602,5,0,0,0,0,4,0,0,24/7,Paid,Public,active
+

@@ -85,6 +85,15 @@ abstract class BaseApiClient {
   Future<T> _handleResponse<T>(Future<Response> request) async {
     try {
       final response = await request;
+      
+      // Handle 204 No Content (common for DELETE requests)
+      // When status is 204 or data is null, return null for void types
+      if (response.statusCode == 204 || response.data == null) {
+        // For void return type (Future<void>), we can safely return null
+        // This is handled by the type system - void functions can return null
+        return null as T;
+      }
+      
       return response.data as T;
     } on DioException catch (e) {
       // ErrorInterceptor already maps to ApiError, check error field
@@ -846,6 +855,56 @@ class AdminWebApiClient extends BaseApiClient {
       '/api/admin/contracts/$id/terminate',
       data: reason != null ? {'reason': reason} : null,
     );
+  }
+
+  // ============================================
+  // Station Management Endpoints
+  // ============================================
+
+  /// GET /api/admin/stations
+  /// Get all stations with pagination
+  Future<Map<String, dynamic>> getStations({
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/stations',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/admin/stations/{id}
+  /// Get station detail by ID
+  Future<Map<String, dynamic>> getStation(String id) {
+    return get<Map<String, dynamic>>('/api/admin/stations/$id');
+  }
+
+  /// POST /api/admin/stations
+  /// Create a new station
+  Future<Map<String, dynamic>> createStation(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/admin/stations', data: data);
+  }
+
+  /// POST /api/admin/stations/import-csv
+  /// Import stations from CSV file
+  Future<Map<String, dynamic>> importStationsFromCsv(dynamic file) {
+    // This will be handled by the frontend using FormData directly
+    throw UnimplementedError('Use FormData with dio client directly');
+  }
+
+  /// PUT /api/admin/stations/{id}
+  /// Update a station
+  Future<Map<String, dynamic>> updateStation(String id, Map<String, dynamic> data) {
+    return put<Map<String, dynamic>>('/api/admin/stations/$id', data: data);
+  }
+
+  /// DELETE /api/admin/stations/{id}
+  /// Delete (archive) a station
+  Future<void> deleteStation(String id) {
+    return delete<void>('/api/admin/stations/$id');
   }
 }
 

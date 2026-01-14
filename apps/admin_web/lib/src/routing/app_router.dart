@@ -20,6 +20,10 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/collaborators_list_screen.dart';
 import '../screens/collaborator_detail_screen.dart';
 import '../screens/contract_detail_screen.dart';
+import '../screens/stations_list_screen.dart';
+import '../screens/station_detail_screen.dart';
+import '../screens/create_station_screen.dart';
+import '../screens/csv_import_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -131,6 +135,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return ContractDetailScreen(id: id);
+        },
+      ),
+      GoRoute(
+        path: '/stations',
+        builder: (_, __) => const StationsListScreen(),
+      ),
+      GoRoute(
+        path: '/stations/create',
+        builder: (_, __) => const CreateStationScreen(),
+      ),
+      GoRoute(
+        path: '/stations/import-csv',
+        builder: (_, __) => const CsvImportScreen(),
+      ),
+      GoRoute(
+        path: '/stations/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return StationDetailScreen(id: id);
         },
       ),
     ],

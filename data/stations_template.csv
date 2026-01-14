@@ -1,0 +1,62 @@
+name,address,latitude,longitude,ports_250kw,ports_180kw,ports_150kw,ports_120kw,ports_80kw,ports_60kw,ports_40kw,ports_ac,operatingHours,parking,stationType,status
+Nhuong quyen - Ho kinh doanh Ha Thi Xuan Thanh,"Phu Xuyen District, Hanoi",20.785429,105.919281,0,0,0,4,0,2,0,0,24/7,Paid,Public,active
+Vincom Plaza Long Bien,"Hoa Phuong Street, Vinhomes Riverside, Long Bien District, Hanoi City",21.05052,105.91581,4,0,0,8,0,0,0,1,24/7,Paid,Public,active
+Vincom Mega Mall Ocean Park,"Ocean Park Shopping Mall Parking Lot, Vinhomes Ocean Park, Kieu Ky Commune, Gia Lam District, Hanoi City",20.994547,105.959602,5,0,0,0,0,4,0,0,24/7,Paid,Public,active
+Vincom Mega Mall Smart City,"Outdoor parking lot beside Vincom Mega Mall Smart City, Nam Tu Liem District, Hanoi City",21.006189,105.753479,1,0,0,0,0,8,1,1,24/7,Paid,Public,active
+Lan Chi Supermarket Ba Vi,"Lan Chi Supermarket Ba Vi, National Highway 32, Vat Lai Commune, Ba Vi District, Hanoi City",21.206345,105.416,1,0,0,0,0,0,4,2,24/7,Paid,Public,active
+Big C Thang Long Shopping Center,"Big C Thang Long Parking Lot, 222 Tran Duy Hung Street, Trung Hoa Ward, Cau Giay District, Hanoi City",21.006773,105.793716,3,0,0,2,0,4,0,4,08:00-22:00,Paid,Public,active
+Gamuda City Yen So Park Parking Lot,"Gamuda City, Yen So Park Parking Lot, National Highway 1A, Thinh Liet Ward, Hoang Mai District, Hanoi City",20.964708,105.853188,1,0,0,0,0,10,0,0,00:00-23:59 (Closed on Sunday),Paid,Public,active
+CT04 V52 Rest Stop (Hanoi–Hai Phong Direction),"CT04 V52 Rest Stop, Hanoi–Hai Phong Direction, Hoang Dieu Commune, Gia Loc District, Hai Duong Province",20.857233,106.332809,5,0,0,0,0,10,0,0,24/7,Paid,Public,active
+CT04 V52 Rest Stop (Hai Phong–Hanoi Direction),"CT04 V52 Rest Stop, Hai Phong–Hanoi Direction, Hoang Dieu Commune, Gia Loc District, Hai Duong Province",20.859716,106.335342,5,0,0,4,0,6,0,0,24/7,Paid,Public,active
+CT04 PK77 Rest Stop (Hanoi–Hai Phong Direction),"CT04 PK77 Rest Stop, Hanoi–Hai Phong Direction, Quoc Tuan Commune, An Lao District, Hai Phong City",20.792961,106.547485,10,0,0,0,0,8,0,0,24/7,Paid,Public,active
+Parking Lot of Inspection Station 29.15D,"National Highway 1A, km21, Ha Hoi Commune, Thuong Tin District, Hanoi City",20.857622,105.869469,1,0,0,0,0,14,0,0,24/7,Paid,Public,active
+CT04 Expressway Km24 Rest Stop (Hanoi–Hai Phong Direction),"CT04 Expressway Km24, Hanoi–Hai Phong Direction, Tan Viet Commune, Yen My District, Hung Yen Province",20.845188,106.059273,15,0,0,0,0,14,0,0,24/7,Paid,Public,active
+Vincom Center Pham Ngoc Thach,"2 Pham Ngoc Thach Street, Dong Da District, Hanoi City",21.006107,105.831696,3,0,0,0,0,12,1,0,24/7,Paid,Public,active
+VinFast Phan Trong Tue Auto Dealer,"443 Phan Trong Tue Street, Thanh Liet Commune, Thanh Tri District, Hanoi City",20.952042,105.817986,1,0,0,0,0,10,0,0,24/7,Paid,Public,active
+Son Ha Company Parking Lot,"8 Quang Trung Street, Quang Trung Ward, Ha Dong District, Hanoi City",20.972666,105.777496,1,0,0,4,0,8,0,0,24/7,Paid,Public,active
+Tu Son Bac Ninh Petrol Station,"Km152, Hanoi–Bac Giang Expressway, Doi Soc Neighborhood, Phu Chan Ward, Tu Son City, Bac Ninh Province",21.092207,105.960587,1,0,0,0,0,18,0,0,24/7,Paid,Public,active
+"P06 The Grand Expo Parking Lot - Co Loa","Vinhomes Global Gate - Truong Sa Street, Dong Anh District, Hanoi City",21.084431,105.865959,3,0,0,18,0,16,35,34,24/7,Paid,Public,active
+"P05 The Grand Expo Parking Lot - Co Loa","Vinhomes Global Gate - Truong Sa Street, Dong Anh District, Hanoi City",21.083302,105.864532,3,0,0,18,0,16,36,38,24/7,Paid,Public,active
+Vinhomes Times City – Vietcombank Area,"Sidewalk adjacent to Vietcombank, Vinhomes Times City, 458 Minh Khai Street, Vinh Tuy Ward, Hai Ba Trung District, Hanoi City",20.9981,105.868149,0,6,0,0,0,0,0,0,24/7,Paid,Public,active
+Vincom Mega Mall Ocean Park,"Vincom Mega Mall Ocean Park, Duong Xa Commune, Gia Lam District, Hanoi City",20.993963,105.958755,0,12,0,10,0,0,0,4,24/7,Paid,Public,active
+Vinhomes Riverside – Rose Street,"Rose Street, Vinhomes Riverside, Phuc Loi Ward, Long Bien District, Hanoi City",21.044464,105.916634,0,20,0,0,0,0,0,0,06:00-22:00,Free,Public,active
+Petrolimex Gas Station No.106,"National Highway 23B, Tien Duong Commune, Dong Anh District, Hanoi City",21.148256,105.836739,0,2,0,0,0,2,0,0,24/7,Paid,Public,active
+Petrolimex Gas Station Dong Truc No.32,"Dong Kho Hamlet, Dong Truc Commune, Thach That District, Hanoi City",20.988539,105.568901,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Petrolimex Gas Station No.02 Thuong Ly,"1 Ha Noi Street, Hong Bang District, Hai Phong City",20.871593,106.654007,0,2,0,0,0,8,0,0,24/7,Paid,Public,active
+Petrolimex Gas Station No.73,"Phan Trong Tue Street, Tam Hiep Commune, Thanh Tri District, Hanoi City",20.946259,105.828873,0,2,0,0,0,0,0,0,05:00-23:00,Paid,Public,active
+Petrolimex Gas Station No.80,"Hamlet 4, Dong Du Commune, Gia Lam District, Hanoi City",20.997543,105.919746,0,2,0,0,0,2,0,0,24/7,Paid,Public,active
+Petrolimex Gas Station No.81,"Giao Tu Hamlet, Kim Son Commune, Gia Lam District, Hanoi City",21.02696,105.995338,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Petrolimex HSB Gas Station No.30,"Trai Ho Hamlet, Co Dong Commune, Son Tay Town, Hanoi City",21.056032,105.499855,0,2,0,0,0,2,0,0,24/7,Paid,Public,active
+Petrolimex HSB Gas Station No.34,"Noi Bai Industrial Park, Xuan Bach Hamlet, Quang Tien Commune, Soc Son District, Hanoi City",21.234112,105.806038,0,2,0,0,0,2,0,0,24/7,Paid,Public,active
+Petrolimex HSB Gas Station No.33,"Cau Tay Hamlet, Huu Van Commune, Chuong My District, Hanoi City",20.84009,105.639183,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+PVOIL Hanoi Tan Son Gas Station,"Dong Bang Hamlet, Dong Tan Commune, Mai Chau District, Hoa Binh Province",20.71911,104.998421,0,2,0,0,0,2,0,0,24/7,Paid,Public,active
+Dai Mach Gas Station,"Dai Mach, Dong Anh District, Hanoi City",21.132446,105.760117,0,2,0,0,0,16,0,0,24/7,Paid,Public,active
+Binh Yen Gas Station,"Binh Yen Commune, Thach That District, Hanoi City",21.03385,105.543907,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Son Dong Gas Station,"Km5, National Highway 21A, Tan Phu Hamlet, Son Dong Commune, Son Tay Town, Hanoi City",21.093596,105.499191,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Dai Thuan Gas Station,"Hiep Thuan Commune, Phuc Tho District, Hanoi City",21.086502,105.638458,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Hung Thinh Gas Station,"Provincial Road 419, Quoc Oai Town, Quoc Oai District, Hanoi City",20.990183,105.646889,0,2,0,0,0,4,0,0,24/7,Paid,Public,active
+Franchise – Vinhomes Ocean Park VinBus Depot,"Hai Au 12 Street, Kieu Ky Commune, Gia Lam District, Hanoi City",20.99118,105.957336,0,46,0,0,0,0,0,0,07:00-19:00,Paid,Public,active
+Franchise – Vinhomes Smart City VinBus Depot,"Tay Mo Ward, Nam Tu Liem District, Hanoi City",21.007307,105.750954,0,40,0,0,0,0,0,0,07:00-19:00,Paid,Public,active
+Franchise – VinBus Times City,"458 Minh Khai Street, Vinh Tuy Ward, Hai Ba Trung District, Hanoi City",20.994469,105.867401,0,2,0,0,0,0,0,0,21:00-08:00,Paid,Public,active
+Vinhomes Gardenia BT18-01,"Fast parking area adjacent to BT18-01, Vinhomes Gardenia, 16 Ham Nghi Street, My Dinh 2 Ward, Nam Tu Liem District, Hanoi City",21.034445,105.761375,0,0,8,0,0,2,0,0,24/7,Paid,Public,active
+Phung Hung Gas Station,"Km2+100, National Highway 32 Bypass, Thu Trung Hamlet, Thanh My Commune, Son Tay Town, Hanoi City",21.130953,105.485001,0,0,2,0,0,4,0,0,24/7,Paid,Public,active
+Sai Son Gas Station,"Km4, Road 81, Sai Son Commune, Quoc Oai District, Hanoi City",21.015404,105.649391,0,0,2,0,0,2,0,0,24/7,Paid,Public,active
+Tam Hung Gas Station,"Quoc 3 Area, Song Khe Hamlet, Tam Hung Commune, Thanh Oai District, Hanoi City",20.888426,105.796211,0,0,2,0,0,4,0,0,24/7,Paid,Public,active
+Trach My Loc Gas Station,"Trach Loi Hamlet, Trach My Loc Commune, Phuc Tho District, Hanoi City",21.103596,105.53643,0,0,2,0,0,4,0,0,24/7,Paid,Public,active
+Franchise VIP – Sai Son Gas Station,"Km4, Road 81, Sai Son Commune, Quoc Oai District, Hanoi City",21.01531,105.64933,0,0,4,0,0,2,0,0,24/7,Paid,Public,active
+Franchise VIP – Hoang Tin Company,"Do Xa, Thuong Tin District, Hanoi City",20.77504,105.897865,0,0,2,8,0,0,0,0,24/7,Paid,Public,active
+VinFast Showroom Pham Van Dong,"166 Pham Van Dong Street, Xuan Dinh Ward, Bac Tu Liem District, Hanoi City",21.071739,105.785103,0,0,0,2,0,0,0,0,24/7,Paid,Public,active
+AEON Mall Ha Dong,"Duong Noi Ward, Ha Dong District, Hanoi City",20.989721,105.752632,0,0,0,10,0,0,0,0,10:00-22:00,Paid,Public,active
+Franchise Luxury – EverSolar Company,"National Highway 1A, Ngu Hiep Commune, Thanh Tri District, Hanoi City",20.933786,105.846901,0,0,0,4,0,4,0,0,24/7,Paid,Public,active
+Franchise VIP – Simato Company,"Me Linh District, Hanoi City",21.200726,105.743202,0,0,0,2,0,6,0,0,24/7,Paid,Public,active
+Franchise Luxury – Hiep Ha Company,"Thuong Tin District, Hanoi City",20.857622,105.869469,0,0,0,4,0,0,0,0,24/7,Paid,Public,active
+Franchise Luxury – Bui Dinh Canh Private Operator,"Dan Phuong District, Hanoi City",21.096901,105.6567,0,0,0,4,0,2,0,0,24/7,Paid,Public,active
+Franchise Luxury – Go Tat Vietnam Company,"Thach That District, Hanoi City",21.028406,105.598175,0,0,0,4,0,4,0,0,24/7,Paid,Public,active
+Franchise Luxury – Viet Technology Company,"Bac Tu Liem District, Hanoi City",21.0854,105.769997,0,0,0,4,0,4,0,0,24/7,Paid,Public,active
+Franchise Luxury – Phuong Dong Company,"Thuong Tin District, Hanoi City",20.889902,105.857529,0,0,0,4,0,6,0,0,24/7,Paid,Public,active
+Franchise Luxury – Ta Van Cuong Household Business,"Ung Hoa District, Hanoi City",20.731556,105.772781,0,0,0,2,0,0,0,0,24/7,Paid,Public,active
+Franchise – VinFast Auto Dealer Nam Tu Liem,"1 Trinh Van Bo Street, Xuan Phuong Ward, Nam Tu Liem District, Hanoi City",21.037651,105.748009,0,0,0,6,0,0,0,0,24/7,Paid,Public,active
+Franchise Luxury – Me Linh Auto Garage,"Dai Thinh Road, Thanh Lam Commune, Me Linh District, Hanoi City",21.195852,105.73037,0,0,0,2,0,2,0,0,24/7,Paid,Public,active
+Franchise Luxury – Phung Minh Thanh Household Business,"Hamlet 1, Thach Da Commune, Me Linh District, Hanoi City",21.171244,105.675827,0,0,0,2,0,4,0,0,24/7,Paid,Public,active
+Franchise Luxury – Mai Duc Viet,"Team 1, Yen Thai Hamlet, Dong Yen Commune, Quoc Oai District, Hanoi City",20.93153,105.568413,0,0,0,2,0,4,0,0,24/7,Paid,Public,active
+Franchise Luxury – Hoang Van Hoa,"Ha Lo Hamlet, Dong Anh Town, Dong Anh District, Hanoi City",21.150608,105.899414,0,0,0,2,0,2,0,0,24/7,Paid,Public,active
