@@ -40,8 +40,6 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     ThemeData theme,
   ) {
     final status = cr['status'] as String? ?? 'UNKNOWN';
-    final riskScore = cr['riskScore'] as int?;
-    final riskReasons = (cr['riskReasons'] as List<dynamic>?)?.cast<String>() ?? [];
     final stationData = cr['stationData'] as Map<String, dynamic>? ?? {};
     final createdAt = _parseDateTime(cr['createdAt'] as String?);
     final submittedAt = _parseDateTime(cr['submittedAt'] as String?);
@@ -56,12 +54,6 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
           // Status Timeline
           _buildStatusTimeline(theme, status, createdAt, submittedAt, decidedAt),
           const SizedBox(height: 24),
-
-          // Risk Score & Reasons
-          if (riskScore != null || riskReasons.isNotEmpty) ...[
-            _buildRiskSection(theme, riskScore, riskReasons),
-            const SizedBox(height: 24),
-          ],
 
           // Station Data
           _buildStationDataSection(theme, stationData),
@@ -191,61 +183,6 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRiskSection(ThemeData theme, int? riskScore, List<String> riskReasons) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Risk Assessment',
-              style: theme.textTheme.titleMedium,
-            ),
-            if (riskScore != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _getRiskColor(riskScore).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _getRiskColor(riskScore),
-                    width: 2,
-                  ),
-                ),
-                child: Text(
-                  'Risk Score: $riskScore',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: _getRiskColor(riskScore),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-            if (riskReasons.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: riskReasons.map((reason) {
-                  return Chip(
-                    label: Text(reason),
-                    backgroundColor: Colors.orange.withOpacity(0.1),
-                    labelStyle: TextStyle(
-                      color: Colors.orange.shade700,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
@@ -467,12 +404,6 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  Color _getRiskColor(int riskScore) {
-    if (riskScore >= 70) return Colors.red;
-    if (riskScore >= 40) return Colors.orange;
-    return Colors.green;
   }
 
   Future<void> _handleSubmit(BuildContext context, WidgetRef ref) async {

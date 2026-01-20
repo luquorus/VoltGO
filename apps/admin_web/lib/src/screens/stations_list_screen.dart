@@ -208,8 +208,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                           IconButton(
                             icon: const Icon(Icons.visibility, size: 20),
                             onPressed: () {
-                              // TODO: Navigate to station detail
-                              context.push('/admin/stations/${station.stationId}');
+                              context.push('/stations/${station.stationId}');
                             },
                             tooltip: 'View Details',
                           ),

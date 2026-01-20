@@ -24,6 +24,8 @@ public interface ChangeRequestJpaRepository extends JpaRepository<ChangeRequestE
     
     Page<ChangeRequestEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
     
+    List<ChangeRequestEntity> findAllByOrderByCreatedAtDesc();
+    
     boolean existsByProposedStationVersionId(UUID proposedStationVersionId);
 }
 

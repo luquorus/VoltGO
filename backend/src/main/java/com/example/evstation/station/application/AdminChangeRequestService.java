@@ -7,6 +7,7 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
+import com.example.evstation.booking.application.ChargerUnitCreationService;
 import com.example.evstation.trust.application.TrustScoringService;
 import com.example.evstation.verification.application.VerificationService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class AdminChangeRequestService {
     private final UserAccountJpaRepository userAccountRepository;
     private final TrustScoringService trustScoringService;
     private final VerificationService verificationService;
+    private final ChargerUnitCreationService chargerUnitCreationService;
     
     private static final int HIGH_RISK_THRESHOLD = 60;
 
@@ -62,6 +64,19 @@ public class AdminChangeRequestService {
         log.info("Getting change requests by status: {}", status);
         
         List<ChangeRequestEntity> requests = changeRequestRepository.findByStatusOrderByCreatedAtDesc(status);
+        return requests.stream()
+                .map(this::buildAdminDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all change requests (no status filter)
+     */
+    @Transactional(readOnly = true)
+    public List<AdminChangeRequestDTO> getAllChangeRequests() {
+        log.info("Getting all change requests");
+        
+        List<ChangeRequestEntity> requests = changeRequestRepository.findAllByOrderByCreatedAtDesc();
         return requests.stream()
                 .map(this::buildAdminDTO)
                 .collect(Collectors.toList());
@@ -252,6 +267,18 @@ public class AdminChangeRequestService {
         stationVersionRepository.save(proposedVersion);
         log.info("Published new version: versionId={}", proposedVersion.getId());
         
+        // Automatically create charger units from charging ports
+        try {
+            List<UUID> createdUnitIds = chargerUnitCreationService.createChargerUnitsFromChargingPorts(proposedVersion);
+            log.info("Created {} charger units for published station version: {}", 
+                    createdUnitIds.size(), proposedVersion.getId());
+        } catch (Exception e) {
+            log.error("Failed to create charger units for station version: {}", 
+                    proposedVersion.getId(), e);
+            // Don't fail the publish operation if charger unit creation fails
+            // They can be created manually later if needed
+        }
+        
         // Update change request status
         changeRequest.setStatus(ChangeRequestStatus.PUBLISHED);
         if (changeRequest.getDecidedAt() == null) {
@@ -362,6 +389,14 @@ public class AdminChangeRequestService {
                         .build())
                 .collect(Collectors.toList());
         
+        // Check verification status (only for high-risk CRs)
+        Boolean hasVerificationTask = null;
+        Boolean hasPassedVerification = null;
+        if (changeRequest.getRiskScore() != null && changeRequest.getRiskScore() >= HIGH_RISK_THRESHOLD) {
+            hasVerificationTask = verificationService.hasVerificationTaskForCR(changeRequest.getId());
+            hasPassedVerification = verificationService.hasPassedVerificationForCR(changeRequest.getId());
+        }
+        
         return AdminChangeRequestDTO.builder()
                 .id(changeRequest.getId())
                 .type(changeRequest.getType())
@@ -376,6 +411,8 @@ public class AdminChangeRequestService {
                 .createdAt(changeRequest.getCreatedAt())
                 .submittedAt(changeRequest.getSubmittedAt())
                 .decidedAt(changeRequest.getDecidedAt())
+                .hasVerificationTask(hasVerificationTask)
+                .hasPassedVerification(hasPassedVerification)
                 .stationData(stationData)
                 .auditLogs(auditLogDTOs)
                 .build();

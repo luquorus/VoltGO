@@ -26,6 +26,10 @@ public class AdminChangeRequestDTO {
     private Instant submittedAt;
     private Instant decidedAt;
     
+    // Verification status (for high-risk CRs)
+    private Boolean hasVerificationTask;
+    private Boolean hasPassedVerification;
+    
     // Station data
     private StationDataDTO stationData;
     

@@ -16,6 +16,6 @@ public class StationListItemDTO {
     private String visibility; // PUBLIC, PRIVATE, RESTRICTED
     private String publicStatus; // ACTIVE, INACTIVE, MAINTENANCE
     private ChargingSummaryDTO chargingSummary;
-    private Integer trustScore; // tạm 50
+    private Integer trustScore;
 }
 

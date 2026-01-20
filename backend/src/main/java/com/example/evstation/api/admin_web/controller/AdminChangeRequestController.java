@@ -44,8 +44,8 @@ public class AdminChangeRequestController {
         if (status != null) {
             requests = adminChangeRequestService.getChangeRequestsByStatus(status);
         } else {
-            // Get all - for simplicity, get PENDING first as most relevant for admin
-            requests = adminChangeRequestService.getChangeRequestsByStatus(ChangeRequestStatus.PENDING);
+            // Get all change requests
+            requests = adminChangeRequestService.getAllChangeRequests();
         }
         
         return ResponseEntity.ok(requests);

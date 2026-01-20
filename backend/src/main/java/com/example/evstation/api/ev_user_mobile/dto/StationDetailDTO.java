@@ -20,6 +20,6 @@ public class StationDetailDTO {
     private String publicStatus;
     private Instant publishedAt;
     private List<PortInfoDTO> ports;
-    private Integer trustScore; // tạm 50
+    private Integer trustScore;
 }
 

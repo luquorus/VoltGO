@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
+import 'package:shared_api/shared_api.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/change_request_providers.dart';
 import '../repositories/change_request_repository.dart';
 import '../widgets/main_scaffold.dart';
+import '../widgets/station_search_dropdown.dart';
 
 /// Change Request Create Screen
 class ChangeRequestCreateScreen extends ConsumerStatefulWidget {
@@ -23,7 +25,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   
   // Form fields
   String? _type; // CREATE_STATION or UPDATE_STATION
-  final _stationIdController = TextEditingController();
+  String? _selectedStationId; // Selected station ID for UPDATE_STATION
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _latController = TextEditingController();
@@ -34,14 +36,14 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   String? _publicStatus; // ACTIVE, INACTIVE, MAINTENANCE
   
   // Services
-  final List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
+  List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
   
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
+  bool _isLoadingStation = false;
 
   @override
   void dispose() {
-    _stationIdController.dispose();
     _nameController.dispose();
     _addressController.dispose();
     _latController.dispose();
@@ -69,19 +71,47 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
               _buildTypeSelector(theme),
               const SizedBox(height: 24),
               
-              // Station ID (only for UPDATE)
+              // Station Selection (only for UPDATE)
               if (_type == 'UPDATE_STATION') ...[
-                AppTextField(
-                  label: 'Station ID *',
-                  controller: _stationIdController,
-                  enabled: !_isSubmitting,
+                StationSearchDropdown(
+                  onStationSelected: (stationId) {
+                    if (stationId != null) {
+                      _loadStationData(stationId);
+                    } else {
+                      setState(() {
+                        _selectedStationId = null;
+                        _clearForm();
+                      });
+                    }
+                  },
+                  initialStationId: _selectedStationId,
+                  enabled: !_isSubmitting && !_isLoadingStation,
                   validator: (value) {
-                    if (_type == 'UPDATE_STATION' && (value == null || value.isEmpty)) {
-                      return 'Station ID is required for UPDATE_STATION';
+                    if (_type == 'UPDATE_STATION' && _selectedStationId == null) {
+                      return 'Please select a station';
                     }
                     return null;
                   },
                 ),
+                if (_isLoadingStation) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Loading station data...',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
               
@@ -317,7 +347,8 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                     onChanged: _isSubmitting ? null : (value) {
                       setState(() {
                         _type = value;
-                        _stationIdController.clear();
+                        _selectedStationId = null;
+                        _clearForm(); // Clear form when switching to CREATE
                       });
                     },
                   ),
@@ -330,6 +361,8 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                     onChanged: _isSubmitting ? null : (value) {
                       setState(() {
                         _type = value;
+                        _selectedStationId = null;
+                        // Don't clear form when switching to UPDATE - user might have filled some fields
                       });
                     },
                   ),
@@ -650,6 +683,104 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     }
   }
 
+  Future<void> _loadStationData(String stationId) async {
+    setState(() {
+      _isLoadingStation = true;
+      _selectedStationId = stationId;
+    });
+
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) {
+        throw Exception('API client not initialized');
+      }
+
+      final stationData = await factory.ev.getStation(stationId);
+
+      if (mounted) {
+        // Fill form fields with station data
+        _nameController.text = stationData['name'] as String? ?? '';
+        _addressController.text = stationData['address'] as String? ?? '';
+        
+        final lat = stationData['lat'] as double?;
+        final lng = stationData['lng'] as double?;
+        if (lat != null) {
+          _latController.text = lat.toStringAsFixed(6);
+        }
+        if (lng != null) {
+          _lngController.text = lng.toStringAsFixed(6);
+        }
+
+        _operatingHoursController.text = stationData['operatingHours'] as String? ?? '';
+        _parking = stationData['parking'] as String?;
+        _visibility = stationData['visibility'] as String?;
+        _publicStatus = stationData['publicStatus'] as String?;
+
+        // Load services and charging ports
+        final ports = stationData['ports'] as List<dynamic>? ?? [];
+        if (ports.isNotEmpty) {
+          // Group ports by power type and create charging ports
+          final chargingPorts = ports.map((port) {
+            final portData = port as Map<String, dynamic>;
+            return ChargingPortData(
+              powerType: portData['powerType'] as String? ?? 'AC',
+              powerKw: portData['powerKw'] != null 
+                  ? (portData['powerKw'] as num).toDouble() 
+                  : null,
+              count: portData['count'] as int? ?? 1,
+            );
+          }).toList();
+
+          setState(() {
+            _services = [
+              ServiceData(
+                type: 'CHARGING',
+                chargingPorts: chargingPorts,
+              ),
+            ];
+          });
+        } else {
+          // No ports, create default service
+          setState(() {
+            _services = [
+              ServiceData(type: 'CHARGING', chargingPorts: []),
+            ];
+          });
+        }
+
+        setState(() {
+          _isLoadingStation = false;
+        });
+
+        if (mounted) {
+          AppToast.showSuccess(context, 'Station data loaded successfully');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStation = false;
+          _selectedStationId = null;
+        });
+        AppToast.showError(context, 'Failed to load station data: ${e.toString()}');
+      }
+    }
+  }
+
+  void _clearForm() {
+    _nameController.clear();
+    _addressController.clear();
+    _latController.clear();
+    _lngController.clear();
+    _operatingHoursController.clear();
+    _parking = null;
+    _visibility = null;
+    _publicStatus = null;
+    setState(() {
+      _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
+    });
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -771,11 +902,17 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         stationData['operatingHours'] = _operatingHoursController.text.trim();
       }
 
+      // Validate station selection for UPDATE_STATION
+      if (_type == 'UPDATE_STATION' && _selectedStationId == null) {
+        AppToast.showError(context, 'Please select a station to update');
+        return;
+      }
+
       // Create change request first (without images)
       final data = <String, dynamic>{
         'type': _type,
-        if (_type == 'UPDATE_STATION' && _stationIdController.text.isNotEmpty)
-          'stationId': _stationIdController.text.trim(),
+        if (_type == 'UPDATE_STATION' && _selectedStationId != null)
+          'stationId': _selectedStationId,
         'stationData': stationData,
       };
 

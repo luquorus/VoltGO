@@ -5,6 +5,7 @@ import com.example.evstation.api.admin_web.dto.CreateStationDTO;
 import com.example.evstation.api.admin_web.dto.UpdateStationDTO;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.booking.application.ChargerUnitCreationService;
 import com.example.evstation.booking.infrastructure.jpa.BookingJpaRepository;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
@@ -44,6 +45,7 @@ public class AdminStationService {
     private final BookingJpaRepository bookingRepository;
     private final StationTrustJpaRepository trustRepository;
     private final AuditLogJpaRepository auditLogRepository;
+    private final ChargerUnitCreationService chargerUnitCreationService;
     
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
     
@@ -121,6 +123,19 @@ public class AdminStationService {
         // Create services and charging ports
         createServicesAndPorts(stationVersion.getId(), data.getServices());
         
+        // If publishing immediately, automatically create charger units
+        if (Boolean.TRUE.equals(request.getPublishImmediately())) {
+            try {
+                List<UUID> createdUnitIds = chargerUnitCreationService.createChargerUnitsFromChargingPorts(stationVersion);
+                log.info("Created {} charger units for published station version: {}", 
+                        createdUnitIds.size(), stationVersion.getId());
+            } catch (Exception e) {
+                log.error("Failed to create charger units for station version: {}", 
+                        stationVersion.getId(), e);
+                // Don't fail the create operation if charger unit creation fails
+            }
+        }
+        
         // Write audit log
         writeAuditLog(adminId, "ADMIN", "CREATE_STATION", "station", station.getId(), 
                 java.util.Map.of("versionId", stationVersion.getId().toString(), 
@@ -182,12 +197,26 @@ public class AdminStationService {
         if (Boolean.TRUE.equals(request.getPublishImmediately()) && currentPublished.isPresent()) {
             StationVersionEntity oldVersion = currentPublished.get();
             oldVersion.setWorkflowStatus(WorkflowStatus.ARCHIVED);
+            oldVersion.setPublishedAt(null); // Clear published_at when archiving
             stationVersionRepository.save(oldVersion);
             log.info("Archived old published version: {}", oldVersion.getId());
         }
         
         // Create services and charging ports
         createServicesAndPorts(newVersion.getId(), data.getServices());
+        
+        // If publishing immediately, automatically create charger units
+        if (Boolean.TRUE.equals(request.getPublishImmediately())) {
+            try {
+                List<UUID> createdUnitIds = chargerUnitCreationService.createChargerUnitsFromChargingPorts(newVersion);
+                log.info("Created {} charger units for published station version: {}", 
+                        createdUnitIds.size(), newVersion.getId());
+            } catch (Exception e) {
+                log.error("Failed to create charger units for station version: {}", 
+                        newVersion.getId(), e);
+                // Don't fail the update operation if charger unit creation fails
+            }
+        }
         
         // Write audit log
         writeAuditLog(adminId, "ADMIN", "UPDATE_STATION", "station", stationId,

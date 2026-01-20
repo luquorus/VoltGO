@@ -15,6 +15,8 @@ class AdminChangeRequest {
   final DateTime? createdAt;
   final DateTime? submittedAt;
   final DateTime? decidedAt;
+  final bool? hasVerificationTask;
+  final bool? hasPassedVerification;
   final StationData? stationData;
   final List<AuditLog> auditLogs;
 
@@ -32,6 +34,8 @@ class AdminChangeRequest {
     this.createdAt,
     this.submittedAt,
     this.decidedAt,
+    this.hasVerificationTask,
+    this.hasPassedVerification,
     this.stationData,
     this.auditLogs = const [],
   });
@@ -51,6 +55,8 @@ class AdminChangeRequest {
               .toList() ??
           [],
       adminNote: json['adminNote'] as String?,
+      hasVerificationTask: json['hasVerificationTask'] as bool?,
+      hasPassedVerification: json['hasPassedVerification'] as bool?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -76,7 +82,37 @@ class AdminChangeRequest {
   bool get isPublished => status == ChangeRequestStatus.published;
   bool get canApprove => isPending;
   bool get canReject => isPending;
-  bool get canPublish => isApproved;
+  
+  /// Check if change request can be published
+  /// For high-risk CRs (riskScore >= 60), requires verification task PASS
+  bool get canPublish {
+    if (!isApproved) return false;
+    
+    // If risk score >= 60, must have verification task and it must be PASS
+    if (riskScore != null && riskScore! >= 60) {
+      return hasPassedVerification == true;
+    }
+    
+    return true;
+  }
+  
+  /// Check if this is a high-risk change request
+  bool get isHighRisk => riskScore != null && riskScore! >= 60;
+  
+  /// Get verification status message for UI
+  String? get verificationStatusMessage {
+    if (!isHighRisk) return null;
+    
+    if (hasPassedVerification == true) {
+      return '✓ Verification passed';
+    }
+    
+    if (hasVerificationTask == true) {
+      return '⏳ Verification task pending';
+    }
+    
+    return '⚠️ Verification task required';
+  }
 }
 
 enum ChangeRequestType {

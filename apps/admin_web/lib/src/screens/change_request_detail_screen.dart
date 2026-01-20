@@ -120,14 +120,21 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
                               foregroundColor: Colors.white,
                             ),
                           ),
-                        if (cr.canPublish)
-                          ElevatedButton.icon(
-                            onPressed: () => _handlePublish(context, ref, cr),
-                            icon: const Icon(Icons.publish),
-                            label: const Text('Publish'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AdminTheme.primaryTeal,
-                              foregroundColor: Colors.white,
+                        if (cr.isApproved)
+                          Tooltip(
+                            message: cr.canPublish 
+                                ? 'Publish this change request' 
+                                : 'High-risk change requests require verification task PASS before publishing',
+                            child: ElevatedButton.icon(
+                              onPressed: cr.canPublish ? () => _handlePublish(context, ref, cr) : null,
+                              icon: const Icon(Icons.publish),
+                              label: Text(cr.canPublish ? 'Publish' : 'Publish (Verification Required)'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: cr.canPublish ? AdminTheme.primaryTeal : Colors.grey,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: Colors.grey,
+                                disabledForegroundColor: Colors.white70,
+                              ),
                             ),
                           ),
                       ],
@@ -137,6 +144,12 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // High Risk Warning Banner
+          if (cr.isHighRisk && !cr.canPublish) ...[
+            _buildHighRiskWarningBanner(context, theme, cr),
+            const SizedBox(height: 24),
+          ],
 
           // Risk Breakdown
           if (cr.riskScore != null || cr.riskReasons.isNotEmpty) ...[
@@ -158,6 +171,58 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
           if (cr.auditLogs.isNotEmpty) ...[
             _buildAuditLogsSection(theme, cr.auditLogs),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHighRiskWarningBanner(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border.all(color: Colors.orange.shade300, width: 2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange.shade700,
+            size: 32,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'High Risk Change Request',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'This change request requires verification task PASS before publishing.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+                if (cr.verificationStatusMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    cr.verificationStatusMessage!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.orange.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -243,6 +308,40 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
                       ],
                     ),
                   )),
+            ],
+            // Verification Status (only for high-risk)
+            if (cr.isHighRisk) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getVerificationStatusColor(cr).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getVerificationStatusColor(cr),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getVerificationStatusIcon(cr),
+                      color: _getVerificationStatusColor(cr),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        cr.verificationStatusMessage ?? 'Verification status unknown',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _getVerificationStatusColor(cr),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
@@ -495,6 +594,18 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     return Icons.check_circle;
   }
 
+  Color _getVerificationStatusColor(AdminChangeRequest cr) {
+    if (cr.hasPassedVerification == true) return Colors.green;
+    if (cr.hasVerificationTask == true) return Colors.orange;
+    return Colors.red;
+  }
+
+  IconData _getVerificationStatusIcon(AdminChangeRequest cr) {
+    if (cr.hasPassedVerification == true) return Icons.check_circle;
+    if (cr.hasVerificationTask == true) return Icons.hourglass_empty;
+    return Icons.error_outline;
+  }
+
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} '
         '${dateTime.hour.toString().padLeft(2, '0')}:'
@@ -665,12 +776,59 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
 
   Future<void> _handlePublish(
       BuildContext context, WidgetRef ref, AdminChangeRequest cr) async {
+    // Safety check: prevent publish if not allowed
+    if (!cr.canPublish) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              cr.isHighRisk && cr.hasPassedVerification != true
+                  ? 'Cannot publish: High-risk change requests require verification task PASS'
+                  : 'Cannot publish this change request',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Publish Change Request'),
-        content: const Text(
-            'Are you sure you want to publish this change request? This will make the station version publicly visible.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Are you sure you want to publish this change request? This will make the station version publicly visible.'),
+            if (cr.isHighRisk && cr.hasPassedVerification != true) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This high-risk change request requires verification task PASS before publishing.',
+                        style: TextStyle(color: Colors.red.shade900, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),

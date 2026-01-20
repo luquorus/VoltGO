@@ -103,7 +103,6 @@ class _ChangeRequestCard extends StatelessWidget {
     final id = changeRequest['id'] as String? ?? '';
     final type = changeRequest['type'] as String? ?? 'UNKNOWN';
     final status = changeRequest['status'] as String? ?? 'UNKNOWN';
-    final riskScore = changeRequest['riskScore'] as int?;
     final createdAt = _parseDateTime(changeRequest['createdAt'] as String?);
     final stationData = changeRequest['stationData'] as Map<String, dynamic>?;
     final stationName = stationData?['name'] as String? ?? 'Unknown Station';
@@ -158,31 +157,6 @@ class _ChangeRequestCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (riskScore != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getRiskColor(riskScore).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: _getRiskColor(riskScore),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        'Risk: $riskScore',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: _getRiskColor(riskScore),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
               if (createdAt != null) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -207,12 +181,6 @@ class _ChangeRequestCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getRiskColor(int riskScore) {
-    if (riskScore >= 70) return Colors.red;
-    if (riskScore >= 40) return Colors.orange;
-    return Colors.green;
   }
 
   DateTime? _parseDateTime(String? dateStr) {

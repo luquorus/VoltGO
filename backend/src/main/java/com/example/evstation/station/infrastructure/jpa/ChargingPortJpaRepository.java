@@ -27,5 +27,8 @@ public interface ChargingPortJpaRepository extends JpaRepository<ChargingPortEnt
         ORDER BY cp.powerType, cp.powerKw DESC NULLS LAST
         """)
     List<ChargingPortEntity> findByStationVersionId(@Param("stationVersionId") UUID stationVersionId);
+    
+    // Find charging ports by station service ID
+    List<ChargingPortEntity> findByStationServiceId(UUID stationServiceId);
 }
 
