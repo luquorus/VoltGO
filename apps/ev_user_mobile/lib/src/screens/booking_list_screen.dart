@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../providers/booking_providers.dart';
+import '../providers/station_providers.dart';
 import '../widgets/main_scaffold.dart';
 
 /// Booking List Screen
@@ -104,7 +105,7 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
   }
 }
 
-class _BookingCard extends StatelessWidget {
+class _BookingCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
 
   const _BookingCard({required this.item});
@@ -114,20 +115,36 @@ class _BookingCard extends StatelessWidget {
   String get _id => item['id']?.toString() ?? '';
 
   @override
+  ConsumerState<_BookingCard> createState() => _BookingCardState();
+}
+
+class _BookingCardState extends ConsumerState<_BookingCard> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget._isBatterySwap) {
+      return _BatterySwapBookingCard(item: widget.item);
+    } else {
+      return _ChargingBookingCard(item: widget.item);
+    }
+  }
+}
+
+/// Battery Swap booking card (unchanged from original)
+class _BatterySwapBookingCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+
+  const _BatterySwapBookingCard({required this.item});
+
+  String get _id => item['id']?.toString() ?? '';
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final id = item['id']?.toString() ?? '';
     final status = item['status']?.toString() ?? 'UNKNOWN';
     final stationName = item['stationName'] as String?;
 
-    // Charger-specific fields
-    final startTime = _parseDateTime(item['startTime'] as String?);
-    final endTime = _parseDateTime(item['endTime'] as String?);
-    final holdExpiresAt = _parseDateTime(item['holdExpiresAt'] as String?);
-
-    // Battery swap-specific fields
     final reservedSlotAt = _parseDateTime(item['reservedSlotAt'] as String?);
-    final confirmedArrivalAt = _parseDateTime(item['confirmedArrivalAt'] as String?);
     final pileIndex = item['pileIndex'] as int?;
     final slotIndex = item['slotIndex'] as int?;
     final paymentStatus = item['paymentStatus']?.toString();
@@ -136,7 +153,12 @@ class _BookingCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => _onTap(context),
+        onTap: () {
+          final stationId = item['stationId']?.toString();
+          if (stationId != null && stationId.isNotEmpty) {
+            context.push('/battery-swap?stationId=$stationId');
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -144,29 +166,17 @@ class _BookingCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  if (_isBatterySwap)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FaIcon(
-                        FontAwesomeIcons.batteryFull,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FaIcon(
-                        FontAwesomeIcons.bolt,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FaIcon(
+                      FontAwesomeIcons.batteryFull,
+                      size: 16,
+                      color: theme.colorScheme.primary,
                     ),
+                  ),
                   Expanded(
                     child: Text(
-                      _isBatterySwap
-                          ? 'Battery Swap${stationName != null ? ' · $stationName' : ''}'
-                          : 'Booking #${id.length >= 8 ? id.substring(0, 8) : id}',
+                      'Battery Swap${stationName != null ? ' · $stationName' : ''}',
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
@@ -177,39 +187,20 @@ class _BookingCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Charger booking info
-              if (!_isBatterySwap) ...[
-                if (startTime != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.calendar, 'Start', _formatDateTime(startTime)),
-                  const SizedBox(height: 8),
-                ],
-                if (endTime != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.calendar, 'End', _formatDateTime(endTime)),
-                  const SizedBox(height: 8),
-                ],
-                if (status == 'HOLD' && holdExpiresAt != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.clock, 'Hold until', _formatDateTime(holdExpiresAt)),
-                ],
+              if (pileIndex != null && slotIndex != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.chargingStation, 'Pile/Slot', '$pileIndex / $slotIndex'),
+                const SizedBox(height: 8),
               ],
-
-              // Battery swap info
-              if (_isBatterySwap) ...[
-                if (pileIndex != null && slotIndex != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.chargingStation, 'Pile/Slot', '$pileIndex / $slotIndex'),
-                  const SizedBox(height: 8),
-                ],
-                if (reservedSlotAt != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.clock, 'Arrive by', _formatDateTime(reservedSlotAt)),
-                  const SizedBox(height: 8),
-                ],
-                if (basePriceVnd != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.dollarSign, 'Fee', '$basePriceVnd VND'),
-                  const SizedBox(height: 8),
-                ],
-                if (paymentStatus != null) ...[
-                  _buildInfoRow(theme, FontAwesomeIcons.creditCard, 'Payment', _paymentLabel(paymentStatus)),
-                ],
+              if (reservedSlotAt != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.clock, 'Arrive by', _formatDateTime(reservedSlotAt)),
+                const SizedBox(height: 8),
+              ],
+              if (basePriceVnd != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.dollarSign, 'Fee', '$basePriceVnd VND'),
+                const SizedBox(height: 8),
+              ],
+              if (paymentStatus != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.creditCard, 'Payment', _paymentLabel(paymentStatus)),
               ],
             ],
           ),
@@ -218,16 +209,46 @@ class _BookingCard extends StatelessWidget {
     );
   }
 
-  void _onTap(BuildContext context) {
-    if (_isBatterySwap) {
-      // Navigate to battery swap screen with station pre-selected
-      final stationId = item['stationId']?.toString();
-      if (stationId != null && stationId.isNotEmpty) {
-        context.push('/battery-swap?stationId=$stationId');
-      }
-    } else {
-      context.push('/bookings/$_id');
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'RESERVED': return 'Reserved';
+      case 'SWAPPING': return 'Swapping';
+      case 'COMPLETED': return 'Completed';
+      case 'CANCELLED': return 'Cancelled';
+      case 'EXPIRED': return 'Expired';
+      default: return status;
     }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'RESERVED': return Colors.blue;
+      case 'SWAPPING': return Colors.orange;
+      case 'COMPLETED': return Colors.green;
+      case 'CANCELLED': return Colors.grey;
+      case 'EXPIRED': return Colors.deepOrange;
+      default: return Colors.blueGrey;
+    }
+  }
+
+  Widget _buildInfoRow(ThemeData theme, IconData icon, String label, String value) {
+    return Row(
+      children: [
+        FaIcon(icon, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+        const SizedBox(width: 8),
+        Text('$label: ', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+        Text(value, style: theme.textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  DateTime? _parseDateTime(String? dateStr) {
+    if (dateStr == null) return null;
+    try { return DateTime.parse(dateStr).toLocal(); } catch (e) { return null; }
+  }
+
+  String _formatDateTime(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   String _paymentLabel(String paymentStatus) {
@@ -237,18 +258,134 @@ class _BookingCard extends StatelessWidget {
       default: return 'Unpaid';
     }
   }
+}
+
+/// Charging booking card with rich info (station name, charger, price, countdown)
+class _ChargingBookingCard extends ConsumerWidget {
+  final Map<String, dynamic> item;
+
+  const _ChargingBookingCard({required this.item});
+
+  String get _id => item['id']?.toString() ?? '';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final status = item['status']?.toString() ?? 'UNKNOWN';
+    final startTime = _parseDateTime(item['startTime'] as String?);
+    final endTime = _parseDateTime(item['endTime'] as String?);
+    final holdExpiresAt = _parseDateTime(item['holdExpiresAt'] as String?);
+    final priceSnapshot = item['priceSnapshot'] as Map<String, dynamic>?;
+    final totalAmount = priceSnapshot?['totalAmount'] as int?;
+    final chargerUnitLabel = priceSnapshot?['chargerUnitLabel'] as String?;
+    final powerKw = priceSnapshot?['powerKw'] as num?;
+    final powerType = priceSnapshot?['powerType'] as String?;
+    final stationId = item['stationId']?.toString();
+
+    final stationAsync = stationId != null
+        ? ref.watch(stationDetailFutureProvider(stationId))
+        : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () => context.push('/bookings/$_id'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FaIcon(
+                      FontAwesomeIcons.bolt,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  Expanded(
+                    child: stationAsync != null
+                        ? stationAsync.when(
+                            data: (station) {
+                              final name = station['name'] as String? ?? 'Charging';
+                              return Text(
+                                'Charging · $name',
+                                style: theme.textTheme.titleMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                            loading: () => Text(
+                              'Charging · Loading...',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            error: (_, __) => Text(
+                              'Charging · #${_id.length >= 8 ? _id.substring(0, 8) : _id}',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          )
+                        : Text(
+                            'Charging · #${_id.length >= 8 ? _id.substring(0, 8) : _id}',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                  ),
+                  StatusPill(
+                    label: _statusLabel(status),
+                    colorMapper: (_) => _statusColor(status),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Charger info (from price snapshot)
+              if (chargerUnitLabel != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.plug, 'Charger',
+                    '$chargerUnitLabel${powerType != null ? ' · $powerType${powerKw != null ? ' ${powerKw.toDouble().toStringAsFixed(0)}kW' : ''}' : ''}'),
+                const SizedBox(height: 8),
+              ],
+
+              // Time info
+              if (startTime != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.calendar, 'Start', _formatDateTime(startTime)),
+                const SizedBox(height: 8),
+              ],
+              if (endTime != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.calendar, 'End', _formatDateTime(endTime)),
+                const SizedBox(height: 8),
+              ],
+
+              // Price info
+              if (totalAmount != null) ...[
+                _buildInfoRow(theme, FontAwesomeIcons.dollarSign, 'Fee', '$totalAmount VND'),
+                const SizedBox(height: 8),
+              ],
+
+              // Hold countdown
+              if (status == 'HOLD' && holdExpiresAt != null) ...[
+                _HoldCountdownBadge(holdExpiresAt: holdExpiresAt),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(ThemeData theme, IconData icon, String label, String value) {
+    return Row(
+      children: [
+        FaIcon(icon, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+        const SizedBox(width: 8),
+        Text('$label: ', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+        Text(value, style: theme.textTheme.bodyMedium),
+      ],
+    );
+  }
 
   String _statusLabel(String status) {
-    if (_isBatterySwap) {
-      switch (status) {
-        case 'RESERVED': return 'Reserved';
-        case 'SWAPPING': return 'Swapping';
-        case 'COMPLETED': return 'Completed';
-        case 'CANCELLED': return 'Cancelled';
-        case 'EXPIRED': return 'Expired';
-        default: return status;
-      }
-    }
     switch (status) {
       case 'HOLD': return 'On hold';
       case 'CONFIRMED': return 'Confirmed';
@@ -260,16 +397,6 @@ class _BookingCard extends StatelessWidget {
   }
 
   Color _statusColor(String status) {
-    if (_isBatterySwap) {
-      switch (status) {
-        case 'RESERVED': return Colors.blue;
-        case 'SWAPPING': return Colors.orange;
-        case 'COMPLETED': return Colors.green;
-        case 'CANCELLED': return Colors.grey;
-        case 'EXPIRED': return Colors.deepOrange;
-        default: return Colors.blueGrey;
-      }
-    }
     switch (status) {
       case 'HOLD': return Colors.orange;
       case 'CONFIRMED': return Colors.green;
@@ -280,36 +407,88 @@ class _BookingCard extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoRow(ThemeData theme, IconData icon, String label, String value) {
-    return Row(
-      children: [
-        FaIcon(icon, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.6)),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium,
-        ),
-      ],
-    );
-  }
-
   DateTime? _parseDateTime(String? dateStr) {
     if (dateStr == null) return null;
-    try {
-      return DateTime.parse(dateStr).toLocal();
-    } catch (e) {
-      return null;
-    }
+    try { return DateTime.parse(dateStr).toLocal(); } catch (e) { return null; }
   }
 
   String _formatDateTime(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Countdown badge for HOLD booking
+class _HoldCountdownBadge extends StatefulWidget {
+  final DateTime holdExpiresAt;
+
+  const _HoldCountdownBadge({required this.holdExpiresAt});
+
+  @override
+  State<_HoldCountdownBadge> createState() => _HoldCountdownBadgeState();
+}
+
+class _HoldCountdownBadgeState extends State<_HoldCountdownBadge> {
+  late final Stream<int> _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Stream.periodic(const Duration(seconds: 1),
+        (_) => widget.holdExpiresAt.difference(DateTime.now()).inSeconds)
+        .takeWhile((seconds) => seconds >= 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return StreamBuilder<int>(
+      stream: _ticker,
+      builder: (context, snapshot) {
+        final seconds = snapshot.data ?? widget.holdExpiresAt.difference(DateTime.now()).inSeconds;
+        final isExpired = seconds < 0;
+        final color = isExpired
+            ? Colors.red
+            : seconds < 120
+                ? Colors.deepOrange
+                : Colors.orange;
+
+        String label;
+        if (isExpired) {
+          label = 'Hold expired';
+        } else {
+          final m = seconds ~/ 60;
+          final s = seconds % 60;
+          label = 'Hold expires in ${m > 0 ? '${m}m ' : ''}${s}s';
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FaIcon(
+                isExpired ? FontAwesomeIcons.clock : FontAwesomeIcons.hourglassHalf,
+                size: 12,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

@@ -105,6 +105,11 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
           // Charging ports list (DC/AC grouped)
           _buildPortsSection(context, theme, ports),
 
+          if (ports.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildBookChargingButton(context, theme, name),
+          ],
+
           if (supportsSwap) ...[
             const SizedBox(height: 12),
             _buildBatterySwapBookButton(context, theme),
@@ -345,6 +350,20 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     );
   }
 
+  Widget _buildBookChargingButton(BuildContext context, ThemeData theme, String stationName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: PrimaryButton(
+        label: 'Book charging slot',
+        onPressed: () {
+          context.push(
+            '/bookings/create?stationId=${widget.stationId}'
+            '${stationName.isNotEmpty ? '&stationName=${Uri.encodeComponent(stationName)}' : ''}',
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildReportIssueButton(BuildContext context, ThemeData theme, String stationId, String stationName) {
     return Padding(
