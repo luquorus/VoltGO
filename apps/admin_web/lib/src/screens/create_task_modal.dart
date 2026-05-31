@@ -137,7 +137,7 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -177,6 +177,13 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> {
                 enabled: !_isLoading,
                 hint: 'Enter station UUID',
                 validator: (v) => v?.isEmpty ?? true ? 'Station ID is required' : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Applies to all station types (charging or battery swap). Cross-check the change request proposal and station details during verification.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.65),
+                ),
               ),
               const SizedBox(height: 16),
               

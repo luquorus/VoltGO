@@ -11,6 +11,7 @@ class VerificationTask {
   final VerificationTaskStatus status;
   final DateTime createdAt;
   final Checkin? checkin;
+  final List<Evidence> evidences;
   final Review? review;
 
   VerificationTask({
@@ -25,6 +26,7 @@ class VerificationTask {
     required this.status,
     required this.createdAt,
     this.checkin,
+    this.evidences = const [],
     this.review,
   });
 
@@ -45,6 +47,10 @@ class VerificationTask {
       checkin: json['checkin'] != null
           ? Checkin.fromJson(json['checkin'] as Map<String, dynamic>)
           : null,
+      evidences: (json['evidences'] as List<dynamic>?)
+              ?.map((e) => Evidence.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       review: json['review'] != null
           ? Review.fromJson(json['review'] as Map<String, dynamic>)
           : null,
@@ -64,6 +70,7 @@ class VerificationTask {
       'status': status.toString(),
       'createdAt': createdAt.toIso8601String(),
       if (checkin != null) 'checkin': checkin!.toJson(),
+      'evidences': evidences.map((e) => e.toJson()).toList(),
       if (review != null) 'review': review!.toJson(),
     };
   }
@@ -117,7 +124,7 @@ enum VerificationTaskStatus {
       case VerificationTaskStatus.assigned:
         return 'Assigned';
       case VerificationTaskStatus.checkedIn:
-        return 'Checked In';
+        return 'Checked in';
       case VerificationTaskStatus.submitted:
         return 'Submitted';
       case VerificationTaskStatus.reviewed:
@@ -213,6 +220,45 @@ class CheckinRequest {
       'lat': lat,
       'lng': lng,
       if (deviceNote != null) 'deviceNote': deviceNote,
+    };
+  }
+}
+
+/// Evidence information
+class Evidence {
+  final String id;
+  final String photoObjectKey;
+  final String? note;
+  final DateTime submittedAt;
+  final String submittedBy;
+
+  Evidence({
+    required this.id,
+    required this.photoObjectKey,
+    this.note,
+    required this.submittedAt,
+    required this.submittedBy,
+  });
+
+  factory Evidence.fromJson(Map<String, dynamic> json) {
+    return Evidence(
+      id: json['id'] as String,
+      photoObjectKey: json['photoObjectKey'] as String,
+      note: json['note'] as String?,
+      submittedAt: json['submittedAt'] != null
+          ? DateTime.parse(json['submittedAt'] as String)
+          : DateTime.now(),
+      submittedBy: json['submittedBy'] as String? ?? 'Unknown',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'photoObjectKey': photoObjectKey,
+      if (note != null) 'note': note,
+      'submittedAt': submittedAt.toIso8601String(),
+      'submittedBy': submittedBy,
     };
   }
 }

@@ -40,19 +40,9 @@ public class AuditLogService {
         log.info("Querying audit logs: entityType={}, entityId={}, from={}, to={}", 
                 entityType, entityId, from, to);
         
-        Page<AuditLogEntity> page;
-        
-        // Use specific query methods based on filters to avoid NULL parameter issues
-        if (entityType != null && entityId != null) {
-            page = auditLogRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(
-                    entityType, entityId, pageable);
-        } else if (entityType != null) {
-            page = auditLogRepository.findByEntityTypeOrderByCreatedAtDesc(entityType, pageable);
-        } else {
-            page = auditLogRepository.findAllByOrderByCreatedAtDesc(pageable);
-        }
-        
-        // TODO: Apply from/to date filtering if needed (can add more query methods)
+        // Use findWithFilters query method which handles null values via JPQL
+        Page<AuditLogEntity> page = auditLogRepository.findWithFilters(
+                entityType, entityId, from, to, pageable);
         
         // Collect unique actor IDs
         List<UUID> actorIds = page.getContent().stream()

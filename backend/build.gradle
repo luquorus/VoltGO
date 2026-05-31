@@ -24,40 +24,45 @@ repositories {
 dependencies {
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-    
+
     // Flyway (PostgreSQL support is included in flyway-core for Spring Boot 3.2.0)
     implementation 'org.flywaydb:flyway-core'
-    
+
     // PostgreSQL with PostGIS
     implementation 'org.postgresql:postgresql'
     // Let Spring Boot manage Hibernate version - no version pinning
     implementation 'org.hibernate.orm:hibernate-spatial'
     // JTS (Java Topology Suite) for geometry types
     implementation 'org.locationtech.jts:jts-core:1.19.0'
-    
+
     // OpenAPI / Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
-    
+
     // Jackson for JSON
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    
+
+    // MinIO for Media/Image Storage
+    implementation 'io.minio:minio:8.5.7'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    
+
     // Development
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    
+
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -66,4 +71,3 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
-

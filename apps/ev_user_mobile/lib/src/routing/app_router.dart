@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_auth/shared_auth.dart';
@@ -8,7 +7,6 @@ import '../screens/register_screen.dart';
 import '../screens/home_map_screen.dart';
 import '../screens/station_detail_screen.dart';
 import '../screens/forbidden_screen.dart';
-import '../screens/create_booking_screen.dart';
 import '../screens/create_booking_with_charger_unit_screen.dart';
 import '../screens/booking_list_screen.dart';
 import '../screens/booking_detail_screen.dart';
@@ -19,6 +17,8 @@ import '../screens/change_request_detail_screen.dart';
 import '../screens/change_request_create_screen.dart';
 import '../screens/my_issues_screen.dart';
 import '../screens/recommendation_screen.dart';
+import '../screens/battery_swap_screen.dart';
+import '../screens/battery_swap_reservation_screen.dart';
 
 /// Router provider
 final routerProvider = Provider<GoRouter>((ref) {
@@ -128,6 +128,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/recommendations',
         builder: (context, state) => const RecommendationScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap',
+        builder: (context, state) {
+          final stationId = state.uri.queryParameters['stationId'];
+          return BatterySwapScreen(preSelectedStationId: stationId);
+        },
+      ),
+      GoRoute(
+        path: '/battery-swap/reservations',
+        builder: (context, state) {
+          final reservationId = state.uri.queryParameters['reservationId'];
+          return BatterySwapReservationScreen(reservationId: reservationId);
+        },
       ),
     ],
   );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/change_request_providers.dart';
+import '../providers/file_viewer_providers.dart';
 import '../widgets/main_scaffold.dart';
 
 /// Change Request Detail Screen
@@ -21,13 +22,17 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return MainScaffold(
-      title: 'Station Proposal',
+      title: 'Station edit proposal',
       child: asyncValue.when(
         data: (data) => _buildContent(context, ref, data, theme),
-        loading: () => const LoadingState(),
+        loading: () => const LoadingState(message: 'Loading proposal...'),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
-          onRetry: () => ref.invalidate(changeRequestDetailProvider(changeRequestId)),
+          title: 'Could not load proposal',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
+          onRetry: () =>
+              ref.invalidate(changeRequestDetailProvider(changeRequestId)),
         ),
       ),
     );
@@ -315,7 +320,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               children: imageUrls.map((objectKey) {
-                return _buildImageThumbnail(context, theme, objectKey);
+                return _ImageThumbnail(objectKey: objectKey, theme: theme);
               }).toList(),
             ),
           ],
@@ -324,38 +329,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildImageThumbnail(BuildContext context, ThemeData theme, String objectKey) {
-    return GestureDetector(
-      onTap: () {
-        // TODO: Open image viewer with presigned URL
-        AppToast.showInfo(context, 'Image: $objectKey');
-      },
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FaIcon(
-              FontAwesomeIcons.image,
-              color: theme.colorScheme.primary,
-              size: 32,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Photo',
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildAdminNoteSection(ThemeData theme, String adminNote) {
     return Card(
@@ -437,7 +411,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          AppToast.showError(context, 'Failed to submit: ${e.toString()}');
+          AppToast.showError(context, 'Submit failed: ${formatApiError(e)}');
         }
       }
     }
@@ -454,6 +428,96 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
 
   String _formatDateTime(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ImageThumbnail extends ConsumerWidget {
+  final String objectKey;
+  final ThemeData theme;
+
+  const _ImageThumbnail({
+    required this.objectKey,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final urlAsync = ref.watch(presignedUrlProvider(objectKey));
+
+    return GestureDetector(
+      onTap: () {
+        if (urlAsync.hasValue) {
+          _showImageLightbox(context, urlAsync.value!, objectKey);
+        }
+      },
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline),
+        ),
+        child: urlAsync.when(
+          data: (url) => ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.error),
+            ),
+          ),
+          loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          error: (_, __) => Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image, color: theme.colorScheme.error),
+              const SizedBox(height: 4),
+              Text('Error', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showImageLightbox(BuildContext context, String imageUrl, String objectKey) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                onPressed: () => Navigator.of(dialogContext).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

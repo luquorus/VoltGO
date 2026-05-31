@@ -60,27 +60,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         context.go('/home');
       }
-    } on ApiError catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-        _isLoading = false;
-      });
-      if (mounted) {
-        AppToast.showError(context, e.message);
-      }
     } catch (e) {
+      final friendly = formatApiError(e, fallback: 'Login failed');
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = friendly;
         _isLoading = false;
       });
-      if (mounted) {
-        AppToast.showError(context, 'Login failed: ${e.toString()}');
-      }
+      if (mounted) AppToast.showError(context, friendly);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AppScaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -91,15 +83,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 48),
+                Container(
+                  width: 88,
+                  height: 88,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.bolt,
+                      size: 56, color: theme.colorScheme.primary),
+                ),
                 Text(
                   'Welcome to VoltGo',
-                  style: Theme.of(context).textTheme.headlineLarge,
+                  style: theme.textTheme.headlineLarge,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'EV User Mobile',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  'The app for EV drivers',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
@@ -113,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return 'Please enter your email';
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return 'Invalid email address';
                     }
                     return null;
                   },
@@ -132,7 +137,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                   suffixIcon: IconButton(
                     icon: FaIcon(
-                      _obscurePassword ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash,
+                      _obscurePassword
+                          ? FontAwesomeIcons.eye
+                          : FontAwesomeIcons.eyeSlash,
                     ),
                     onPressed: () {
                       setState(() {
@@ -143,21 +150,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        FaIcon(FontAwesomeIcons.circleExclamation,
+                            color: theme.colorScheme.error, size: 14),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),
                 PrimaryButton(
-                  label: 'Login',
+                  label: 'Log in',
                   onPressed: _isLoading ? null : _handleLogin,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SecondaryButton(
-                  label: 'Register',
-                  onPressed: _isLoading ? null : () => context.push('/register'),
+                  label: 'Create account',
+                  onPressed:
+                      _isLoading ? null : () => context.push('/register'),
                 ),
               ],
             ),

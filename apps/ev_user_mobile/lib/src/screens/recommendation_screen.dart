@@ -93,18 +93,22 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     );
 
     ref.read(recommendationProvider.notifier).getRecommendations(params);
+    ref
+        .read(personalizedRecommendationProvider.notifier)
+        .getPersonalizedRecommendations(params);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(recommendationProvider);
+    final personalized = ref.watch(personalizedRecommendationProvider);
 
     return MainScaffold(
       showBottomNav: false,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Tìm trạm tối ưu'),
+          title: const Text('Find optimal stations'),
           leading: IconButton(
             icon: const FaIcon(FontAwesomeIcons.xmark),
             onPressed: () => context.pop(),
@@ -136,7 +140,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                         )
                       : const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 18),
                   label: Text(
-                    state.isLoading ? 'Đang tìm...' : 'Tính gợi ý',
+                    state.isLoading ? 'Searching...' : 'Get recommendations',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -154,6 +158,10 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   const Center(child: LoadingState()),
                 if (state.response != null && !state.isLoading)
                   _buildResults(context, theme, state),
+                if (personalized.response != null && !personalized.isLoading) ...[
+                  const SizedBox(height: 20),
+                  _buildPersonalizedResults(context, theme, personalized.response!),
+                ],
               ],
             ),
           ),
@@ -178,7 +186,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Thông tin xe',
+                  'Vehicle information',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -197,7 +205,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Pin hiện tại: ${_batteryPercent.round()}%',
+                    'Current battery: ${_batteryPercent.round()}%',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -219,7 +227,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             TextFormField(
               controller: _batteryCapacityController,
               decoration: InputDecoration(
-                labelText: 'Dung tích pin (kWh)',
+                labelText: 'Battery capacity (kWh)',
                 hintText: '60',
                 prefixIcon: Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -237,11 +245,11 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
               keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Vui lòng nhập dung tích pin';
+                  return 'Please enter battery capacity';
                 }
                 final num = double.tryParse(value);
                 if (num == null || num <= 0) {
-                  return 'Dung tích pin phải > 0';
+                  return 'Battery capacity must be > 0';
                 }
                 return null;
               },
@@ -251,7 +259,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             TextFormField(
               controller: _targetPercentController,
               decoration: InputDecoration(
-                labelText: 'Mục tiêu sạc (%)',
+                labelText: 'Target charge (%)',
                 hintText: '80',
                 prefixIcon: Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -269,14 +277,14 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
               keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Vui lòng nhập mục tiêu sạc';
+                  return 'Please enter target charge';
                 }
                 final num = int.tryParse(value);
                 if (num == null || num < 0 || num > 100) {
-                  return 'Mục tiêu sạc phải từ 0-100%';
+                  return 'Target charge must be between 0-100%';
                 }
                 if (num < _batteryPercent.round()) {
-                  return 'Mục tiêu sạc phải >= pin hiện tại';
+                  return 'Target charge must be >= current battery level';
                 }
                 return null;
               },
@@ -293,7 +301,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Cài đặt nâng cao',
+                    'Advanced settings',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -315,7 +323,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 TextFormField(
                   controller: _vehicleMaxChargeKwController,
                   decoration: InputDecoration(
-                    labelText: 'Công suất sạc tối đa (kW)',
+                    labelText: 'Max charging power (kW)',
                     hintText: '120',
                     prefixIcon: Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -336,7 +344,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 TextFormField(
                   controller: _averageSpeedController,
                   decoration: InputDecoration(
-                    labelText: 'Tốc độ trung bình (km/h)',
+                    labelText: 'Average speed (km/h)',
                     hintText: '30',
                     prefixIcon: Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -357,7 +365,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 TextFormField(
                   controller: _consumptionController,
                   decoration: InputDecoration(
-                    labelText: 'Tiêu hao (kWh/km)',
+                    labelText: 'Consumption (kWh/km)',
                     hintText: '0.18',
                     prefixIcon: Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -399,7 +407,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Phạm vi tìm',
+                  'Search range',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -417,7 +425,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Bán kính: ${_radiusKm.round()} km',
+                    'Radius: ${_radiusKm.round()} km',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -472,7 +480,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Đang lấy vị trí...',
+                      'Getting location...',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -506,7 +514,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Lỗi',
+                    'Error',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onErrorContainer,
                       fontWeight: FontWeight.bold,
@@ -543,7 +551,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     size: 48, color: theme.colorScheme.outline),
                 const SizedBox(height: 16),
                 Text(
-                  'Không tìm thấy trạm trong bán kính ${_radiusKm.round()} km',
+                  'No stations found within ${_radiusKm.round()} km',
                   style: theme.textTheme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
@@ -567,7 +575,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Kết quả (${results.length}) - Sắp xếp theo tổng thời gian',
+                'Results (${results.length}) - Sorted by total time',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -581,9 +589,54 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     );
   }
 
+  Widget _buildPersonalizedResults(
+      BuildContext context, ThemeData theme, Map<String, dynamic> response) {
+    final results = (response['results'] as List<dynamic>? ?? [])
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+    if (results.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            FaIcon(FontAwesomeIcons.wandMagicSparkles,
+                color: theme.colorScheme.primary, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Personalized suggestions (AI)',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...results.take(3).map((item) {
+          final stationId = item['stationId']?.toString() ?? '';
+          final name = item['name']?.toString() ?? 'Unnamed station';
+          final score = item['score']?.toString() ?? '0';
+          final reasons = (item['reasons'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .toList();
+          return Card(
+            child: ListTile(
+              title: Text(name),
+              subtitle: Text(reasons.isNotEmpty ? reasons.first : ''),
+              trailing: Text('Score $score'),
+              onTap: stationId.isEmpty ? null : () => context.push('/stations/$stationId'),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildResultCard(
       BuildContext context, ThemeData theme, Map<String, dynamic> result) {
-    final name = result['name'] as String? ?? 'Unknown';
+    final name = result['name'] as String? ?? 'Unnamed station';
     final address = result['address'] as String? ?? '';
     final distanceKm = (result['estimate'] as Map<String, dynamic>?)?['distanceKm'] as double? ?? 0.0;
     final travelMinutes = (result['estimate'] as Map<String, dynamic>?)?['travelMinutes'] as int? ?? 0;
@@ -682,7 +735,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Tổng: $totalMinutes phút',
+                      'Total: $totalMinutes min',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onPrimaryContainer,
@@ -705,8 +758,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     _buildBreakdownItem(
                       context,
                       theme,
-                      'Di chuyển',
-                      '$travelMinutes phút',
+                      'Travel',
+                      '$travelMinutes min',
                       FontAwesomeIcons.car,
                     ),
                     Container(
@@ -717,8 +770,8 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     _buildBreakdownItem(
                       context,
                       theme,
-                      'Sạc',
-                      '$chargeMinutes phút',
+                      'Charging',
+                      '$chargeMinutes min',
                       FontAwesomeIcons.bolt,
                     ),
                   ],
@@ -732,7 +785,7 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => context.push('/stations/$stationId'),
                       icon: const FaIcon(FontAwesomeIcons.circleInfo, size: 14),
-                      label: const Text('Xem chi tiết'),
+                      label: const Text('View details'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -742,7 +795,15 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                         '/bookings/create?stationId=$stationId&stationName=${Uri.encodeComponent(name)}',
                       ),
                       icon: const FaIcon(FontAwesomeIcons.calendarCheck, size: 14),
-                      label: const Text('Book cổng'),
+                      label: const Text('Book port'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showSmartTimeSuggestions(context, result),
+                      icon: const FaIcon(FontAwesomeIcons.clockRotateLeft, size: 14),
+                      label: const Text('Suggested times'),
                     ),
                   ),
                 ],
@@ -789,6 +850,71 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showSmartTimeSuggestions(
+      BuildContext context, Map<String, dynamic> result) async {
+    final stationId = result['stationId'] as String? ?? '';
+    if (stationId.isEmpty) return;
+    final estimate = result['estimate'] as Map<String, dynamic>? ?? {};
+    final distanceKm = (estimate['distanceKm'] as num?)?.toDouble() ?? 1.0;
+    final targetPercent = int.tryParse(_targetPercentController.text) ?? 80;
+    final batteryCapacity =
+        double.tryParse(_batteryCapacityController.text) ?? 60.0;
+
+    try {
+      final response =
+          await ref.read(stationRepositoryProvider).getSmartTimeSuggestions(
+                stationId: stationId,
+                distanceKm: distanceKm,
+                batteryPercent: _batteryPercent.round(),
+                targetPercent: targetPercent,
+                batteryCapacityKwh: batteryCapacity,
+                averageSpeedKmph:
+                    double.tryParse(_averageSpeedController.text),
+              );
+      if (!context.mounted) return;
+      final suggestions = (response['suggestions'] as List<dynamic>? ?? [])
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Optimal charging slots'),
+          content: SizedBox(
+            width: 460,
+            child: suggestions.isEmpty
+                ? const Text('No suitable suggestions right now.')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: suggestions.map((item) {
+                      final slotStart = item['slotStart']?.toString() ?? '';
+                      final score = item['score']?.toString() ?? '';
+                      final load = item['predictedLoad']?.toString() ?? '';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          '$slotStart\nScore: $score • Predicted load: $load',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.showError(
+          context, 'Could not load suggestions: ${formatApiError(e)}');
+    }
   }
 }
 

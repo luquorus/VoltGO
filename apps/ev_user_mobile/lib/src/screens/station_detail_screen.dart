@@ -39,7 +39,7 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     final theme = Theme.of(context);
 
     return AppScaffold(
-      title: 'Station Details',
+      title: 'Station details',
       actions: [
         IconButton(
           icon: const FaIcon(FontAwesomeIcons.xmark),
@@ -59,25 +59,29 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     StationDetailState state,
     ThemeData theme,
   ) {
-    if (state.isLoading) {
-      return const Center(child: LoadingState());
+    if (state.isLoading && state.station == null) {
+      return const LoadingState(message: 'Loading station details...');
     }
 
-    if (state.error != null) {
-      return Center(
-        child: ErrorState(
-          message: state.error!.message,
-          onRetry: () => _onRefresh(),
-        ),
+    if (state.error != null && state.station == null) {
+      return ErrorState(
+        message: formatApiError(state.error),
+        code: state.error!.code,
+        traceId: state.error!.traceId,
+        onRetry: () => _onRefresh(),
       );
     }
 
     if (state.station == null) {
-      return const Center(child: EmptyState(message: 'Station not found'));
+      return const EmptyState(
+        icon: FontAwesomeIcons.locationDot,
+        title: 'Station not found',
+        message: 'This station may have been removed or is not published yet.',
+      );
     }
 
     final station = state.station!;
-    final name = station['name'] as String? ?? 'Unknown Station';
+    final name = station['name'] as String? ?? 'Unnamed station';
     final address = station['address'] as String? ?? '';
     final trustScore = station['trustScore'] as int? ?? 0;
     final operatingHours = station['operatingHours'] as String? ?? 'N/A';
@@ -85,6 +89,7 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     final visibility = station['visibility'] as String? ?? 'PUBLIC';
     final publicStatus = station['publicStatus'] as String? ?? 'ACTIVE';
     final ports = station['ports'] as List<dynamic>? ?? [];
+    final supportsSwap = station['supportsBatterySwap'] == true;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -100,10 +105,10 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
           // Charging ports list (DC/AC grouped)
           _buildPortsSection(context, theme, ports),
 
-          const SizedBox(height: 24),
-
-          // CTA: Book a slot
-          _buildBookButton(context, theme, widget.stationId, name),
+          if (supportsSwap) ...[
+            const SizedBox(height: 12),
+            _buildBatterySwapBookButton(context, theme),
+          ],
 
           const SizedBox(height: 12),
 
@@ -189,14 +194,14 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
             context,
             theme,
             FontAwesomeIcons.clock,
-            'Operating Hours',
+            'Operating hours',
             operatingHours,
           ),
           const SizedBox(height: 12),
           _buildInfoCard(
             context,
             theme,
-            FontAwesomeIcons.parking,
+            FontAwesomeIcons.squareParking,
             'Parking',
             _formatParking(parking),
           ),
@@ -213,7 +218,7 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
             context,
             theme,
             FontAwesomeIcons.eye,
-            'Visibility',
+            'Access',
             _formatVisibility(visibility),
           ),
         ],
@@ -236,22 +241,22 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Charging Ports',
+            'Charging ports',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
           if (dcPorts.isNotEmpty) ...[
-            _buildPortGroup(context, theme, 'DC Ports', dcPorts, Colors.blue),
+            _buildPortGroup(context, theme, 'DC ports', dcPorts, Colors.blue),
             const SizedBox(height: 16),
           ],
           if (acPorts.isNotEmpty) ...[
-            _buildPortGroup(context, theme, 'AC Ports', acPorts, Colors.green),
+            _buildPortGroup(context, theme, 'AC ports', acPorts, Colors.green),
           ],
           if (ports.isEmpty)
             Text(
-              'No charging ports available',
+              'This station has not published its charging port list yet.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
@@ -310,7 +315,7 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
                               ),
                             ),
                           Text(
-                            '$count port${count != 1 ? 's' : ''}',
+                            '$count ports',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurface.withOpacity(0.7),
                             ),
@@ -328,23 +333,24 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     );
   }
 
-  Widget _buildBookButton(BuildContext context, ThemeData theme, String stationId, String stationName) {
+  Widget _buildBatterySwapBookButton(BuildContext context, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: PrimaryButton(
-        label: 'Book a Slot',
-        onPressed: () {
-          context.push('/bookings/create?stationId=$stationId&stationName=${Uri.encodeComponent(stationName)}');
-        },
+      child: OutlinedButton.icon(
+        icon: FaIcon(FontAwesomeIcons.carBattery,
+            size: 18, color: theme.colorScheme.primary),
+        label: const Text('Book battery swap'),
+        onPressed: () => context.push('/battery-swap?stationId=${widget.stationId}'),
       ),
     );
   }
+
 
   Widget _buildReportIssueButton(BuildContext context, ThemeData theme, String stationId, String stationName) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: SecondaryButton(
-        label: 'Report Issue',
+        label: 'Report issue',
         onPressed: () {
           showModalBottomSheet(
             context: context,
@@ -363,9 +369,9 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
   String _formatParking(String parking) {
     switch (parking) {
       case 'PAID':
-        return 'Paid Parking';
+        return 'Paid';
       case 'FREE':
-        return 'Free Parking';
+        return 'Free';
       case 'UNKNOWN':
         return 'Unknown';
       default:
@@ -380,7 +386,7 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
       case 'INACTIVE':
         return 'Inactive';
       case 'MAINTENANCE':
-        return 'Under Maintenance';
+        return 'Under maintenance';
       default:
         return status;
     }

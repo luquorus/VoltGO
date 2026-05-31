@@ -44,14 +44,12 @@ class _ChangeRequestListScreenState extends ConsumerState<ChangeRequestListScree
     }
 
     return MainScaffold(
-      title: 'Station Proposals',
-      floatingActionButton: FloatingActionButton(
+      title: 'Station edit proposals',
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/change-requests/create'),
         backgroundColor: theme.colorScheme.primary,
-        child: const FaIcon(
-          FontAwesomeIcons.plus,
-          color: Colors.white,
-        ),
+        icon: const FaIcon(FontAwesomeIcons.plus, size: 14, color: Colors.white),
+        label: const Text('Create new', style: TextStyle(color: Colors.white)),
       ),
       child: RefreshIndicator(
         onRefresh: () => ref.read(changeRequestListProvider.notifier).refresh(),
@@ -67,18 +65,28 @@ class _ChangeRequestListScreenState extends ConsumerState<ChangeRequestListScree
     ThemeData theme,
   ) {
     if (state.isLoading && state.changeRequests.isEmpty) {
-      return const LoadingState();
+      return const SkeletonList(count: 4);
     }
 
     if (state.error != null && state.changeRequests.isEmpty) {
       return ErrorState(
-        message: state.error!,
+        message: formatApiError(state.error),
         onRetry: () => ref.read(changeRequestListProvider.notifier).refresh(),
       );
     }
 
     if (state.changeRequests.isEmpty) {
-      return const EmptyState(message: 'No station proposals found');
+      return EmptyState(
+        icon: FontAwesomeIcons.filePen,
+        title: 'No proposals yet',
+        message:
+            'You can propose creating or editing station information to improve our data.',
+        action: ElevatedButton.icon(
+          onPressed: () => context.push('/change-requests/create'),
+          icon: const FaIcon(FontAwesomeIcons.plus, size: 14),
+          label: const Text('Create proposal'),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -105,7 +113,7 @@ class _ChangeRequestCard extends StatelessWidget {
     final status = changeRequest['status'] as String? ?? 'UNKNOWN';
     final createdAt = _parseDateTime(changeRequest['createdAt'] as String?);
     final stationData = changeRequest['stationData'] as Map<String, dynamic>?;
-    final stationName = stationData?['name'] as String? ?? 'Unknown Station';
+    final stationName = stationData?['name'] as String? ?? 'Unnamed station';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -128,7 +136,7 @@ class _ChangeRequestCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${type.replaceAll('_', ' ')} • #${id.substring(0, 8)}',
+                          '${_typeLabel(type)} • #${id.length >= 8 ? id.substring(0, 8) : id}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
@@ -137,23 +145,8 @@ class _ChangeRequestCard extends StatelessWidget {
                     ),
                   ),
                   StatusPill(
-                    label: status,
-                    colorMapper: (status) {
-                      switch (status) {
-                        case 'DRAFT':
-                          return Colors.grey;
-                        case 'PENDING':
-                          return Colors.orange;
-                        case 'APPROVED':
-                          return Colors.green;
-                        case 'REJECTED':
-                          return Colors.red;
-                        case 'PUBLISHED':
-                          return Colors.blue;
-                        default:
-                          return Colors.grey;
-                      }
-                    },
+                    label: _statusLabel(status),
+                    colorMapper: (_) => _statusColor(status),
                   ),
                 ],
               ),
@@ -194,6 +187,53 @@ class _ChangeRequestCard extends StatelessWidget {
 
   String _formatDateTime(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'CREATE':
+        return 'Create';
+      case 'UPDATE':
+        return 'Update';
+      case 'DELETE':
+        return 'Delete';
+      default:
+        return type.replaceAll('_', ' ');
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'DRAFT':
+        return 'Draft';
+      case 'PENDING':
+        return 'Pending review';
+      case 'APPROVED':
+        return 'Approved';
+      case 'REJECTED':
+        return 'Rejected';
+      case 'PUBLISHED':
+        return 'Published';
+      default:
+        return status;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'DRAFT':
+        return Colors.grey;
+      case 'PENDING':
+        return Colors.orange;
+      case 'APPROVED':
+        return Colors.green;
+      case 'REJECTED':
+        return Colors.red;
+      case 'PUBLISHED':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 }
 

@@ -20,6 +20,8 @@ public enum ErrorCode {
     CHARGER_UNIT_NOT_FOUND("EVS-0009", "Charger unit not found"),
     CHARGER_UNIT_INACTIVE("EVS-0010", "Charger unit is not active"),
     INVALID_TIME_RANGE("EVS-0011", "Invalid time range"),
+    SERVICE_UNAVAILABLE("EVS-0012", "Service temporarily unavailable"),
+    ROUTE_NOT_FOUND("EVS-0013", "No route found between origin and destination"),
     ;
 
     private final String code;

@@ -47,6 +47,12 @@ class CollabSidebar extends StatelessWidget {
       icon: Icons.analytics_outlined,
       activeIcon: Icons.analytics,
     ),
+    SidebarItem(
+      path: '/battery-swap',
+      label: 'Battery swap',
+      icon: Icons.battery_charging_full_outlined,
+      activeIcon: Icons.battery_charging_full,
+    ),
   ];
 
   static const List<SidebarItem> _profileItems = [

@@ -30,7 +30,10 @@ class StationDetailScreen extends ConsumerWidget {
         data: (station) => _buildContent(context, theme, ref, station),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
+          title: 'Could not load station details',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
           onRetry: () {
             ref.invalidate(stationProvider(id));
           },
@@ -126,10 +129,7 @@ class StationDetailScreen extends ConsumerWidget {
                     children: [
                       ElevatedButton.icon(
                         onPressed: () {
-                          // TODO: Navigate to edit screen (can reuse create screen with edit mode)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Edit functionality - Coming soon')),
-                          );
+                          context.push('/stations/create', extra: station);
                         },
                         icon: const Icon(Icons.edit),
                         label: const Text('Edit'),
@@ -360,15 +360,15 @@ class StationDetailScreen extends ConsumerWidget {
                       final errorData = e.response!.data;
                       if (errorData is Map<String, dynamic>) {
                         errorMessage = errorData['message'] as String? ?? 
-                                      'Lỗi từ server: ${e.response!.statusCode}';
+                                      'Server error: ${e.response!.statusCode}';
                       } else {
-                        errorMessage = 'Lỗi từ server: ${e.response!.statusCode}';
+                        errorMessage = 'Server error: ${e.response!.statusCode}';
                       }
                     } else {
-                      errorMessage = 'Lỗi kết nối: ${e.message}';
+                      errorMessage = 'Connection error: ${e.message}';
                     }
                   } else {
-                    errorMessage = 'Lỗi: $e';
+                    errorMessage = 'Error: $e';
                   }
                   
                   ScaffoldMessenger.of(context).showSnackBar(

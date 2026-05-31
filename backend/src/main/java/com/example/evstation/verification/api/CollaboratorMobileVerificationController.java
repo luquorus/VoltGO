@@ -64,6 +64,21 @@ public class CollaboratorMobileVerificationController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Submit verification evidence",
+               description = "Submit the checked-in task evidence photo. Only the assigned collaborator can submit from mobile.")
+    @PostMapping("/{id}/submit-evidence")
+    public ResponseEntity<VerificationTaskDTO> submitEvidence(
+            @PathVariable UUID id,
+            @Valid @RequestBody SubmitEvidenceDTO dto,
+            Authentication authentication) {
+
+        UUID userId = extractUserId(authentication);
+        log.info("Collaborator {} submitting evidence for task {}", userId, id);
+
+        VerificationTaskDTO result = verificationService.submitEvidence(id, dto, userId);
+        return ResponseEntity.ok(result);
+    }
+
 
     private UUID extractUserId(Authentication authentication) {
         return UUID.fromString(authentication.getName());

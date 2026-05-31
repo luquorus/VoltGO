@@ -16,6 +16,7 @@ final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
 /// Booking list state
 class BookingListState {
   final List<Map<String, dynamic>> bookings;
+  final List<Map<String, dynamic>> batterySwapReservations;
   final int page;
   final int size;
   final int totalElements;
@@ -26,6 +27,7 @@ class BookingListState {
 
   BookingListState({
     this.bookings = const [],
+    this.batterySwapReservations = const [],
     this.page = 0,
     this.size = 20,
     this.totalElements = 0,
@@ -35,8 +37,35 @@ class BookingListState {
     this.error,
   });
 
+  /// All items merged, sorted by reservedAt/createdAt desc
+  List<Map<String, dynamic>> get allItems {
+    final combined = <Map<String, dynamic>>[];
+    for (final b in bookings) {
+      combined.add(Map<String, dynamic>.from(b)..['_type'] = 'CHARGER');
+    }
+    for (final r in batterySwapReservations) {
+      combined.add(Map<String, dynamic>.from(r)..['_type'] = 'BATTERY_SWAP');
+    }
+    combined.sort((a, b) {
+      final aTime = _parseInstant(a['createdAt'] ?? a['reservedAt']);
+      final bTime = _parseInstant(b['createdAt'] ?? b['reservedAt']);
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+    return combined;
+  }
+
+  static DateTime? _parseInstant(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return DateTime.tryParse(v);
+    return null;
+  }
+
   BookingListState copyWith({
     List<Map<String, dynamic>>? bookings,
+    List<Map<String, dynamic>>? batterySwapReservations,
     int? page,
     int? size,
     int? totalElements,
@@ -47,6 +76,7 @@ class BookingListState {
   }) {
     return BookingListState(
       bookings: bookings ?? this.bookings,
+      batterySwapReservations: batterySwapReservations ?? this.batterySwapReservations,
       page: page ?? this.page,
       size: size ?? this.size,
       totalElements: totalElements ?? this.totalElements,
@@ -81,8 +111,20 @@ class BookingListNotifier extends StateNotifier<BookingListState> {
       final totalElements = response['totalElements'] as int? ?? 0;
       final totalPages = response['totalPages'] as int? ?? 0;
 
+      // Also fetch battery swap reservations to merge
+      List<Map<String, dynamic>> swapReservations = [];
+      try {
+        final swapResponse = await _repository.getMyBatterySwapReservations();
+        swapReservations = (swapResponse as List<dynamic>)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+      } catch (_) {
+        // Battery swap might not be available, ignore
+      }
+
       state = state.copyWith(
         bookings: refresh ? content : [...state.bookings, ...content],
+        batterySwapReservations: swapReservations,
         page: page,
         totalElements: totalElements,
         totalPages: totalPages,

@@ -31,42 +31,17 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
     final collaboratorAsync = ref.watch(collaboratorProvider(widget.id));
 
     return AdminScaffold(
-      title: 'Collaborator Details',
+      title: 'Collaborator details',
       body: collaboratorAsync.when(
         data: (collaborator) => _buildContent(context, theme, collaborator),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Error loading collaborator',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  ref.invalidate(collaboratorProvider(widget.id));
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => const LoadingState(
+            message: 'Loading collaborator details...'),
+        error: (error, stack) => ErrorState(
+          title: 'Could not load details',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
+          onRetry: () => ref.invalidate(collaboratorProvider(widget.id)),
         ),
       ),
     );
@@ -412,9 +387,13 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
                 child: CircularProgressIndicator(),
               )),
               error: (error, stack) => ErrorState(
-                message: error.toString(),
+                title: 'Could not load contracts',
+                message: formatApiError(error),
+                code: extractErrorCode(error),
+                traceId: extractTraceId(error),
                 onRetry: () {
-                  ref.invalidate(contractsByCollaboratorProvider(collaborator.id));
+                  ref.invalidate(
+                      contractsByCollaboratorProvider(collaborator.id));
                 },
               ),
             ),
@@ -765,7 +744,7 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating contract: ${e.toString()}'),
+            content: Text('Failed to create contract: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

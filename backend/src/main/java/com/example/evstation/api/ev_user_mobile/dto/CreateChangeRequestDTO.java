@@ -77,6 +77,13 @@ public class CreateChangeRequestDTO {
         // Required if type is CHARGING
         @Valid
         private List<ChargingPortDTO> chargingPorts;
+
+        // Required if type is BATTERY_SWAP
+        @Min(value = 1, message = "totalBatteries must be at least 1")
+        private Integer totalBatteries;
+
+        @DecimalMin(value = "0.1", message = "avgChargePowerKw must be > 0")
+        private BigDecimal avgChargePowerKw;
     }
     
     @Data

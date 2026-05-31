@@ -15,6 +15,7 @@ class AdminVerificationTask {
   final CheckinInfo? checkin;
   final List<Evidence> evidences;
   final Review? review;
+  final List<String> stationServiceTypes;
 
   AdminVerificationTask({
     required this.id,
@@ -30,6 +31,7 @@ class AdminVerificationTask {
     this.checkin,
     this.evidences = const [],
     this.review,
+    this.stationServiceTypes = const [],
   });
 
   factory AdminVerificationTask.fromJson(Map<String, dynamic> json) {
@@ -58,7 +60,29 @@ class AdminVerificationTask {
       review: json['review'] != null
           ? Review.fromJson(json['review'] as Map<String, dynamic>)
           : null,
+      stationServiceTypes: (json['stationServiceTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
+  }
+
+  bool get isBatterySwapStation =>
+      stationServiceTypes.contains('BATTERY_SWAP');
+
+  bool get isChargingStation => stationServiceTypes.contains('CHARGING');
+
+  String get primaryServiceLabel {
+    if (isBatterySwapStation && !isChargingStation) {
+      return 'Battery swap station';
+    }
+    if (isChargingStation && !isBatterySwapStation) {
+      return 'Charging station';
+    }
+    if (isChargingStation && isBatterySwapStation) {
+      return 'Charging + battery swap';
+    }
+    return 'Station';
   }
 
   bool get canAssign => status == VerificationTaskStatus.open;

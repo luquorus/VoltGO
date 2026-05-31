@@ -3,6 +3,7 @@ package com.example.evstation.risk.application;
 import com.example.evstation.risk.domain.RiskAssessment;
 import com.example.evstation.risk.domain.RiskReasonCode;
 import com.example.evstation.station.domain.ChangeRequestType;
+import com.example.evstation.station.domain.ServiceType;
 import com.example.evstation.station.infrastructure.jpa.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,7 +33,10 @@ import java.util.stream.Collectors;
 public class RiskEngineService {
     
     private static final double GPS_CHANGE_THRESHOLD_METERS = 100.0;
-    
+    private static final int SWAP_LOW_INVENTORY_THRESHOLD = 5;
+    private static final double SWAP_AVG_POWER_MIN_KW = 10.0;
+    private static final double SWAP_AVG_POWER_MAX_KW = 200.0;
+
     private final StationVersionJpaRepository stationVersionRepository;
     private final StationServiceJpaRepository stationServiceRepository;
     private final ChargingPortJpaRepository chargingPortRepository;
@@ -56,11 +61,15 @@ public class RiskEngineService {
         
         // Load proposed charging ports
         List<ChargingPortEntity> proposedPorts = loadChargingPorts(proposedVersion.getId());
-        
+        List<StationServiceEntity> proposedServices = stationServiceRepository
+                .findByStationVersionId(proposedVersion.getId());
+
         if (changeRequest.getType() == ChangeRequestType.CREATE_STATION) {
             // For CREATE_STATION, add baseline risk
             reasons.add(RiskReasonCode.NEW_STATION);
             log.debug("CREATE_STATION: added NEW_STATION reason");
+            // Apply swap-specific rules for new station with BATTERY_SWAP
+            reasons.addAll(assessSwapServices(null, proposedServices));
         } else {
             // For UPDATE_STATION, compare with published version
             Optional<StationVersionEntity> publishedVersionOpt = 
@@ -69,15 +78,19 @@ public class RiskEngineService {
             if (publishedVersionOpt.isPresent()) {
                 StationVersionEntity publishedVersion = publishedVersionOpt.get();
                 List<ChargingPortEntity> publishedPorts = loadChargingPorts(publishedVersion.getId());
-                
+                List<StationServiceEntity> publishedServices = stationServiceRepository
+                        .findByStationVersionId(publishedVersion.getId());
+
                 // Apply rules
                 reasons.addAll(compareVersions(publishedVersion, proposedVersion, 
                         publishedPorts, proposedPorts));
+                reasons.addAll(assessSwapServices(publishedServices, proposedServices));
             } else {
                 // No published version found for UPDATE - treat as CREATE
                 log.warn("UPDATE_STATION but no published version found for station: {}", 
                         changeRequest.getStationId());
                 reasons.add(RiskReasonCode.NEW_STATION);
+                reasons.addAll(assessSwapServices(null, proposedServices));
             }
         }
         
@@ -231,6 +244,56 @@ public class RiskEngineService {
             return "";
         }
         return value.trim().toLowerCase();
+    }
+
+    /**
+     * Đánh giá rủi ro cho cấu hình battery swap (totalBatteries, avgChargePowerKw).
+     * Trả về set unique (1 mã chỉ cộng điểm 1 lần).
+     */
+    private Set<RiskReasonCode> assessSwapServices(
+            List<StationServiceEntity> publishedServices,
+            List<StationServiceEntity> proposedServices) {
+        Set<RiskReasonCode> reasons = new LinkedHashSet<>();
+        Optional<StationServiceEntity> proposedSwap = proposedServices.stream()
+                .filter(s -> s.getServiceType() == ServiceType.BATTERY_SWAP)
+                .findFirst();
+        if (proposedSwap.isEmpty()) {
+            return reasons;
+        }
+        StationServiceEntity prop = proposedSwap.get();
+        Integer total = prop.getTotalBatteries();
+        BigDecimal avgPower = prop.getAvgChargePowerKw();
+
+        if (total != null && total < SWAP_LOW_INVENTORY_THRESHOLD) {
+            reasons.add(RiskReasonCode.SWAP_LOW_INVENTORY);
+        }
+        if (avgPower != null) {
+            double v = avgPower.doubleValue();
+            if (v < SWAP_AVG_POWER_MIN_KW || v > SWAP_AVG_POWER_MAX_KW) {
+                reasons.add(RiskReasonCode.SWAP_AVG_POWER_OUT_OF_RANGE);
+            }
+        }
+
+        if (publishedServices != null) {
+            Optional<StationServiceEntity> publishedSwap = publishedServices.stream()
+                    .filter(s -> s.getServiceType() == ServiceType.BATTERY_SWAP)
+                    .findFirst();
+            if (publishedSwap.isPresent()) {
+                StationServiceEntity pub = publishedSwap.get();
+                boolean totalChanged = !Objects.equals(pub.getTotalBatteries(), prop.getTotalBatteries());
+                boolean powerChanged = pub.getAvgChargePowerKw() == null
+                        ? prop.getAvgChargePowerKw() != null
+                        : prop.getAvgChargePowerKw() == null
+                                || pub.getAvgChargePowerKw().compareTo(prop.getAvgChargePowerKw()) != 0;
+                if (totalChanged || powerChanged) {
+                    reasons.add(RiskReasonCode.SWAP_CONFIG_CHANGED);
+                }
+            } else {
+                // chuyển từ "không có swap" sang "có swap" thì coi như cấu hình đổi pin có thay đổi
+                reasons.add(RiskReasonCode.SWAP_CONFIG_CHANGED);
+            }
+        }
+        return reasons;
     }
 
     /**

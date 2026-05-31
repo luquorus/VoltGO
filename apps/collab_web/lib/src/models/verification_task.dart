@@ -11,7 +11,9 @@ class VerificationTask {
   final VerificationTaskStatus status;
   final DateTime createdAt;
   final CheckinInfo? checkin;
+  final List<Evidence> evidences;
   final Review? review;
+  final List<String> stationServiceTypes;
 
   VerificationTask({
     required this.id,
@@ -25,7 +27,9 @@ class VerificationTask {
     required this.status,
     required this.createdAt,
     this.checkin,
+    this.evidences = const [],
     this.review,
+    this.stationServiceTypes = const [],
   });
 
   factory VerificationTask.fromJson(Map<String, dynamic> json) {
@@ -45,10 +49,36 @@ class VerificationTask {
       checkin: json['checkin'] != null
           ? CheckinInfo.fromJson(json['checkin'] as Map<String, dynamic>)
           : null,
+      evidences: (json['evidences'] as List<dynamic>?)
+              ?.map((e) => Evidence.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       review: json['review'] != null
           ? Review.fromJson(json['review'] as Map<String, dynamic>)
           : null,
+      stationServiceTypes: (json['stationServiceTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
+  }
+
+  bool get isBatterySwapStation =>
+      stationServiceTypes.contains('BATTERY_SWAP');
+
+  bool get isChargingStation => stationServiceTypes.contains('CHARGING');
+
+  String get primaryServiceLabel {
+    if (isBatterySwapStation && !isChargingStation) {
+      return 'Battery swap station';
+    }
+    if (isChargingStation && !isBatterySwapStation) {
+      return 'Charging station';
+    }
+    if (isChargingStation && isBatterySwapStation) {
+      return 'Charging + battery swap';
+    }
+    return 'Station';
   }
 
   Map<String, dynamic> toJson() {
@@ -64,6 +94,7 @@ class VerificationTask {
       'status': status.toString(),
       'createdAt': createdAt.toIso8601String(),
       if (checkin != null) 'checkin': checkin!.toJson(),
+      'evidences': evidences.map((e) => e.toJson()).toList(),
       if (review != null) 'review': review!.toJson(),
     };
   }
@@ -117,7 +148,7 @@ enum VerificationTaskStatus {
       case VerificationTaskStatus.assigned:
         return 'Assigned';
       case VerificationTaskStatus.checkedIn:
-        return 'Checked In';
+        return 'Checked in';
       case VerificationTaskStatus.submitted:
         return 'Submitted';
       case VerificationTaskStatus.reviewed:
@@ -199,6 +230,44 @@ class Review {
 
   bool get isPass => result == 'PASS';
   bool get isFail => result == 'FAIL';
+}
+
+class Evidence {
+  final String id;
+  final String photoObjectKey;
+  final String? note;
+  final DateTime submittedAt;
+  final String submittedBy;
+
+  Evidence({
+    required this.id,
+    required this.photoObjectKey,
+    this.note,
+    required this.submittedAt,
+    required this.submittedBy,
+  });
+
+  factory Evidence.fromJson(Map<String, dynamic> json) {
+    return Evidence(
+      id: json['id'] as String,
+      photoObjectKey: json['photoObjectKey'] as String,
+      note: json['note'] as String?,
+      submittedAt: json['submittedAt'] != null
+          ? DateTime.parse(json['submittedAt'] as String)
+          : DateTime.now(),
+      submittedBy: json['submittedBy'] as String? ?? 'Unknown',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'photoObjectKey': photoObjectKey,
+      if (note != null) 'note': note,
+      'submittedAt': submittedAt.toIso8601String(),
+      'submittedBy': submittedBy,
+    };
+  }
 }
 
 /// Paginated response model

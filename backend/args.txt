@@ -1,0 +1,4 @@
+-cp
+@C:\Users\luquo\2025.1\GR2\ver1\VoltGo\backend\cp.txt
+-Dspring.main.banner-mode=none
+org.springframework.boot.loader.launch.JarModeLauncher

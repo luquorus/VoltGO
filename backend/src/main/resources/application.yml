@@ -41,6 +41,13 @@ logging:
     root: INFO
     com.example.evstation: DEBUG
 
+voltgo:
+  battery-swap:
+    base-price-vnd: 5000
+    expire-slot-grace-minutes: 15
+    expire-no-slot-grace-minutes: 30
+    expire-job-interval-ms: 60000
+
 app:
   recommendation:
     default-average-speed-kmph: 30.0
@@ -48,4 +55,8 @@ app:
     default-vehicle-max-charge-kw: 120.0
     default-target-percent: 80
     default-limit: 10
+  routing:
+    default-station-limit: 10
+    corridor-buffer-meters: 5000
+    osrm-base-url: http://router.project-osrm.org
 

@@ -5,6 +5,8 @@ import 'package:shared_auth/shared_auth.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../repositories/station_repository.dart';
+import '../models/battery_swap_models.dart';
+import '../services/battery_swap_websocket_service.dart';
 
 /// Base URL Provider
 final baseUrlProvider = Provider<String>((ref) {
@@ -471,3 +473,238 @@ final recommendationProvider =
   return RecommendationNotifier(repository);
 });
 
+class PersonalizedRecommendationState {
+  final Map<String, dynamic>? response;
+  final bool isLoading;
+  final ApiError? error;
+
+  PersonalizedRecommendationState({
+    this.response,
+    this.isLoading = false,
+    this.error,
+  });
+
+  PersonalizedRecommendationState copyWith({
+    Map<String, dynamic>? response,
+    bool? isLoading,
+    ApiError? error,
+    bool clearError = false,
+    bool clearResponse = false,
+  }) {
+    return PersonalizedRecommendationState(
+      response: clearResponse ? null : (response ?? this.response),
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+class PersonalizedRecommendationNotifier
+    extends StateNotifier<PersonalizedRecommendationState> {
+  final StationRepository _repository;
+
+  PersonalizedRecommendationNotifier(this._repository)
+      : super(PersonalizedRecommendationState());
+
+  Future<void> getPersonalizedRecommendations(RecommendationParams params) async {
+    state = state.copyWith(isLoading: true, clearError: true, clearResponse: true);
+    try {
+      final response = await _repository.getPersonalizedRecommendations(
+        lat: params.lat,
+        lng: params.lng,
+        radiusKm: params.radiusKm,
+        batteryPercent: params.batteryPercent,
+        batteryCapacityKwh: params.batteryCapacityKwh,
+        targetPercent: params.targetPercent,
+        consumptionKwhPerKm: params.consumptionKwhPerKm,
+        averageSpeedKmph: params.averageSpeedKmph,
+        vehicleMaxChargeKw: params.vehicleMaxChargeKw,
+        limit: params.limit,
+      );
+      state = state.copyWith(response: response, isLoading: false);
+    } on ApiError catch (e) {
+      state = state.copyWith(isLoading: false, error: e);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiError(
+          traceId: '',
+          code: 'UNKNOWN_ERROR',
+          message: e.toString(),
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+  }
+}
+
+final personalizedRecommendationProvider = StateNotifierProvider<
+    PersonalizedRecommendationNotifier, PersonalizedRecommendationState>((ref) {
+  final repository = ref.watch(stationRepositoryProvider);
+  return PersonalizedRecommendationNotifier(repository);
+});
+
+class BatterySwapState {
+  final List<BatterySwapStationModel> stations;
+  final List<BatterySwapReservationModel> myReservations;
+  final bool isLoading;
+  final ApiError? error;
+
+  BatterySwapState({
+    this.stations = const [],
+    this.myReservations = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  BatterySwapState copyWith({
+    List<BatterySwapStationModel>? stations,
+    List<BatterySwapReservationModel>? myReservations,
+    bool? isLoading,
+    ApiError? error,
+    bool clearError = false,
+  }) {
+    return BatterySwapState(
+      stations: stations ?? this.stations,
+      myReservations: myReservations ?? this.myReservations,
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+class BatterySwapNotifier extends StateNotifier<BatterySwapState> {
+  final StationRepository _repository;
+
+  BatterySwapNotifier(this._repository) : super(BatterySwapState());
+
+  ApiError _toApiError(Object error) {
+    if (error is ApiError) return error;
+    return ApiError(
+      traceId: '',
+      code: 'UNKNOWN_ERROR',
+      message: error.toString(),
+      timestamp: DateTime.now(),
+    );
+  }
+
+  Future<void> loadStations({
+    required double lat,
+    required double lng,
+    double radiusKm = 15,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final stations = await _repository.getBatterySwapStations(
+        lat: lat,
+        lng: lng,
+        radiusKm: radiusKm,
+      );
+      state = state.copyWith(stations: stations, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _toApiError(e));
+    }
+  }
+
+  Future<void> loadMyReservations() async {
+    try {
+      final reservations = await _repository.getMyBatterySwapReservations();
+      state = state.copyWith(myReservations: reservations, clearError: true);
+    } catch (e) {
+      state = state.copyWith(error: _toApiError(e));
+    }
+  }
+
+  void clearError() {
+    state = state.copyWith(clearError: true);
+  }
+
+  Future<BatterySwapReservationModel> reserve({
+    required String stationId,
+    required DateTime expectedArrivalAt,
+    int? requestedBatteryPercent,
+    double? batteryCapacityKwh,
+    String? pileId,
+    String? slotId,
+    String? note,
+  }) async {
+    final response = await _repository.reserveBatterySwap(
+      stationId: stationId,
+      expectedArrivalAt: expectedArrivalAt,
+      requestedBatteryPercent: requestedBatteryPercent,
+      batteryCapacityKwh: batteryCapacityKwh,
+      pileId: pileId,
+      slotId: slotId,
+      note: note,
+    );
+    await loadMyReservations();
+    return response;
+  }
+
+  Future<BatterySwapReservationModel> confirmArrival(String reservationId) async {
+    final response = await _repository.confirmArrivalBatterySwap(reservationId);
+    await loadMyReservations();
+    return response;
+  }
+
+  Future<BatterySwapReservationModel> start(String reservationId) async {
+    final response = await _repository.startBatterySwap(reservationId);
+    await loadMyReservations();
+    return response;
+  }
+
+  Future<BatterySwapReservationModel> confirm(String reservationId) async {
+    final response = await _repository.confirmBatterySwap(reservationId);
+    await loadMyReservations();
+    return response;
+  }
+
+  Future<BatterySwapReservationModel> cancel(String reservationId) async {
+    final response = await _repository.cancelBatterySwap(reservationId);
+    await loadMyReservations();
+    return response;
+  }
+
+  Future<BatterySwapReservationModel> pay(String reservationId) async {
+    final response = await _repository.payBatterySwap(reservationId);
+    await loadMyReservations();
+    return BatterySwapReservationModel.fromJson(response);
+  }
+
+  Future<BatterySwapReservationModel> getReservation(String reservationId) async {
+    return await _repository.getBatterySwapReservation(reservationId);
+  }
+
+  Future<Map<String, dynamic>> getSwapCode(String reservationId) async {
+    return await _repository.getSwapCode(reservationId);
+  }
+
+  Future<Map<String, dynamic>> verifySwap(String reservationId, String swapCode) async {
+    final result = await _repository.verifySwap(reservationId, swapCode);
+    await loadMyReservations();
+    await Future.delayed(const Duration(milliseconds: 300));
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> getSlotChargingSession(String slotId) async {
+    return await _repository.getSlotChargingSession(slotId);
+  }
+}
+
+final batterySwapProvider =
+    StateNotifierProvider<BatterySwapNotifier, BatterySwapState>((ref) {
+  final repository = ref.watch(stationRepositoryProvider);
+  return BatterySwapNotifier(repository);
+});
+
+final batterySwapWsProvider = Provider<BatterySwapWebSocketService>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final baseUrl = ref.watch(baseUrlProvider);
+  // Strip scheme to get host for ws://
+  final uri = Uri.parse(baseUrl);
+  final wsUrl = '${uri.hasScheme ? uri.scheme.replaceFirst('http', 'ws') : 'ws'}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  return BatterySwapWebSocketService(
+    wsBaseUrl: wsUrl,
+    getAuthState: () => authState,
+  );
+});

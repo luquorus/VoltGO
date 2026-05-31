@@ -47,6 +47,8 @@ public class ChangeRequestResponseDTO {
     public static class ServiceDTO {
         private ServiceType type;
         private List<ChargingPortDTO> chargingPorts;
+        private Integer totalBatteries;
+        private BigDecimal avgChargePowerKw;
     }
     
     @Data

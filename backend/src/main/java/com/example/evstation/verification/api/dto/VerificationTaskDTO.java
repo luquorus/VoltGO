@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Builder
@@ -19,9 +20,13 @@ public class VerificationTaskDTO {
     private String assignedToEmail;
     private VerificationTaskStatus status;
     private Instant createdAt;
+
+    /** Service types on the station version under verification (e.g. CHARGING, BATTERY_SWAP). */
+    private List<String> stationServiceTypes;
     
     // Nested details
     private CheckinDTO checkin;
+    private List<EvidenceDTO> evidences;
     private ReviewDTO review;
     
     @Data
@@ -41,6 +46,16 @@ public class VerificationTaskDTO {
         private String adminNote;
         private Instant reviewedAt;
         private String reviewedBy;
+    }
+
+    @Data
+    @Builder
+    public static class EvidenceDTO {
+        private String id;
+        private String photoObjectKey;
+        private String note;
+        private Instant submittedAt;
+        private String submittedBy;
     }
 }
 

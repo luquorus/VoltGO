@@ -45,7 +45,10 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
                   data: (issues) => _buildIssuesTable(context, theme, issues),
                   loading: () => LoadingState(message: 'Loading issues...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load issue reports',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(issuesProvider);
                     },

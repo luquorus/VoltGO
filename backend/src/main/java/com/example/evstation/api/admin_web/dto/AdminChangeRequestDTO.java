@@ -55,6 +55,10 @@ public class AdminChangeRequestDTO {
     public static class ServiceDTO {
         private ServiceType type;
         private List<ChargingPortDTO> chargingPorts;
+        /** Present when type == BATTERY_SWAP */
+        private Integer totalBatteries;
+        /** Present when type == BATTERY_SWAP */
+        private BigDecimal avgChargePowerKw;
     }
     
     @Data

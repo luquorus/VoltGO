@@ -45,7 +45,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       print('Error picking file: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lỗi khi chọn file: $e'),
+          content: Text('Error selecting file: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -59,7 +59,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       print('No file picked');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng chọn file CSV trước'),
+          content: Text('Please select a CSV file first'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -70,7 +70,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       print('File list is empty');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Không có file nào được chọn'),
+          content: Text('No file selected'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -176,7 +176,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Import thành công! Đã import $successCount/$totalRows trạm sạc.',
+                    'Import successful! Imported $successCount/$totalRows charging stations.',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -197,7 +197,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Import một phần: $successCount/$totalRows thành công, $failureCount thất bại. Vui lòng kiểm tra chi tiết bên dưới.',
+                    'Partial import: $successCount/$totalRows succeeded, $failureCount failed. See details below.',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -218,7 +218,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Import thất bại! Tất cả $failureCount trạm đều không thể import. Vui lòng kiểm tra chi tiết bên dưới.',
+                    'Import failed! All $failureCount stations could not be imported. See details below.',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -239,7 +239,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       print('CSV Import Error: $e');
       print('Stack trace: $stackTrace');
 
-      String errorMessage = 'Lỗi khi upload file';
+      String errorMessage = 'Error uploading file';
       if (e is DioException) {
         print('DioException type: ${e.type}');
         print('DioException message: ${e.message}');
@@ -250,23 +250,23 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
           final errorData = e.response!.data;
           if (errorData is Map<String, dynamic>) {
             errorMessage = errorData['message'] as String? ?? 
-                          'Lỗi từ server: ${e.response!.statusCode}';
+                          'Server error: ${e.response!.statusCode}';
           } else if (errorData is String) {
             errorMessage = errorData;
           } else {
-            errorMessage = 'Lỗi từ server: ${e.response!.statusCode} - ${e.response!.statusMessage}';
+            errorMessage = 'Server error: ${e.response!.statusCode} - ${e.response!.statusMessage}';
           }
         } else if (e.type == DioExceptionType.connectionTimeout) {
-          errorMessage = 'Kết nối timeout. Vui lòng kiểm tra kết nối mạng và thử lại.';
+          errorMessage = 'Connection timed out. Check your network and try again.';
         } else if (e.type == DioExceptionType.receiveTimeout) {
-          errorMessage = 'Nhận dữ liệu timeout. File có thể quá lớn, vui lòng thử lại.';
+          errorMessage = 'Receive timed out. The file may be too large; please try again.';
         } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+          errorMessage = 'Could not connect to the server. Check your network connection.';
         } else {
-          errorMessage = 'Lỗi kết nối: ${e.message ?? e.type.toString()}';
+          errorMessage = 'Connection error: ${e.message ?? e.type.toString()}';
         }
       } else {
-        errorMessage = 'Lỗi: ${e.toString()}';
+        errorMessage = 'Error: ${e.toString()}';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -424,15 +424,15 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
     if (failureCount == 0 && successCount > 0) {
       statusColor = Colors.green;
       statusIcon = Icons.check_circle;
-      statusText = 'Import thành công hoàn toàn';
+      statusText = 'Import completed successfully';
     } else if (successCount > 0 && failureCount > 0) {
       statusColor = Colors.orange;
       statusIcon = Icons.warning;
-      statusText = 'Import một phần thành công';
+      statusText = 'Partial import succeeded';
     } else {
       statusColor = Colors.red;
       statusIcon = Icons.error;
-      statusText = 'Import thất bại';
+      statusText = 'Import failed';
     }
 
     return Card(
@@ -471,7 +471,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tổng: $totalRows | Thành công: $successCount | Thất bại: $failureCount',
+                        'Total: $totalRows | Succeeded: $successCount | Failed: $failureCount',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: statusColor.withOpacity(0.8),
                         ),
@@ -492,15 +492,15 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildStatCard(theme, 'Tổng số', totalRows, Colors.blue),
+                      child: _buildStatCard(theme, 'Total', totalRows, Colors.blue),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildStatCard(theme, 'Thành công', successCount, Colors.green),
+                      child: _buildStatCard(theme, 'Succeeded', successCount, Colors.green),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildStatCard(theme, 'Thất bại', failureCount, Colors.red),
+                      child: _buildStatCard(theme, 'Failed', failureCount, Colors.red),
                     ),
                   ],
                 ),
@@ -511,7 +511,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                       Icon(Icons.list, color: theme.colorScheme.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Chi tiết từng trạm',
+                        'Per-station details',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -551,7 +551,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                               ),
                             ),
                             title: Text(
-                              'Dòng $rowNumber: $stationName',
+                              'Row $rowNumber: $stationName',
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -580,7 +580,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                                             Icon(Icons.error_outline, size: 16, color: Colors.red[700]),
                                             const SizedBox(width: 4),
                                             Text(
-                                              'Lỗi:',
+                                              'Error:',
                                               style: theme.textTheme.bodySmall?.copyWith(
                                                 color: Colors.red[700],
                                                 fontWeight: FontWeight.w600,

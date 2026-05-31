@@ -124,7 +124,7 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
         setState(() {
           _stations = [];
           _isSearching = false;
-          _error = 'Failed to search stations: ${e.toString()}';
+          _error = 'Station search failed: ${formatApiError(e)}';
         });
       }
     }

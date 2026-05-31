@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -26,5 +27,11 @@ public class StationServiceEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "service_type", nullable = false)
     private ServiceType serviceType;
+
+    @Column(name = "total_batteries")
+    private Integer totalBatteries;
+
+    @Column(name = "avg_charge_power_kw")
+    private BigDecimal avgChargePowerKw;
 }
 

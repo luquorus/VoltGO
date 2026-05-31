@@ -40,7 +40,7 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: FaIcon(FontAwesomeIcons.map),
             activeIcon: FaIcon(FontAwesomeIcons.map),
-            label: 'Home',
+            label: 'Map',
           ),
           BottomNavigationBarItem(
             icon: FaIcon(FontAwesomeIcons.calendar),

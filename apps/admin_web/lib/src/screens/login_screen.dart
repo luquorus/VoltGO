@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on ApiError catch (e) {
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
-      if (mounted) AppToast.showError(context, 'Login failed: ${e.toString()}');
+      if (mounted) AppToast.showError(context, 'Sign-in failed: ${formatApiError(e)}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

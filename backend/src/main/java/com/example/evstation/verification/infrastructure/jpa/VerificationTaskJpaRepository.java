@@ -69,5 +69,13 @@ public interface VerificationTaskJpaRepository extends JpaRepository<Verificatio
     
     // For candidate query: get all tasks assigned to a user
     List<VerificationTaskEntity> findByAssignedTo(UUID assignedTo);
+
+    @Query("""
+            SELECT DISTINCT t.stationId FROM VerificationTaskEntity t
+            WHERE t.assignedTo = :assignedTo AND t.status IN :statuses
+            """)
+    List<UUID> findDistinctStationIdsByAssignedToAndStatusIn(
+            @Param("assignedTo") UUID assignedTo,
+            @Param("statuses") List<VerificationTaskStatus> statuses);
 }
 

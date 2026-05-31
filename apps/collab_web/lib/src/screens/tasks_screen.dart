@@ -34,19 +34,20 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Stats Row
             _buildStatsRow(theme, tasksAsync),
             const SizedBox(height: 24),
-
-            // Tasks Table
             Expanded(
               child: Card(
                 margin: EdgeInsets.zero,
                 child: tasksAsync.when(
                   data: (page) => _buildTasksTable(theme, page),
-                  loading: () => const LoadingState(message: 'Loading tasks...'),
+                  loading: () =>
+                      const LoadingState(message: 'Loading tasks...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load list',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(tasksPageProvider);
                     },
@@ -75,13 +76,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             child: DropdownButton<VerificationTaskStatus?>(
               value: filters.status,
               hint: Text(
-                'All Status',
+                'All statuses',
                 style: theme.textTheme.bodyMedium,
               ),
               items: [
                 const DropdownMenuItem<VerificationTaskStatus?>(
                   value: null,
-                  child: Text('All Status'),
+                  child: Text('All statuses'),
                 ),
                 ...VerificationTaskStatus.values.map((status) =>
                     DropdownMenuItem<VerificationTaskStatus>(
@@ -106,7 +107,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             decoration: InputDecoration(
               hintText: 'Priority',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -144,7 +146,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             label: Text(
               _selectedSlaDate != null
                   ? '${_selectedSlaDate!.day}/${_selectedSlaDate!.month}/${_selectedSlaDate!.year}'
-                  : 'SLA Due Before',
+                  : 'SLA due before',
               style: theme.textTheme.bodySmall,
             ),
             style: OutlinedButton.styleFrom(
@@ -196,7 +198,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         _buildStatCard(
           theme,
           icon: Icons.assignment,
-          label: 'Total Tasks',
+          label: 'Total tasks',
           value: totalTasks.toString(),
           color: CollabTheme.primaryGreen,
         ),
@@ -204,7 +206,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         _buildStatCard(
           theme,
           icon: Icons.pending_actions,
-          label: 'Pending',
+          label: 'In progress',
           value: pendingTasks.toString(),
           color: Colors.orange,
         ),
@@ -276,11 +278,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  Widget _buildTasksTable(ThemeData theme, PagedResponse<VerificationTask> page) {
+  Widget _buildTasksTable(
+      ThemeData theme, PagedResponse<VerificationTask> page) {
     if (page.content.isEmpty) {
       return EmptyState(
         icon: Icons.assignment_outlined,
-        message: 'No tasks found',
+        title: 'No tasks yet',
+        message: 'No tasks match the current filters.',
         action: OutlinedButton.icon(
           onPressed: () {
             ref.invalidate(tasksPageProvider);
@@ -309,7 +313,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               Expanded(
                 flex: 3,
                 child: Text(
-                  'Station Name',
+                  'Station name',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -336,13 +340,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               Expanded(
                 flex: 2,
                 child: Text(
-                  'SLA Due',
+                  'SLA deadline',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(width: 48), // Action column
+              const SizedBox(width: 48),
             ],
           ),
         ),
@@ -399,7 +403,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'ID: ${task.stationId.substring(0, 8)}...',
+                    'ID: ${task.stationId.length >= 8 ? '${task.stationId.substring(0, 8)}...' : task.stationId}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -505,7 +509,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Showing ${page.content.length} of ${page.totalElements} tasks',
+            'Showing ${page.content.length} / ${page.totalElements} tasks',
             style: theme.textTheme.bodySmall,
           ),
           Row(
@@ -530,7 +534,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Page ${page.page + 1} of ${page.totalPages}',
+                  'Page ${page.page + 1} / ${page.totalPages == 0 ? 1 : page.totalPages}',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -571,22 +575,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     if (isOverdue) {
       if (difference.inDays.abs() > 0) {
-        return 'Overdue ${difference.inDays.abs()}d';
+        return 'Overdue by ${difference.inDays.abs()} days';
       }
       if (difference.inHours.abs() > 0) {
-        return 'Overdue ${difference.inHours.abs()}h';
+        return 'Overdue by ${difference.inHours.abs()} hours';
       }
-      return 'Overdue ${difference.inMinutes.abs()}m';
+      return 'Overdue by ${difference.inMinutes.abs()} minutes';
     }
 
     if (difference.inDays > 0) {
-      return 'Due in ${difference.inDays}d';
+      return '${difference.inDays} days left';
     }
     if (difference.inHours > 0) {
-      return 'Due in ${difference.inHours}h';
+      return '${difference.inHours} hours left';
     }
     if (difference.inMinutes > 0) {
-      return 'Due in ${difference.inMinutes}m';
+      return '${difference.inMinutes} minutes left';
     }
     return 'Due soon';
   }

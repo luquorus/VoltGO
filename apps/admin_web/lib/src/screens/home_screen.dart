@@ -79,13 +79,14 @@ class HomeScreen extends ConsumerWidget {
                           Text(
                             'Welcome back!',
                             style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.6),
                               fontSize: 15,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            authState.email ?? 'Admin',
+                            authState.email ?? 'Administrator',
                             style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AdminTheme.primaryTealDark,
@@ -95,7 +96,8 @@ class HomeScreen extends ConsumerWidget {
                           Text(
                             'Ready to manage the system',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.5),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.5),
                             ),
                           ),
                         ],
@@ -109,7 +111,7 @@ class HomeScreen extends ConsumerWidget {
 
             // Quick Actions
             Text(
-              'Quick Actions',
+              'Quick actions',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AdminTheme.primaryTealDark,
@@ -136,7 +138,8 @@ class HomeScreen extends ConsumerWidget {
                       width: cardWidth,
                       icon: Icons.description_rounded,
                       title: 'Change Requests',
-                      description: 'Review and manage change requests submitted by providers',
+                      description:
+                          'Review and process change requests submitted by partners',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/change-requests'),
                     ),
@@ -145,8 +148,9 @@ class HomeScreen extends ConsumerWidget {
                       theme,
                       width: cardWidth,
                       icon: Icons.report_problem_rounded,
-                      title: 'Reported Issues',
-                      description: 'Manage issues reported by EV users about stations',
+                      title: 'Issue Reports',
+                      description:
+                          'Handle EV user reports about charging stations',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/issues'),
                     ),
@@ -155,8 +159,9 @@ class HomeScreen extends ConsumerWidget {
                       theme,
                       width: cardWidth,
                       icon: Icons.verified_user_rounded,
-                      title: 'Station Trust',
-                      description: 'View and recalculate station trust scores',
+                      title: 'Station Trust Scores',
+                      description:
+                          'View and recalculate trust scores for each charging station',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/stations/trust'),
                     ),
@@ -166,7 +171,8 @@ class HomeScreen extends ConsumerWidget {
                       width: cardWidth,
                       icon: Icons.people_rounded,
                       title: 'Collaborators',
-                      description: 'Manage collaborator profiles and contracts',
+                      description:
+                          'Manage collaborator profiles and associated contracts',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/collaborators'),
                     ),
@@ -176,7 +182,8 @@ class HomeScreen extends ConsumerWidget {
                       width: cardWidth,
                       icon: Icons.assignment_rounded,
                       title: 'Verification Tasks',
-                      description: 'Create and manage verification tasks for collaborators',
+                      description:
+                          'Create and assign verification tasks to collaborators',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/verification-tasks'),
                     ),
@@ -186,7 +193,8 @@ class HomeScreen extends ConsumerWidget {
                       width: cardWidth,
                       icon: Icons.history_rounded,
                       title: 'Audit Logs',
-                      description: 'Query and view system audit logs for tracking changes',
+                      description:
+                          'Search and view audit logs to track system changes',
                       color: AdminTheme.primaryTeal,
                       onTap: () => context.push('/audit'),
                     ),

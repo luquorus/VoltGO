@@ -17,5 +17,7 @@ public class StationListItemDTO {
     private String publicStatus; // ACTIVE, INACTIVE, MAINTENANCE
     private ChargingSummaryDTO chargingSummary;
     private Integer trustScore;
+    /** Trạm có BATTERY_SWAP trên version đã publish */
+    private Boolean supportsBatterySwap;
 }
 

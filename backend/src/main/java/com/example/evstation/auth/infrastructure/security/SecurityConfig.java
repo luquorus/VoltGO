@@ -68,10 +68,19 @@ public class SecurityConfig {
                         
                         // Auth endpoints - public
                         .requestMatchers("/auth/**").permitAll()
+
+                        // WebSocket endpoints - public (JWT validated in query param by handler)
+                        .requestMatchers("/ws/**").permitAll()
+
+                        // Preflight (OPTIONS) requests - public for CORS
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         
                         // Debug endpoints - public (for troubleshooting)
                         .requestMatchers("/debug/**").permitAll()
-                        
+
+                        // Public API endpoints (no auth required — station display screen)
+                        .requestMatchers("/api/public/**").permitAll()
+
                         // API endpoints - require authentication
                         // Role-based access is controlled by @PreAuthorize on controller methods
                         // EV_USER and PROVIDER can access /api/ev/stations and /api/ev/stations/{id}

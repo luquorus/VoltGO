@@ -110,7 +110,7 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -347,7 +347,10 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
         child: Padding(
           padding: const EdgeInsets.all(48),
           child: ErrorState(
-            message: error.toString(),
+            title: 'Could not load trust score',
+            message: formatApiError(error),
+            code: extractErrorCode(error),
+            traceId: extractTraceId(error),
             onRetry: () {
               ref.invalidate(stationTrustProvider(stationId));
             },

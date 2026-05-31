@@ -27,12 +27,16 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     final taskAsync = ref.watch(verificationTaskProvider(id));
 
     return AdminScaffold(
-      title: 'Verification Task Details',
+      title: 'Verification task details',
       body: taskAsync.when(
         data: (task) => _buildContent(context, theme, ref, task),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () =>
+            const LoadingState(message: 'Loading task details...'),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
+          title: 'Could not load task',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
           onRetry: () {
             ref.invalidate(verificationTaskProvider(id));
           },
@@ -74,6 +78,31 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
                                 color: theme.colorScheme.onSurface.withOpacity(0.6),
                               ),
                             ),
+                            if (task.stationServiceTypes.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Chip(
+                                    avatar: Icon(
+                                      task.isBatterySwapStation
+                                          ? Icons.battery_charging_full
+                                          : Icons.ev_station,
+                                      size: 18,
+                                    ),
+                                    label: Text(task.primaryServiceLabel),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  ...task.stationServiceTypes.map(
+                                    (t) => Chip(
+                                      label: Text(t.replaceAll('_', ' ')),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -266,6 +295,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             _buildInfoRow(context, theme, 'Station ID', task.stationId, copyable: true),
+            _buildInfoRow(context, theme, 'Station name', task.stationName),
             if (task.changeRequestId != null)
               _buildInfoRow(context, theme, 'Change Request ID', task.changeRequestId!, copyable: true),
             _buildInfoRow(
@@ -448,7 +478,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return urlAsync.when(
           data: (viewUrl) => GestureDetector(
-            onTap: () => _showImageLightbox(context, viewUrl, evidence.photoObjectKey),
+            onTap: () => _showImageLightbox(context, viewUrl),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
@@ -556,14 +586,14 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Failed to get image URL',
+                  'Could not load evidence image',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.error,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  error.toString(),
+                  formatApiError(error),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                     fontSize: 10,
@@ -590,7 +620,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showImageLightbox(BuildContext context, String imageUrl, String objectKey) {
+  void _showImageLightbox(BuildContext context, String imageUrl) {
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -653,27 +683,6 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.black54,
                   padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Object Key: $objectKey',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -982,7 +991,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Task reviewed as $result successfully'),
+            content: Text('Task review submitted ($result) successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -994,7 +1003,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

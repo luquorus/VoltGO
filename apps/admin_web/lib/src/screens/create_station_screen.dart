@@ -9,7 +9,9 @@ import '../widgets/admin_scaffold.dart';
 
 /// Create Station Screen
 class CreateStationScreen extends ConsumerStatefulWidget {
-  const CreateStationScreen({super.key});
+  final AdminStation? station;
+
+  const CreateStationScreen({super.key, this.station});
 
   @override
   ConsumerState<CreateStationScreen> createState() => _CreateStationScreenState();
@@ -31,6 +33,53 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
   // Charging ports
   final List<ChargingPortInput> _ports = [];
 
+  bool _enableBatterySwap = false;
+  final _swapTotalController = TextEditingController(text: '20');
+  final _swapAvgPowerController = TextEditingController(text: '35');
+
+  bool get _isEditMode => widget.station != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.station != null) {
+      final s = widget.station!;
+      _nameController.text = s.name ?? '';
+      _addressController.text = s.address ?? '';
+      _latController.text = s.lat?.toString() ?? '';
+      _lngController.text = s.lng?.toString() ?? '';
+      _operatingHoursController.text = s.operatingHours ?? '';
+      
+      if (s.parking != null) _parking = s.parking!;
+      if (s.visibility != null) _visibility = s.visibility!;
+      if (s.publicStatus != null) _publicStatus = s.publicStatus!;
+      
+      // Populate ports from the first charging service
+      final chargingService = s.services.where((srv) => srv.type == ServiceType.charging).firstOrNull;
+      if (chargingService != null && chargingService.chargingPorts.isNotEmpty) {
+        for (var port in chargingService.chargingPorts) {
+          final p = ChargingPortInput();
+          p.powerType = port.powerType;
+          p.powerKw = port.powerKw;
+          p.count = port.portCount;
+          _ports.add(p);
+        }
+      }
+
+      final swapService =
+          s.services.where((srv) => srv.type == ServiceType.batterySwap).firstOrNull;
+      if (swapService != null) {
+        _enableBatterySwap = true;
+        if (swapService.totalBatteries != null) {
+          _swapTotalController.text = '${swapService.totalBatteries}';
+        }
+        if (swapService.avgChargePowerKw != null) {
+          _swapAvgPowerController.text = '${swapService.avgChargePowerKw}';
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -38,6 +87,8 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
     _latController.dispose();
     _lngController.dispose();
     _operatingHoursController.dispose();
+    _swapTotalController.dispose();
+    _swapAvgPowerController.dispose();
     super.dispose();
   }
 
@@ -46,9 +97,21 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
       return;
     }
 
-    if (_ports.isEmpty) {
+    final swapTotal = int.tryParse(_swapTotalController.text.trim());
+    final swapAvg = double.tryParse(_swapAvgPowerController.text.trim());
+    final swapOk = _enableBatterySwap &&
+        swapTotal != null &&
+        swapTotal > 0 &&
+        swapAvg != null &&
+        swapAvg > 0;
+    final hasCharging = _ports.isNotEmpty;
+
+    if (!hasCharging && !swapOk) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one charging port')),
+        const SnackBar(
+          content: Text(
+              'Add at least one charging port or enable battery swap with valid values'),
+        ),
       );
       return;
     }
@@ -59,17 +122,26 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
         throw Exception('API client not initialized');
       }
 
-      // Build services
-      final services = [
-        {
+      final services = <Map<String, dynamic>>[];
+      if (hasCharging) {
+        services.add({
           'type': 'CHARGING',
-          'chargingPorts': _ports.map((port) => {
-            'powerType': port.powerType.name.toUpperCase(),
-            'powerKw': port.powerKw,
-            'count': port.count,
-          }).toList(),
-        }
-      ];
+          'chargingPorts': _ports
+              .map((port) => {
+                    'powerType': port.powerType.name.toUpperCase(),
+                    'powerKw': port.powerKw,
+                    'count': port.count,
+                  })
+              .toList(),
+        });
+      }
+      if (swapOk) {
+        services.add({
+          'type': 'BATTERY_SWAP',
+          'totalBatteries': swapTotal,
+          'avgChargePowerKw': swapAvg,
+        });
+      }
 
       // Build station data
       final stationData = {
@@ -91,17 +163,24 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
         'publishImmediately': _publishImmediately,
       };
 
-      await factory.admin.createStation(request);
+      if (_isEditMode) {
+        await factory.admin.updateStation(widget.station!.stationId, request);
+      } else {
+        await factory.admin.createStation(request);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Station created successfully'),
+          SnackBar(
+            content: Text(_isEditMode ? 'Station updated successfully' : 'Station created successfully'),
             backgroundColor: Colors.green,
           ),
         );
         context.pop();
         ref.invalidate(stationsProvider((page: 0, size: 20)));
+        if (_isEditMode) {
+          ref.invalidate(stationProvider(widget.station!.stationId));
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -132,7 +211,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
     final theme = Theme.of(context);
 
     return AdminScaffold(
-      title: 'Create Station',
+      title: _isEditMode ? 'Edit Station' : 'Create Station',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -350,7 +429,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Charging Ports *',
+                            'Charging ports',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -365,14 +444,76 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                       const SizedBox(height: 16),
                       if (_ports.isEmpty)
                         Text(
-                          'No charging ports added. Please add at least one.',
+                          _enableBatterySwap
+                              ? 'Optional — add ports if this station offers charging.'
+                              : 'No charging ports yet. Add ports or enable battery swap below.',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.error,
+                            color: _enableBatterySwap
+                                ? theme.colorScheme.onSurface.withOpacity(0.65)
+                                : theme.colorScheme.error,
                           ),
                         ),
                       ...List.generate(_ports.length, (index) {
                         return _buildPortInput(theme, index);
                       }),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Battery swap service',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Enable battery swap'),
+                        value: _enableBatterySwap,
+                        onChanged: (v) => setState(() => _enableBatterySwap = v),
+                      ),
+                      if (_enableBatterySwap) ...[
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _swapTotalController,
+                          decoration: const InputDecoration(
+                            labelText: 'Total batteries *',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (!_enableBatterySwap) return null;
+                            final n = int.tryParse(value?.trim() ?? '');
+                            if (n == null || n <= 0) return 'Must be > 0';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _swapAvgPowerController,
+                          decoration: const InputDecoration(
+                            labelText: 'Avg charge power (kW) *',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
+                          validator: (value) {
+                            if (!_enableBatterySwap) return null;
+                            final n = double.tryParse(value?.trim() ?? '');
+                            if (n == null || n <= 0) return 'Must be > 0';
+                            return null;
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -390,7 +531,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                   const SizedBox(width: 16),
                   ElevatedButton(
                     onPressed: _submit,
-                    child: const Text('Create Station'),
+                    child: Text(_isEditMode ? 'Save Changes' : 'Create Station'),
                   ),
                 ],
               ),

@@ -46,7 +46,10 @@ class _ChangeRequestsScreenState extends ConsumerState<ChangeRequestsScreen> {
                   data: (requests) => _buildChangeRequestsTable(theme, requests),
                   loading: () => LoadingState(message: 'Loading change requests...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load change requests',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(changeRequestsProvider);
                     },

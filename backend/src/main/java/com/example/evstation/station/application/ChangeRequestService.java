@@ -99,11 +99,17 @@ public class ChangeRequestService {
         List<ChargingPortEntity> savedPorts = new ArrayList<>();
         
         for (CreateChangeRequestDTO.ServiceDTO serviceDto : data.getServices()) {
-            StationServiceEntity service = StationServiceEntity.builder()
+            StationServiceEntity.StationServiceEntityBuilder serviceBuilder = StationServiceEntity.builder()
                     .id(UUID.randomUUID())
                     .stationVersionId(stationVersion.getId())
-                    .serviceType(serviceDto.getType())
-                    .build();
+                    .serviceType(serviceDto.getType());
+
+            if (serviceDto.getType() == ServiceType.BATTERY_SWAP) {
+                serviceBuilder.totalBatteries(serviceDto.getTotalBatteries());
+                serviceBuilder.avgChargePowerKw(serviceDto.getAvgChargePowerKw());
+            }
+
+            StationServiceEntity service = serviceBuilder.build();
             stationServiceRepository.save(service);
             savedServices.add(service);
             
@@ -265,6 +271,16 @@ public class ChangeRequestService {
                                 "DC charging ports must have powerKw > 0");
                     }
                 }
+            } else if (service.getType() == ServiceType.BATTERY_SWAP) {
+                if (service.getTotalBatteries() == null || service.getTotalBatteries() <= 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "totalBatteries > 0 is required for BATTERY_SWAP service");
+                }
+                if (service.getAvgChargePowerKw() == null
+                        || service.getAvgChargePowerKw().doubleValue() <= 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "avgChargePowerKw > 0 is required for BATTERY_SWAP service");
+                }
             }
         }
     }
@@ -331,6 +347,8 @@ public class ChangeRequestService {
                     return ChangeRequestResponseDTO.ServiceDTO.builder()
                             .type(service.getServiceType())
                             .chargingPorts(portDTOs)
+                            .totalBatteries(service.getTotalBatteries())
+                            .avgChargePowerKw(service.getAvgChargePowerKw())
                             .build();
                 })
                 .collect(Collectors.toList());

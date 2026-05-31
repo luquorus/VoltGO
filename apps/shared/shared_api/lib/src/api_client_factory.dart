@@ -66,6 +66,10 @@ class ApiClientFactory {
   /// Admin Web API
   /// Endpoints: /api/admin/**
   AdminWebApiClient get admin => AdminWebApiClient(dio);
+
+  /// Public API
+  /// Endpoints: /api/public/** (no auth)
+  PublicApiClient get public => PublicApiClient(dio);
 }
 
 /// Provider for ApiClientFactory
@@ -118,6 +122,10 @@ abstract class BaseApiClient {
 
   Future<T> put<T>(String path, {dynamic data, Map<String, dynamic>? queryParameters}) {
     return _handleResponse<T>(dio.put(path, data: data, queryParameters: queryParameters));
+  }
+
+  Future<T> patch<T>(String path, {dynamic data, Map<String, dynamic>? queryParameters}) {
+    return _handleResponse<T>(dio.patch(path, data: data, queryParameters: queryParameters));
   }
 
   Future<T> delete<T>(String path, {Map<String, dynamic>? queryParameters}) {
@@ -303,6 +311,122 @@ class EvUserMobileApiClient extends BaseApiClient {
   }
 
   // ============================================
+  // AI Recommendation Endpoints
+  // ============================================
+
+  /// POST /api/ev/ai/personalized-recommendations
+  Future<Map<String, dynamic>> getPersonalizedRecommendations({
+    required Map<String, dynamic> request,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/ev/ai/personalized-recommendations',
+      data: request,
+    );
+  }
+
+  /// POST /api/ev/ai/smart-time-suggestions
+  Future<Map<String, dynamic>> getSmartTimeSuggestions({
+    required String stationId,
+    required double distanceKm,
+    required int batteryPercent,
+    required int targetPercent,
+    required double batteryCapacityKwh,
+    double? averageSpeedKmph,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/ev/ai/smart-time-suggestions',
+      data: {
+        'stationId': stationId,
+        'distanceKm': distanceKm,
+        'batteryPercent': batteryPercent,
+        'targetPercent': targetPercent,
+        'batteryCapacityKwh': batteryCapacityKwh,
+        if (averageSpeedKmph != null) 'averageSpeedKmph': averageSpeedKmph,
+      },
+    );
+  }
+
+  // ============================================
+  // Battery Swap Simulation Endpoints
+  // ============================================
+
+  /// GET /api/ev/battery-swap/stations
+  Future<List<dynamic>> getBatterySwapStations({
+    required double lat,
+    required double lng,
+    double radiusKm = 15,
+  }) {
+    return get<List<dynamic>>(
+      '/api/ev/battery-swap/stations',
+      queryParameters: {
+        'lat': lat,
+        'lng': lng,
+        'radiusKm': radiusKm,
+      },
+    );
+  }
+
+  /// GET /api/ev/battery-swap/stations/{stationId}
+  Future<Map<String, dynamic>> getBatterySwapStationDetail(String stationId) {
+    return get<Map<String, dynamic>>('/api/ev/battery-swap/stations/$stationId');
+  }
+
+  /// POST /api/ev/battery-swap/reservations
+  Future<Map<String, dynamic>> reserveBatterySwap({
+    required String stationId,
+    required DateTime expectedArrivalAt,
+    int? requestedBatteryPercent,
+    double? batteryCapacityKwh,
+    String? pileId,
+    String? slotId,
+    String? note,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/ev/battery-swap/reservations',
+      data: {
+        'stationId': stationId,
+        'expectedArrivalAt': expectedArrivalAt.toUtc().toIso8601String(),
+        if (requestedBatteryPercent != null) 'requestedBatteryPercent': requestedBatteryPercent,
+        if (batteryCapacityKwh != null) 'batteryCapacityKwh': batteryCapacityKwh,
+        if (pileId != null) 'pileId': pileId,
+        if (slotId != null) 'slotId': slotId,
+        if (note != null) 'note': note,
+      },
+    );
+  }
+
+  /// POST /api/ev/battery-swap/reservations/{id}/confirm-arrival
+  Future<Map<String, dynamic>> confirmArrivalBatterySwap(String reservationId) {
+    return post<Map<String, dynamic>>(
+        '/api/ev/battery-swap/reservations/$reservationId/confirm-arrival');
+  }
+
+  /// POST /api/ev/battery-swap/reservations/{id}/start
+  Future<Map<String, dynamic>> startBatterySwap(String reservationId) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap/reservations/$reservationId/start');
+  }
+
+  /// POST /api/ev/battery-swap/reservations/{id}/confirm
+  Future<Map<String, dynamic>> confirmBatterySwap(String reservationId) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap/reservations/$reservationId/confirm');
+  }
+
+  /// POST /api/ev/battery-swap/reservations/{id}/cancel
+  Future<Map<String, dynamic>> cancelBatterySwap(String reservationId) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap/reservations/$reservationId/cancel');
+  }
+
+  /// POST /api/ev/battery-swap/reservations/{id}/pay
+  Future<Map<String, dynamic>> payBatterySwap(String reservationId) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap/reservations/$reservationId/pay');
+  }
+
+  /// GET /api/ev/battery-swap/reservations/mine
+  Future<List<dynamic>> getMyBatterySwapReservations() {
+    return get<List<dynamic>>('/api/ev/battery-swap/reservations/mine');
+  }
+
+  // ============================================
   // Change Request Endpoints
   // ============================================
 
@@ -413,7 +537,21 @@ class CollaboratorMobileApiClient extends BaseApiClient {
   Future<Map<String, dynamic>> presignUpload({String? contentType}) {
     return post<Map<String, dynamic>>(
       '/api/collab/mobile/files/presign-upload',
-      data: contentType != null ? {'contentType': contentType} : <String, dynamic>{},
+      queryParameters: {
+        if (contentType != null) 'contentType': contentType,
+      },
+    );
+  }
+
+  /// GET /api/collab/mobile/files/presign-view
+  Future<Map<String, dynamic>> presignView({
+    required String objectKey,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/collab/mobile/files/presign-view',
+      queryParameters: {
+        'objectKey': objectKey,
+      },
     );
   }
 
@@ -529,6 +667,32 @@ class CollaboratorWebApiClient extends BaseApiClient {
         if (sourceNote != null) 'sourceNote': sourceNote,
       },
     );
+  }
+}
+
+/// Public API Client
+/// Endpoints: /api/public/** (no auth required)
+class PublicApiClient extends BaseApiClient {
+  PublicApiClient(super.dio);
+
+  /// GET /api/public/battery-swap/stations
+  Future<List<dynamic>> getAllSwapStations() {
+    return get<List<dynamic>>('/api/public/battery-swap/stations');
+  }
+
+  /// GET /api/public/battery-swap/stations/{stationId}
+  Future<Map<String, dynamic>> getStationDetail(String stationId) {
+    return get<Map<String, dynamic>>('/api/public/battery-swap/stations/$stationId');
+  }
+
+  /// GET /api/public/battery-swap/stations/{stationId}/piles
+  Future<Map<String, dynamic>> getStationPiles(String stationId) {
+    return get<Map<String, dynamic>>('/api/public/battery-swap/stations/$stationId/piles');
+  }
+
+  /// GET /api/public/battery-swap/stations/{stationId}/active-code
+  Future<Map<String, dynamic>> getActiveSwapCode(String stationId) {
+    return get<Map<String, dynamic>>('/api/public/battery-swap/stations/$stationId/active-code');
   }
 }
 

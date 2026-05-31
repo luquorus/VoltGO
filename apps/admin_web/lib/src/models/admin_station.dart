@@ -107,10 +107,14 @@ class AdminStation {
 class Service {
   final ServiceType type;
   final List<ChargingPort> chargingPorts;
+  final int? totalBatteries;
+  final double? avgChargePowerKw;
 
   Service({
     required this.type,
     this.chargingPorts = const [],
+    this.totalBatteries,
+    this.avgChargePowerKw,
   });
 
   factory Service.fromJson(Map<String, dynamic> json) {
@@ -120,6 +124,8 @@ class Service {
               ?.map((e) => ChargingPort.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      totalBatteries: json['totalBatteries'] as int?,
+      avgChargePowerKw: (json['avgChargePowerKw'] as num?)?.toDouble(),
     );
   }
 }

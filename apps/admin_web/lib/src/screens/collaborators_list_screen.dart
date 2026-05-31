@@ -68,7 +68,10 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
                   ),
                   loading: () => const LoadingState(message: 'Loading collaborators...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load list',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(collaboratorsProvider);
                     },
@@ -419,7 +422,7 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

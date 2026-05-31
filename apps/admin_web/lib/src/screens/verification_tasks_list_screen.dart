@@ -68,7 +68,10 @@ class _VerificationTasksListScreenState
                   loading: () => LoadingState(
                       message: 'Loading verification tasks...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load tasks',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(verificationTasksPageProvider);
                     },

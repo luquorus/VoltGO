@@ -152,7 +152,10 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
                         data: (pagination) => _buildAuditLogsTable(theme, pagination),
                         loading: () => LoadingState(message: 'Loading audit logs...'),
                         error: (error, stack) => ErrorState(
-                          message: error.toString(),
+                          title: 'Could not load audit log',
+                          message: formatApiError(error),
+                          code: extractErrorCode(error),
+                          traceId: extractTraceId(error),
                           onRetry: () {
                             ref.invalidate(auditLogsQueryProvider(filters));
                           },

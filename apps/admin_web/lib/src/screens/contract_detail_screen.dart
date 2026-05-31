@@ -34,7 +34,10 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
         data: (contract) => _buildContent(context, theme, contract),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
+          title: 'Could not load contract',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
           onRetry: () {
             ref.invalidate(contractProvider(widget.id));
           },
@@ -604,7 +607,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating contract: ${e.toString()}'),
+            content: Text('Failed to update contract: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -639,7 +642,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error terminating contract: ${e.toString()}'),
+            content: Text('Failed to terminate contract: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

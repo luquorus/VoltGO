@@ -57,7 +57,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = formatApiError(e);
         _isLoadingChargerUnits = false;
       });
     }
@@ -84,7 +84,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = formatApiError(e);
         _isLoadingAvailability = false;
       });
     }
@@ -110,7 +110,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
 
   Future<void> _createBooking() async {
     if (_selectedChargerUnitId == null || _selectedStartTime == null || _selectedEndTime == null) {
-      AppToast.showError(context, 'Vui lòng chọn cổng sạc và khung giờ');
+      AppToast.showError(context, 'Please select a charging port and time slot');
       return;
     }
 
@@ -128,7 +128,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
       );
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Đã tạo booking thành công!');
+        AppToast.showSuccess(context, 'Booking created successfully!');
         final bookingId = booking['id'] as String?;
         if (bookingId != null) {
           context.push('/bookings/$bookingId');
@@ -139,15 +139,16 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
     } on ApiError catch (e) {
       if (mounted) {
         if (e.code == 'EVS-0008') {
-          AppToast.showError(context, 'Khung giờ đã được đặt, vui lòng chọn khung giờ khác');
-          await _loadAvailability(); // Refresh availability
+          AppToast.showError(
+              context, 'That time slot is already booked. Please choose another.');
+          await _loadAvailability();
         } else {
-          AppToast.showError(context, 'Lỗi: ${e.message}');
+          AppToast.showError(context, formatApiError(e));
         }
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Lỗi: ${e.toString()}');
+        AppToast.showError(context, 'Error: ${formatApiError(e)}');
       }
     } finally {
       if (mounted) {
@@ -163,7 +164,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
     final theme = Theme.of(context);
 
     return AppScaffold(
-      title: 'Đặt chỗ',
+      title: 'Book a slot',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -224,7 +225,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
 
             // Step 1: Date picker
             Text(
-              'Bước 1: Chọn ngày',
+              'Step 1: Choose date',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -249,7 +250,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
                       child: Text(
                         _selectedDate != null
                             ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : 'Chọn ngày',
+                            : 'Select date',
                         style: theme.textTheme.bodyLarge,
                       ),
                     ),
@@ -262,7 +263,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
 
             // Step 2: Charger unit selection
             Text(
-              'Bước 2: Chọn cổng sạc',
+              'Step 2: Choose charging port',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -275,7 +276,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    'Không có cổng sạc nào',
+                    'No charging ports available',
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
@@ -374,7 +375,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${_formatPrice(pricePerSlot)} VND/slot (30 phút)',
+                                    '${_formatPrice(pricePerSlot)} VND/slot (30 min)',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       color: theme.colorScheme.onSurface.withOpacity(0.7),
                                     ),
@@ -399,7 +400,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
             // Step 3: Slot picker (only show if date and charger unit selected)
             if (_selectedDate != null && _selectedChargerUnitId != null) ...[
               Text(
-                'Bước 3: Chọn khung giờ',
+                'Step 3: Choose time slot',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -414,7 +415,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      'Không có dữ liệu availability',
+                      'No availability data',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
@@ -430,7 +431,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
 
             // Submit button
             PrimaryButton(
-              label: 'Giữ chỗ 10 phút',
+              label: 'Hold for 10 minutes',
               onPressed: (_selectedChargerUnitId != null &&
                       _selectedStartTime != null &&
                       _selectedEndTime != null &&
@@ -476,7 +477,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Chọn khung giờ (30 phút/slot)',
+              'Select time slot (30 min/slot)',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -597,17 +598,17 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Thông tin thanh toán',
+              'Payment summary',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
-            _buildPriceRow(theme, 'Cổng sạc', label),
+            _buildPriceRow(theme, 'Charging port', label),
             const SizedBox(height: 8),
-            _buildPriceRow(theme, 'Giá/slot (30 phút)', '${_formatPrice(pricePerSlot)} VND'),
+            _buildPriceRow(theme, 'Price/slot (30 min)', '${_formatPrice(pricePerSlot)} VND'),
             const SizedBox(height: 8),
-            _buildPriceRow(theme, 'Số slot', '$slotCount slot'),
+            _buildPriceRow(theme, 'Slots', '$slotCount slot'),
             const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
@@ -615,7 +616,7 @@ class _CreateBookingWithChargerUnitScreenState extends ConsumerState<CreateBooki
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Tổng tiền',
+                  'Total',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

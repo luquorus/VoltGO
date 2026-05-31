@@ -21,7 +21,7 @@ class CollabRoutes {
   static const String tasks = '/tasks';
   static const String taskHistory = '/tasks/history';
   static const String taskKpi = '/tasks/kpi';
-  
+
   // Profile/Account routes
   static const String profile = '/me/profile';
   static const String contracts = '/me/contracts';
@@ -87,7 +87,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: CollabRoutes.taskKpi,
         builder: (_, __) => const TaskKPIScreen(),
       ),
-      
       // Profile/Account routes
       GoRoute(
         path: CollabRoutes.profile,

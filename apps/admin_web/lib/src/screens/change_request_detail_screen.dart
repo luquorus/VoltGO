@@ -29,7 +29,10 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
         data: (cr) => _buildContent(context, theme, ref, cr),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
+          title: 'Could not load change request',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
           onRetry: () {
             ref.invalidate(changeRequestProvider(id));
           },
@@ -415,6 +418,17 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
                                   ),
                                 )),
                           ],
+                          if (service.type.toUpperCase() == 'BATTERY_SWAP') ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Spare batteries (total): ${service.totalBatteries ?? '—'}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            Text(
+                              'Average charge power: ${service.avgChargePowerKw?.toStringAsFixed(1) ?? '—'} kW',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -735,7 +749,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -766,7 +780,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -869,7 +883,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

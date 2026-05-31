@@ -9,13 +9,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -213,6 +218,126 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFoundException(
+            NoResourceFoundException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        log.warn("No resource found: traceId={}, path={}", traceId, request.getRequestURI());
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.NOT_FOUND.getCode())
+                .message("Endpoint not found: " + request.getMethod() + " " + request.getRequestURI())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<ApiError> handleNoSuchElementException(
+            NoSuchElementException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        log.warn("Resource not found: traceId={}, path={}, message={}",
+                traceId, request.getRequestURI(), ex.getMessage());
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.NOT_FOUND.getCode())
+                .message(ex.getMessage() != null && !ex.getMessage().isEmpty()
+                        ? ex.getMessage()
+                        : ErrorCode.NOT_FOUND.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        log.warn("Method not supported: traceId={}, path={}, method={}",
+                traceId, request.getRequestURI(), ex.getMethod());
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.INVALID_INPUT.getCode())
+                .message("Method " + ex.getMethod() + " is not supported on this endpoint")
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameterException(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        Map<String, Object> details = new HashMap<>();
+        details.put(ex.getParameterName(), "is required");
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.VALIDATION_ERROR.getCode())
+                .message("Missing required parameter: " + ex.getParameterName())
+                .details(details)
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatchException(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        Map<String, Object> details = new HashMap<>();
+        details.put(ex.getName(), "expected " +
+                (ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "valid value"));
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.VALIDATION_ERROR.getCode())
+                .message("Invalid value for parameter '" + ex.getName() + "'")
+                .details(details)
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+        String traceId = (String) request.getAttribute("traceId");
+
+        log.warn("Illegal argument: traceId={}, path={}, message={}",
+                traceId, request.getRequestURI(), ex.getMessage());
+
+        ApiError error = ApiError.builder()
+                .traceId(traceId)
+                .code(ErrorCode.INVALID_INPUT.getCode())
+                .message(ex.getMessage() != null && !ex.getMessage().isEmpty()
+                        ? ex.getMessage()
+                        : ErrorCode.INVALID_INPUT.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiError> handleBusinessException(
             BusinessException ex,
@@ -224,11 +349,12 @@ public class GlobalExceptionHandler {
 
         HttpStatus status = switch (ex.getErrorCode()) {
             case NOT_FOUND, CHARGER_UNIT_NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case VALIDATION_ERROR, INVALID_INPUT, INVALID_TIME_RANGE -> HttpStatus.BAD_REQUEST;
+            case VALIDATION_ERROR, INVALID_INPUT, INVALID_TIME_RANGE, ROUTE_NOT_FOUND -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case SLOT_UNAVAILABLE, CHARGER_UNIT_INACTIVE -> HttpStatus.CONFLICT;
             case INVALID_STATE -> HttpStatus.BAD_REQUEST;
+            case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 

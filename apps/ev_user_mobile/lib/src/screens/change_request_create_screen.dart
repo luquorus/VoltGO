@@ -35,6 +35,9 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   String? _visibility; // PUBLIC, PRIVATE, RESTRICTED
   String? _publicStatus; // ACTIVE, INACTIVE, MAINTENANCE
   
+  // Primary station kind (drives default service config)
+  String _stationKind = 'CHARGING'; // CHARGING | BATTERY_SWAP
+
   // Services
   List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
   
@@ -269,33 +272,28 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
               ),
               const SizedBox(height: 24),
               
-              // Services Section
-              Text(
-                'Services',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add services for this station (optional)',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+              // Station kind & services
+              _buildStationKindSelector(theme),
+              const SizedBox(height: 16),
+              if (_stationKind == 'CHARGING') ...[
+                Text(
+                  'Charging ports',
+                  style: theme.textTheme.titleMedium,
                 ),
-              ),
-              const SizedBox(height: 16),
-              ..._services.asMap().entries.map((entry) {
-                final index = entry.key;
-                final service = entry.value;
-                return _buildServiceEditor(theme, index, service);
-              }),
-              const SizedBox(height: 16),
-              SecondaryButton(
-                label: 'Add Service',
-                onPressed: _isSubmitting ? null : () {
-                  setState(() {
-                    _services.add(ServiceData(type: 'CHARGING', chargingPorts: []));
-                  });
-                },
-              ),
+                const SizedBox(height: 8),
+                ..._services.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final service = entry.value;
+                  return _buildServiceEditor(theme, index, service);
+                }),
+              ] else ...[
+                Text(
+                  'Battery swap configuration',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                _buildBatterySwapConfig(theme),
+              ],
               const SizedBox(height: 24),
               
               // Images Section
@@ -320,6 +318,134 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
               const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStationKindSelector(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Station type *',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose charging or battery swap — configuration fields depend on this choice.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('Charging station'),
+                    value: 'CHARGING',
+                    groupValue: _stationKind,
+                    onChanged: _isSubmitting
+                        ? null
+                        : (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _stationKind = value;
+                              _services = [
+                                ServiceData(
+                                  type: 'CHARGING',
+                                  chargingPorts: [
+                                    ChargingPortData(
+                                      powerType: 'AC',
+                                      count: 1,
+                                    ),
+                                  ],
+                                ),
+                              ];
+                            });
+                          },
+                  ),
+                ),
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('Battery swap station'),
+                    value: 'BATTERY_SWAP',
+                    groupValue: _stationKind,
+                    onChanged: _isSubmitting
+                        ? null
+                        : (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _stationKind = value;
+                              _services = [
+                                ServiceData(
+                                  type: 'BATTERY_SWAP',
+                                  chargingPorts: [],
+                                  totalBatteries: 20,
+                                  avgChargePowerKw: 35.0,
+                                ),
+                              ];
+                            });
+                          },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBatterySwapConfig(ThemeData theme) {
+    final service = _services.first;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              initialValue: '${service.totalBatteries ?? 20}',
+              decoration: InputDecoration(
+                labelText: 'Total batteries *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              enabled: !_isSubmitting,
+              onChanged: (v) {
+                final n = int.tryParse(v.trim());
+                setState(() {
+                  _services[0].totalBatteries = n;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: '${service.avgChargePowerKw ?? 35.0}',
+              decoration: InputDecoration(
+                labelText: 'Avg charge power (kW) *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              enabled: !_isSubmitting,
+              onChanged: (v) {
+                final n = double.tryParse(v.trim());
+                setState(() {
+                  _services[0].avgChargePowerKw = n;
+                });
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -408,49 +534,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: service.type,
-                    decoration: InputDecoration(
-                      labelText: 'Service Type *',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    items: ['CHARGING', 'PARKING', 'RESTROOM', 'CAFE', 'OTHER']
-                        .map((type) => DropdownMenuItem<String>(
-                              value: type,
-                              child: Text(type.replaceAll('_', ' ')),
-                            ))
-                        .toList(),
-                    onChanged: _isSubmitting ? null : (value) {
-                      setState(() {
-                        _services[index] = ServiceData(
-                          type: value!,
-                          chargingPorts: service.type == 'CHARGING' && value != 'CHARGING'
-                              ? []
-                              : service.chargingPorts,
-                        );
-                      });
-                    },
-                  ),
-                ),
-                if (_services.length > 1)
-                  IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.trash),
-                    color: Colors.red,
-                    onPressed: _isSubmitting ? null : () {
-                      setState(() {
-                        _services.removeAt(index);
-                      });
-                    },
-                  ),
-              ],
-            ),
             if (service.type == 'CHARGING') ...[
-              const SizedBox(height: 16),
               Text(
                 'Charging Ports',
                 style: theme.textTheme.titleSmall,
@@ -672,7 +756,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to get location: ${e.toString()}');
+        AppToast.showError(context, 'Could not get location: ${formatApiError(e)}');
       }
     } finally {
       if (mounted) {
@@ -716,39 +800,86 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         _visibility = stationData['visibility'] as String?;
         _publicStatus = stationData['publicStatus'] as String?;
 
-        // Load services and charging ports
+        // Load services (preferred) or legacy ports list
+        final servicesRaw = stationData['services'] as List<dynamic>?;
+        final List<ServiceData> loaded = [];
+
+        if (servicesRaw != null && servicesRaw.isNotEmpty) {
+          for (final raw in servicesRaw) {
+            final m = raw as Map<String, dynamic>;
+            final t = (m['type'] as String?) ?? 'CHARGING';
+            if (t == 'BATTERY_SWAP') {
+              loaded.add(ServiceData(
+                type: 'BATTERY_SWAP',
+                chargingPorts: [],
+                totalBatteries: (m['totalBatteries'] as num?)?.toInt() ?? 20,
+                avgChargePowerKw:
+                    (m['avgChargePowerKw'] as num?)?.toDouble() ?? 35.0,
+              ));
+            } else if (t == 'CHARGING') {
+              final cList = m['chargingPorts'] as List<dynamic>? ?? [];
+              final chargingPorts = cList.map((p) {
+                final pd = p as Map<String, dynamic>;
+                return ChargingPortData(
+                  powerType: pd['powerType'] as String? ?? 'AC',
+                  powerKw: pd['powerKw'] != null
+                      ? (pd['powerKw'] as num).toDouble()
+                      : null,
+                  count: pd['count'] as int? ?? 1,
+                );
+              }).toList();
+              loaded.add(ServiceData(
+                type: 'CHARGING',
+                chargingPorts: chargingPorts,
+              ));
+            }
+          }
+        }
+
         final ports = stationData['ports'] as List<dynamic>? ?? [];
-        if (ports.isNotEmpty) {
-          // Group ports by power type and create charging ports
+        if (loaded.isEmpty && ports.isNotEmpty) {
           final chargingPorts = ports.map((port) {
             final portData = port as Map<String, dynamic>;
             return ChargingPortData(
               powerType: portData['powerType'] as String? ?? 'AC',
-              powerKw: portData['powerKw'] != null 
-                  ? (portData['powerKw'] as num).toDouble() 
+              powerKw: portData['powerKw'] != null
+                  ? (portData['powerKw'] as num).toDouble()
                   : null,
               count: portData['count'] as int? ?? 1,
             );
           }).toList();
-
-          setState(() {
-            _services = [
-              ServiceData(
-                type: 'CHARGING',
-                chargingPorts: chargingPorts,
-              ),
-            ];
-          });
-        } else {
-          // No ports, create default service
-          setState(() {
-            _services = [
-              ServiceData(type: 'CHARGING', chargingPorts: []),
-            ];
-          });
+          loaded.add(ServiceData(type: 'CHARGING', chargingPorts: chargingPorts));
         }
 
+        final hasSwap = loaded.any((s) => s.type == 'BATTERY_SWAP');
+        final hasCharging = loaded.any((s) => s.type == 'CHARGING');
         setState(() {
+          if (hasSwap && !hasCharging) {
+            _stationKind = 'BATTERY_SWAP';
+            _services = loaded
+                .where((s) => s.type == 'BATTERY_SWAP')
+                .toList();
+            if (_services.isEmpty) {
+              _services = [
+                ServiceData(
+                  type: 'BATTERY_SWAP',
+                  chargingPorts: [],
+                  totalBatteries: 20,
+                  avgChargePowerKw: 35.0,
+                ),
+              ];
+            }
+          } else {
+            _stationKind = 'CHARGING';
+            _services = loaded
+                .where((s) => s.type == 'CHARGING')
+                .toList();
+            if (_services.isEmpty) {
+              _services = [
+                ServiceData(type: 'CHARGING', chargingPorts: []),
+              ];
+            }
+          }
           _isLoadingStation = false;
         });
 
@@ -762,7 +893,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
           _isLoadingStation = false;
           _selectedStationId = null;
         });
-        AppToast.showError(context, 'Failed to load station data: ${e.toString()}');
+        AppToast.showError(context, 'Failed to load station data: ${formatApiError(e)}');
       }
     }
   }
@@ -777,7 +908,15 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     _visibility = null;
     _publicStatus = null;
     setState(() {
-      _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
+      _stationKind = 'CHARGING';
+      _services = [
+        ServiceData(
+          type: 'CHARGING',
+          chargingPorts: [
+            ChargingPortData(powerType: 'AC', count: 1),
+          ],
+        ),
+      ];
     });
   }
 
@@ -820,7 +959,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       return;
     }
 
-    // Validate charging ports
+    // Validate services
     for (int i = 0; i < _services.length; i++) {
       final service = _services[i];
       if (service.type == 'CHARGING') {
@@ -830,7 +969,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         }
         for (int j = 0; j < service.chargingPorts.length; j++) {
           final port = service.chargingPorts[j];
-          if (port.powerType == null || port.powerType!.isEmpty) {
+          if (port.powerType.isEmpty) {
             AppToast.showError(context, 'Service ${i + 1}, Port ${j + 1}: Power type is required');
             return;
           }
@@ -842,6 +981,19 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
             AppToast.showError(context, 'Service ${i + 1}, Port ${j + 1}: Power (kW) is required and must be > 0 for DC');
             return;
           }
+        }
+      } else if (service.type == 'BATTERY_SWAP') {
+        final tb = service.totalBatteries;
+        final avg = service.avgChargePowerKw;
+        if (tb == null || tb <= 0) {
+          AppToast.showError(
+              context, 'Service ${i + 1}: total batteries must be > 0');
+          return;
+        }
+        if (avg == null || avg <= 0) {
+          AppToast.showError(context,
+              'Service ${i + 1}: avg charge power (kW) must be > 0');
+          return;
         }
       }
     }
@@ -866,7 +1018,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         'parking': _parking ?? 'UNKNOWN',
         'visibility': _visibility ?? 'PUBLIC',
         'publicStatus': _publicStatus ?? 'ACTIVE',
-        'services': _services.isNotEmpty 
+        'services': _services.isNotEmpty
             ? _services.map((service) {
                 final serviceData = <String, dynamic>{
                   'type': service.type,
@@ -883,19 +1035,28 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                     return portData;
                   }).toList();
                 }
+                if (service.type == 'BATTERY_SWAP') {
+                  serviceData['totalBatteries'] = service.totalBatteries;
+                  serviceData['avgChargePowerKw'] = service.avgChargePowerKw;
+                }
                 return serviceData;
               }).toList()
-            : [
-                {
-                  'type': 'CHARGING',
-                  'chargingPorts': [
+            : _stationKind == 'BATTERY_SWAP'
+                ? [
                     {
-                      'powerType': 'AC',
-                      'count': 1,
+                      'type': 'BATTERY_SWAP',
+                      'totalBatteries': 20,
+                      'avgChargePowerKw': 35.0,
                     }
                   ]
-                }
-              ],
+                : [
+                    {
+                      'type': 'CHARGING',
+                      'chargingPorts': [
+                        {'powerType': 'AC', 'count': 1}
+                      ]
+                    }
+                  ],
       };
 
       if (_operatingHoursController.text.trim().isNotEmpty) {
@@ -933,7 +1094,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to create station proposal: ${e.toString()}');
+        AppToast.showError(context, 'Failed to create station edit proposal: ${formatApiError(e)}');
       }
     } finally {
       if (mounted) {
@@ -948,10 +1109,14 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
 class ServiceData {
   String type;
   List<ChargingPortData> chargingPorts;
+  int? totalBatteries;
+  double? avgChargePowerKw;
 
   ServiceData({
     required this.type,
     required this.chargingPorts,
+    this.totalBatteries,
+    this.avgChargePowerKw,
   });
 }
 

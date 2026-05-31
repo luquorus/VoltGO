@@ -7,6 +7,7 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
+import com.example.evstation.batteryswap.application.SwapStationStateApplyService;
 import com.example.evstation.booking.application.ChargerUnitCreationService;
 import com.example.evstation.trust.application.TrustScoringService;
 import com.example.evstation.verification.application.VerificationService;
@@ -36,6 +37,7 @@ public class AdminChangeRequestService {
     private final TrustScoringService trustScoringService;
     private final VerificationService verificationService;
     private final ChargerUnitCreationService chargerUnitCreationService;
+    private final SwapStationStateApplyService swapStationStateApplyService;
     
     private static final int HIGH_RISK_THRESHOLD = 60;
 
@@ -278,6 +280,14 @@ public class AdminChangeRequestService {
             // Don't fail the publish operation if charger unit creation fails
             // They can be created manually later if needed
         }
+
+        // Áp cấu hình battery swap (nếu version có service BATTERY_SWAP)
+        try {
+            swapStationStateApplyService.applyForVersion(proposedVersion);
+        } catch (Exception e) {
+            log.error("Failed to apply battery swap state for station version: {}",
+                    proposedVersion.getId(), e);
+        }
         
         // Update change request status
         changeRequest.setStatus(ChangeRequestStatus.PUBLISHED);
@@ -362,6 +372,8 @@ public class AdminChangeRequestService {
                         return AdminChangeRequestDTO.ServiceDTO.builder()
                                 .type(service.getServiceType())
                                 .chargingPorts(portDTOs)
+                                .totalBatteries(service.getTotalBatteries())
+                                .avgChargePowerKw(service.getAvgChargePowerKw())
                                 .build();
                     })
                     .collect(Collectors.toList());

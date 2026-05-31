@@ -1,6 +1,7 @@
 # Development Dockerfile for Flutter Web with hot reload
 ARG APP_NAME
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+# Pin to 3.41.6 — stable before Flutter 3.44 which made IconData final (breaking font_awesome_flutter)
+FROM ghcr.io/cirruslabs/flutter:3.41.6 AS build
 
 ARG APP_NAME
 

@@ -37,9 +37,12 @@ public class VerificationService {
     
     private final VerificationTaskJpaRepository taskRepository;
     private final VerificationCheckinJpaRepository checkinRepository;
+    private final VerificationEvidenceJpaRepository evidenceRepository;
     private final VerificationReviewJpaRepository reviewRepository;
     private final StationJpaRepository stationRepository;
     private final StationVersionJpaRepository stationVersionRepository;
+    private final StationServiceJpaRepository stationServiceRepository;
+    private final ChangeRequestJpaRepository changeRequestRepository;
     private final UserAccountJpaRepository userAccountRepository;
     private final CollaboratorProfileJpaRepository collaboratorRepository;
     private final AuditLogJpaRepository auditLogRepository;
@@ -334,6 +337,59 @@ public class VerificationService {
         return buildTaskDTO(task);
     }
 
+    /**
+     * Submit the single active evidence photo for a checked-in task (Collaborator Mobile).
+     */
+    @Transactional
+    public VerificationTaskDTO submitEvidence(UUID taskId, SubmitEvidenceDTO dto, UUID userId) {
+        log.info("Submitting evidence: taskId={}, userId={}, objectKey={}", taskId, userId, dto.getPhotoObjectKey());
+
+        VerificationTaskEntity task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
+
+        if (!userId.equals(task.getAssignedTo())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Task is not assigned to you");
+        }
+
+        if (task.getStatus() != VerificationTaskStatus.CHECKED_IN) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Can only submit evidence for CHECKED_IN tasks. Current status: " + task.getStatus());
+        }
+
+        contractPolicyService.requireActiveContract(userId);
+
+        Instant now = Instant.now(clock);
+        VerificationEvidenceEntity evidence = evidenceRepository.findFirstByTaskIdOrderBySubmittedAtDesc(taskId)
+                .orElseGet(() -> VerificationEvidenceEntity.builder()
+                        .taskId(taskId)
+                        .submittedBy(userId)
+                        .build());
+
+        evidence.setPhotoObjectKey(dto.getPhotoObjectKey());
+        evidence.setNote(dto.getNote());
+        evidence.setSubmittedAt(now);
+        evidence.setSubmittedBy(userId);
+        evidenceRepository.save(evidence);
+
+        task.setStatus(VerificationTaskStatus.SUBMITTED);
+        taskRepository.save(task);
+
+        writeAuditLog(userId, "COLLABORATOR", "SUBMIT_VERIFICATION_EVIDENCE", "VERIFICATION_TASK", taskId,
+                Map.of("photoObjectKey", dto.getPhotoObjectKey(),
+                       "stationId", task.getStationId().toString()));
+
+        log.info("Evidence submitted: taskId={}, evidenceId={}", taskId, evidence.getId());
+        return buildTaskDTO(task);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canCollaboratorViewEvidenceObject(UUID userId, String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return false;
+        }
+        return evidenceRepository.existsByPhotoObjectKeyAndAssignedTo(objectKey, userId);
+    }
+
 
     // ========== Collaborator Web Operations ==========
 
@@ -483,6 +539,18 @@ public class VerificationService {
                         .reviewedBy(r.getReviewedBy().toString())
                         .build())
                 .orElse(null);
+
+        List<VerificationTaskDTO.EvidenceDTO> evidenceDTOs = evidenceRepository
+                .findByTaskIdOrderBySubmittedAtDesc(task.getId())
+                .stream()
+                .map(e -> VerificationTaskDTO.EvidenceDTO.builder()
+                        .id(e.getId().toString())
+                        .photoObjectKey(e.getPhotoObjectKey())
+                        .note(e.getNote())
+                        .submittedAt(e.getSubmittedAt())
+                        .submittedBy(e.getSubmittedBy().toString())
+                        .build())
+                .collect(Collectors.toList());
         
         return VerificationTaskDTO.builder()
                 .id(task.getId().toString())
@@ -495,9 +563,33 @@ public class VerificationService {
                 .assignedToEmail(assignedToEmail)
                 .status(task.getStatus())
                 .createdAt(task.getCreatedAt())
+                .stationServiceTypes(resolveStationServiceTypes(task))
                 .checkin(checkinDTO)
+                .evidences(evidenceDTOs)
                 .review(reviewDTO)
                 .build();
+    }
+
+    private List<String> resolveStationServiceTypes(VerificationTaskEntity task) {
+        UUID versionId = null;
+        if (task.getChangeRequestId() != null) {
+            versionId = changeRequestRepository.findById(task.getChangeRequestId())
+                    .map(ChangeRequestEntity::getProposedStationVersionId)
+                    .orElse(null);
+        }
+        if (versionId == null) {
+            versionId = stationVersionRepository.findPublishedByStationId(task.getStationId())
+                    .map(StationVersionEntity::getId)
+                    .orElse(null);
+        }
+        if (versionId == null) {
+            return List.of();
+        }
+        return stationServiceRepository.findByStationVersionId(versionId).stream()
+                .map(s -> s.getServiceType().name())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     private void writeAuditLog(UUID actorId, String actorRole, String action, 

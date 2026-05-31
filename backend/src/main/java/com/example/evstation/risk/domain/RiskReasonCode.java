@@ -45,8 +45,25 @@ public enum RiskReasonCode {
      * New station creation - baseline risk.
      * CREATE_STATION requests have inherent verification needs.
      */
-    NEW_STATION("New station creation requires verification", 10);
-    
+    NEW_STATION("New station creation requires verification", 10),
+
+    /**
+     * Battery swap configuration changed (totalBatteries / avgChargePowerKw).
+     * Moderate-high risk because it affects supply capacity at the station.
+     */
+    SWAP_CONFIG_CHANGED("Battery swap configuration changed", 30),
+
+    /**
+     * Battery swap inventory is too low (totalBatteries < 5).
+     * High risk because supply is fragile; warrants verification.
+     */
+    SWAP_LOW_INVENTORY("Battery swap inventory is low (< 5)", 30),
+
+    /**
+     * Battery swap average charging power is outside normal operating range (10-200 kW).
+     */
+    SWAP_AVG_POWER_OUT_OF_RANGE("Battery swap avg power out of range", 20);
+
     private final String description;
     private final int scoreContribution;
 }

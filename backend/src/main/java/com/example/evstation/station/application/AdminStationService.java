@@ -5,6 +5,7 @@ import com.example.evstation.api.admin_web.dto.CreateStationDTO;
 import com.example.evstation.api.admin_web.dto.UpdateStationDTO;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.batteryswap.application.SwapStationStateApplyService;
 import com.example.evstation.booking.application.ChargerUnitCreationService;
 import com.example.evstation.booking.infrastructure.jpa.BookingJpaRepository;
 import com.example.evstation.common.error.BusinessException;
@@ -46,6 +47,7 @@ public class AdminStationService {
     private final StationTrustJpaRepository trustRepository;
     private final AuditLogJpaRepository auditLogRepository;
     private final ChargerUnitCreationService chargerUnitCreationService;
+    private final SwapStationStateApplyService swapStationStateApplyService;
     
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
     
@@ -134,6 +136,12 @@ public class AdminStationService {
                         stationVersion.getId(), e);
                 // Don't fail the create operation if charger unit creation fails
             }
+            try {
+                swapStationStateApplyService.applyForVersion(stationVersion);
+            } catch (Exception e) {
+                log.error("Failed to apply battery swap state for station version: {}",
+                        stationVersion.getId(), e);
+            }
         }
         
         // Write audit log
@@ -215,6 +223,12 @@ public class AdminStationService {
                 log.error("Failed to create charger units for station version: {}", 
                         newVersion.getId(), e);
                 // Don't fail the update operation if charger unit creation fails
+            }
+            try {
+                swapStationStateApplyService.applyForVersion(newVersion);
+            } catch (Exception e) {
+                log.error("Failed to apply battery swap state for station version: {}",
+                        newVersion.getId(), e);
             }
         }
         
@@ -299,28 +313,37 @@ public class AdminStationService {
         }
         
         for (Object serviceObj : services) {
+            ServiceType serviceType = null;
             List<?> chargingPorts = null;
+            Integer totalBatteries = null;
+            java.math.BigDecimal avgChargePowerKw = null;
             
             if (serviceObj instanceof CreateStationDTO.ServiceDTO createService) {
-                if (createService.getType() == ServiceType.CHARGING) {
+                serviceType = createService.getType();
+                if (serviceType == ServiceType.CHARGING) {
                     chargingPorts = createService.getChargingPorts();
+                } else if (serviceType == ServiceType.BATTERY_SWAP) {
+                    totalBatteries = createService.getTotalBatteries();
+                    avgChargePowerKw = createService.getAvgChargePowerKw();
                 }
             } else if (serviceObj instanceof UpdateStationDTO.ServiceDTO updateService) {
-                if (updateService.getType() == ServiceType.CHARGING) {
+                serviceType = updateService.getType();
+                if (serviceType == ServiceType.CHARGING) {
                     chargingPorts = updateService.getChargingPorts();
+                } else if (serviceType == ServiceType.BATTERY_SWAP) {
+                    totalBatteries = updateService.getTotalBatteries();
+                    avgChargePowerKw = updateService.getAvgChargePowerKw();
                 }
             }
-            
-            if (chargingPorts != null) {
-                if (chargingPorts.isEmpty()) {
-                    throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+
+            if (serviceType == ServiceType.CHARGING) {
+                if (chargingPorts == null || chargingPorts.isEmpty()) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                             "At least one charging port is required for CHARGING service");
                 }
-                
                 for (Object portObj : chargingPorts) {
                     PowerType powerType = null;
                     java.math.BigDecimal powerKw = null;
-                    
                     if (portObj instanceof CreateStationDTO.ChargingPortDTO createPort) {
                         powerType = createPort.getPowerType();
                         powerKw = createPort.getPowerKw();
@@ -328,11 +351,19 @@ public class AdminStationService {
                         powerType = updatePort.getPowerType();
                         powerKw = updatePort.getPowerKw();
                     }
-                    
                     if (powerType == PowerType.DC && (powerKw == null || powerKw.doubleValue() <= 0)) {
-                        throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+                        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                                 "DC charging ports must have powerKw > 0");
                     }
+                }
+            } else if (serviceType == ServiceType.BATTERY_SWAP) {
+                if (totalBatteries == null || totalBatteries <= 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "totalBatteries > 0 is required for BATTERY_SWAP service");
+                }
+                if (avgChargePowerKw == null || avgChargePowerKw.doubleValue() <= 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "avgChargePowerKw > 0 is required for BATTERY_SWAP service");
                 }
             }
         }
@@ -343,49 +374,62 @@ public class AdminStationService {
         List<ChargingPortEntity> savedPorts = new ArrayList<>();
         
         for (Object serviceObj : services) {
+            ServiceType serviceType = null;
+            List<?> chargingPorts = null;
+            Integer totalBatteries = null;
+            java.math.BigDecimal avgChargePowerKw = null;
+
             if (serviceObj instanceof CreateStationDTO.ServiceDTO createService) {
-                if (createService.getType() == ServiceType.CHARGING) {
-                    StationServiceEntity service = StationServiceEntity.builder()
-                            .id(UUID.randomUUID())
-                            .stationVersionId(stationVersionId)
-                            .serviceType(ServiceType.CHARGING)
-                            .build();
-                    stationServiceRepository.save(service);
-                    savedServices.add(service);
-                    
-                    for (var portDTO : createService.getChargingPorts()) {
-                        ChargingPortEntity port = ChargingPortEntity.builder()
-                                .id(UUID.randomUUID())
-                                .stationServiceId(service.getId())
-                                .powerType(portDTO.getPowerType())
-                                .powerKw(portDTO.getPowerKw())
-                                .portCount(portDTO.getCount())
-                                .build();
-                        chargingPortRepository.save(port);
-                        savedPorts.add(port);
-                    }
-                }
+                serviceType = createService.getType();
+                chargingPorts = createService.getChargingPorts();
+                totalBatteries = createService.getTotalBatteries();
+                avgChargePowerKw = createService.getAvgChargePowerKw();
             } else if (serviceObj instanceof UpdateStationDTO.ServiceDTO updateService) {
-                if (updateService.getType() == ServiceType.CHARGING) {
-                    StationServiceEntity service = StationServiceEntity.builder()
-                            .id(UUID.randomUUID())
-                            .stationVersionId(stationVersionId)
-                            .serviceType(ServiceType.CHARGING)
-                            .build();
-                    stationServiceRepository.save(service);
-                    savedServices.add(service);
-                    
-                    for (var portDTO : updateService.getChargingPorts()) {
-                        ChargingPortEntity port = ChargingPortEntity.builder()
-                                .id(UUID.randomUUID())
-                                .stationServiceId(service.getId())
-                                .powerType(portDTO.getPowerType())
-                                .powerKw(portDTO.getPowerKw())
-                                .portCount(portDTO.getCount())
-                                .build();
-                        chargingPortRepository.save(port);
-                        savedPorts.add(port);
+                serviceType = updateService.getType();
+                chargingPorts = updateService.getChargingPorts();
+                totalBatteries = updateService.getTotalBatteries();
+                avgChargePowerKw = updateService.getAvgChargePowerKw();
+            }
+
+            if (serviceType == null) {
+                continue;
+            }
+
+            StationServiceEntity.StationServiceEntityBuilder builder = StationServiceEntity.builder()
+                    .id(UUID.randomUUID())
+                    .stationVersionId(stationVersionId)
+                    .serviceType(serviceType);
+            if (serviceType == ServiceType.BATTERY_SWAP) {
+                builder.totalBatteries(totalBatteries);
+                builder.avgChargePowerKw(avgChargePowerKw);
+            }
+            StationServiceEntity service = builder.build();
+            stationServiceRepository.save(service);
+            savedServices.add(service);
+
+            if (serviceType == ServiceType.CHARGING && chargingPorts != null) {
+                for (Object portObj : chargingPorts) {
+                    PowerType portPowerType = null;
+                    java.math.BigDecimal portPowerKw = null;
+                    Integer portCount = null;
+                    if (portObj instanceof CreateStationDTO.ChargingPortDTO createPort) {
+                        portPowerType = createPort.getPowerType();
+                        portPowerKw = createPort.getPowerKw();
+                        portCount = createPort.getCount();
+                    } else if (portObj instanceof UpdateStationDTO.ChargingPortDTO updatePort) {
+                        portPowerType = updatePort.getPowerType();
+                        portPowerKw = updatePort.getPowerKw();
+                        portCount = updatePort.getCount();
                     }
+                    ChargingPortEntity port = ChargingPortEntity.builder()
+                            .id(UUID.randomUUID())
+                            .stationServiceId(service.getId())
+                            .powerType(portPowerType)
+                            .powerKw(portPowerKw)
+                            .portCount(portCount)
+                            .build();
+                    chargingPortRepository.save(port);
+                    savedPorts.add(port);
                 }
             }
         }
@@ -470,6 +514,8 @@ public class AdminStationService {
                     return AdminStationDTO.ServiceDTO.builder()
                             .type(service.getServiceType())
                             .chargingPorts(portDTOs)
+                            .totalBatteries(service.getTotalBatteries())
+                            .avgChargePowerKw(service.getAvgChargePowerKw())
                             .build();
                 })
                 .collect(Collectors.toList());

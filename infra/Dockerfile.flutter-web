@@ -1,6 +1,7 @@
 # Multi-stage build for Flutter Web
 ARG APP_NAME
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+# Pin to 3.41.6 — stable before Flutter 3.44 which made IconData final (breaking font_awesome_flutter)
+FROM ghcr.io/cirruslabs/flutter:3.41.6 AS build
 
 # Re-declare ARG for use in RUN commands
 ARG APP_NAME

@@ -27,19 +27,19 @@ class ForbiddenScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Access Forbidden',
+                'Access denied',
                 style: Theme.of(context).textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Your role (${authState.role ?? 'Unknown'}) does not have access to this app.',
+                'Your role "${authState.role ?? 'Unknown'}" cannot use this app.',
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
               PrimaryButton(
-                label: 'Logout',
+                label: 'Log out',
                 onPressed: () async {
                   await ref.read(authStateNotifierProvider.notifier).logout();
                   if (context.mounted) {

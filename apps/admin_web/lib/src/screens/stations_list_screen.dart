@@ -27,7 +27,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
     final stationsAsync = ref.watch(stationsProvider((page: page, size: pageSize)));
 
     return AdminScaffold(
-      title: 'Stations',
+      title: 'Charging Stations',
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -42,7 +42,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                   data: (response) => Row(
                     children: [
                       Text(
-                        'All Stations',
+                        'All charging stations',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -80,13 +80,13 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                     ],
                   ),
                   loading: () => Text(
-                    'All Stations',
+                    'All charging stations',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   error: (_, __) => Text(
-                    'All Stations',
+                    'All charging stations',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -107,7 +107,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                         context.push('/stations/create');
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Create Station'),
+                      label: const Text('Create station'),
                     ),
                   ],
                 ),
@@ -121,11 +121,16 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                 margin: EdgeInsets.zero,
                 child: stationsAsync.when(
                   data: (response) => _buildStationsTable(theme, response),
-                  loading: () => const LoadingState(message: 'Loading stations...'),
+                  loading: () =>
+                      const LoadingState(message: 'Loading stations...'),
                   error: (error, stack) => ErrorState(
-                    message: error.toString(),
+                    title: 'Could not load stations',
+                    message: formatApiError(error),
+                    code: extractErrorCode(error),
+                    traceId: extractTraceId(error),
                     onRetry: () {
-                      ref.invalidate(stationsProvider((page: page, size: pageSize)));
+                      ref.invalidate(
+                          stationsProvider((page: page, size: pageSize)));
                     },
                   ),
                 ),
@@ -137,21 +142,17 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
     );
   }
 
-  Widget _buildStationsTable(ThemeData theme, PaginationResponse<AdminStation> response) {
+  Widget _buildStationsTable(
+      ThemeData theme, PaginationResponse<AdminStation> response) {
     if (response.content.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.ev_station, size: 64, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(
-              'No stations found',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+      return EmptyState(
+        icon: Icons.ev_station,
+        title: 'No charging stations yet',
+        message: 'Create a new station or import data from CSV to get started.',
+        action: ElevatedButton.icon(
+          onPressed: () => context.push('/stations/create'),
+          icon: const Icon(Icons.add),
+          label: const Text('Create new station'),
         ),
       );
     }
@@ -384,15 +385,15 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                       final errorData = e.response!.data;
                       if (errorData is Map<String, dynamic>) {
                         errorMessage = errorData['message'] as String? ?? 
-                                      'Lỗi từ server: ${e.response!.statusCode}';
+                                      'Server error: ${e.response!.statusCode}';
                       } else {
-                        errorMessage = 'Lỗi từ server: ${e.response!.statusCode}';
+                        errorMessage = 'Server error: ${e.response!.statusCode}';
                       }
                     } else {
-                      errorMessage = 'Lỗi kết nối: ${e.message}';
+                      errorMessage = 'Connection error: ${e.message}';
                     }
                   } else {
-                    errorMessage = 'Lỗi: $e';
+                    errorMessage = 'Error: $e';
                   }
                   
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -22,7 +22,14 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
     final theme = Theme.of(context);
     
     return CollabMainScaffold(
-      title: 'Tasks',
+      title: 'Verification tasks',
+      actions: [
+        IconButton(
+          tooltip: 'Battery swap reservations',
+          icon: const Icon(Icons.battery_charging_full_rounded),
+          onPressed: () => context.push('/battery-swap'),
+        ),
+      ],
       child: Column(
         children: [
           // Filter Section
@@ -57,13 +64,13 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                       value: _selectedStatus,
                       isExpanded: true,
                       hint: Text(
-                        'All Status',
+                        'All statuses',
                         style: theme.textTheme.bodyMedium,
                       ),
                       items: [
                         const DropdownMenuItem<VerificationTaskStatus?>(
                           value: null,
-                          child: Text('All Status'),
+                          child: Text('All statuses'),
                         ),
                         DropdownMenuItem<VerificationTaskStatus>(
                           value: VerificationTaskStatus.assigned,
@@ -121,7 +128,9 @@ class _TaskTab extends ConsumerWidget {
       data: (tasks) {
         if (tasks.isEmpty) {
           return const EmptyState(
-            message: 'No tasks found',
+            title: 'No tasks',
+            message:
+                'You have no verification tasks in this status.',
             icon: Icons.assignment_outlined,
           );
         }
@@ -140,9 +149,11 @@ class _TaskTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonList(count: 4),
       error: (error, stack) => ErrorState(
-        message: error.toString(),
+        message: formatApiError(error),
+        code: extractErrorCode(error),
+        traceId: extractTraceId(error),
         onRetry: () {
           ref.invalidate(tasksByStatusProvider(statuses));
         },
@@ -217,7 +228,7 @@ class _TaskCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'Station ID: ${task.stationId.substring(0, 8)}...',
+                      'Station ID: ${task.stationId.length >= 8 ? task.stationId.substring(0, 8) : task.stationId}...',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -236,7 +247,7 @@ class _TaskCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'SLA: ${_formatDateTime(task.slaDueAt!)}',
+                      'SLA due: ${_formatDateTime(task.slaDueAt!)}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: isUrgent
                             ? theme.colorScheme.error
@@ -263,13 +274,13 @@ class _TaskCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Checked in: ${_formatDateTime(task.checkin!.checkedInAt)}',
+                        'Check-in: ${_formatDateTime(task.checkin!.checkedInAt)}',
                         style: theme.textTheme.bodySmall,
                       ),
                       if (task.checkin!.distanceM != null) ...[
                         const SizedBox(width: 8),
                         Text(
-                          '• ${task.checkin!.distanceM}m away',
+                          '• ${task.checkin!.distanceM} m away',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.primary,
@@ -307,11 +318,11 @@ class _TaskCard extends StatelessWidget {
     final difference = dateTime.difference(now);
 
     if (difference.inDays > 0) {
-      return '${difference.inDays}d remaining';
+      return '${difference.inDays} days left';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h remaining';
+      return '${difference.inHours} hours left';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m remaining';
+      return '${difference.inMinutes} minutes left';
     } else {
       return 'Overdue';
     }

@@ -24,6 +24,7 @@ import '../screens/stations_list_screen.dart';
 import '../screens/station_detail_screen.dart';
 import '../screens/create_station_screen.dart';
 import '../screens/csv_import_screen.dart';
+import '../models/admin_station.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -143,7 +144,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/stations/create',
-        builder: (_, __) => const CreateStationScreen(),
+        builder: (context, state) {
+          final station = state.extra as AdminStation?;
+          return CreateStationScreen(station: station);
+        },
       ),
       GoRoute(
         path: '/stations/import-csv',

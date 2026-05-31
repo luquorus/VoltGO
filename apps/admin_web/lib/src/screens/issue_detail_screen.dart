@@ -29,7 +29,10 @@ class IssueDetailScreen extends ConsumerWidget {
         data: (issue) => _buildContent(context, theme, ref, issue),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => ErrorState(
-          message: error.toString(),
+          title: 'Could not load issue report',
+          message: formatApiError(error),
+          code: extractErrorCode(error),
+          traceId: extractTraceId(error),
           onRetry: () {
             ref.invalidate(issueProvider(id));
           },
@@ -588,7 +591,7 @@ class IssueDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -619,7 +622,7 @@ class IssueDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -650,7 +653,7 @@ class IssueDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${formatApiError(e)}'),
             backgroundColor: Colors.red,
           ),
         );

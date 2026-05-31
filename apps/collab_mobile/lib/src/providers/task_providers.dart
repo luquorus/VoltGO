@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_api/shared_api.dart';
+import 'package:shared_network/shared_network.dart';
 import '../repositories/task_repository.dart';
 import '../models/verification_task.dart';
 
@@ -19,12 +22,25 @@ final tasksByStatusProvider = FutureProvider.family<List<VerificationTask>, List
 });
 
 /// Task Detail Provider
-final taskDetailProvider = FutureProvider.family<VerificationTask, String>((ref, taskId) async {
+///
+/// Backend hiện chưa có GET /tasks/{id}, nên tạm fetch toàn bộ rồi lọc theo id.
+/// Trả về `ApiError(NOT_FOUND)` để UI hiển thị thông báo thân thiện thay cho
+/// `StateError` khó hiểu khi không tìm thấy.
+final taskDetailProvider =
+    FutureProvider.family<VerificationTask, String>((ref, taskId) async {
   final repository = ref.watch(taskRepositoryProvider);
-  // For now, we'll fetch all tasks and filter by ID
-  // In the future, we might have a GET /tasks/{id} endpoint
   final allTasks = await repository.getTasks();
-  final task = allTasks.firstWhere((t) => t.id == taskId);
+  final task = allTasks
+      .cast<VerificationTask?>()
+      .firstWhere((t) => t?.id == taskId, orElse: () => null);
+  if (task == null) {
+    throw ApiError(
+      traceId: '',
+      code: 'NOT_FOUND',
+      message: 'Task not found. It may have been cancelled or you are no longer assigned.',
+      timestamp: DateTime.now(),
+    );
+  }
   return task;
 });
 
@@ -39,6 +55,23 @@ final checkInProvider = Provider.family<Future<VerificationTask>, CheckInParams>
   );
 });
 
+/// Submit Evidence Provider
+final submitEvidenceProvider = Provider.family<Future<VerificationTask>, SubmitEvidenceParams>((ref, params) async {
+  final repository = ref.watch(taskRepositoryProvider);
+  return repository.submitEvidence(
+    taskId: params.taskId,
+    imageBytes: params.imageBytes,
+    contentType: params.contentType,
+    note: params.note,
+  );
+});
+
+/// Evidence image URL provider
+final evidenceViewUrlProvider = FutureProvider.family<String, String>((ref, objectKey) async {
+  final repository = ref.watch(taskRepositoryProvider);
+  return repository.getEvidenceViewUrl(objectKey);
+});
+
 /// Check-in Parameters
 class CheckInParams {
   final String taskId;
@@ -51,6 +84,20 @@ class CheckInParams {
     required this.lat,
     required this.lng,
     this.deviceNote,
+  });
+}
+
+class SubmitEvidenceParams {
+  final String taskId;
+  final Uint8List imageBytes;
+  final String contentType;
+  final String? note;
+
+  SubmitEvidenceParams({
+    required this.taskId,
+    required this.imageBytes,
+    required this.contentType,
+    this.note,
   });
 }
 

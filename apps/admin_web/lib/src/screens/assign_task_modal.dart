@@ -118,7 +118,7 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: ${formatApiError(e)}'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -203,12 +203,18 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
                   ? _buildFallbackInput(theme)
                   : candidatesAsync.when(
                       data: (data) => _buildCandidatesList(theme, data),
-                      loading: () => const Center(child: LoadingState(message: 'Loading candidates...')),
+                      loading: () => const Center(
+                          child: LoadingState(
+                              message: 'Loading collaborators...')),
                       error: (e, _) => Padding(
                         padding: const EdgeInsets.all(20),
                         child: ErrorState(
-                          message: e.toString(),
-                          onRetry: () => ref.invalidate(candidatesProvider(_params)),
+                          title: 'Could not load collaborators',
+                          message: formatApiError(e),
+                          code: extractErrorCode(e),
+                          traceId: extractTraceId(e),
+                          onRetry: () =>
+                              ref.invalidate(candidatesProvider(_params)),
                         ),
                       ),
                     ),

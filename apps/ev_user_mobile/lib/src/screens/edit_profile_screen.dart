@@ -71,11 +71,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
 
     if (success && mounted) {
-      AppToast.showSuccess(context, 'Profile updated successfully');
+      AppToast.showSuccess(context, 'Profile updated successfully.');
       context.pop();
     } else if (mounted) {
       final error = ref.read(profileProvider).error;
-      AppToast.showError(context, error?.message ?? 'Failed to update profile');
+      AppToast.showError(
+          context, formatApiError(error, fallback: 'Failed to update profile.'));
     }
   }
 
@@ -93,7 +94,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
 
     if (success && mounted) {
-      AppToast.showSuccess(context, 'Password changed successfully');
+      AppToast.showSuccess(context, 'Password changed successfully.');
       setState(() {
         _isChangingPassword = false;
         _currentPasswordController.clear();
@@ -102,25 +103,27 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       });
     } else if (mounted) {
       final error = ref.read(profileProvider).error;
-      AppToast.showError(context, error?.message ?? 'Failed to change password');
+      AppToast.showError(context,
+          formatApiError(error, fallback: 'Failed to change password.'));
     }
   }
 
   bool _validatePasswordForm() {
     if (_currentPasswordController.text.isEmpty) {
-      AppToast.showError(context, 'Please enter current password');
+      AppToast.showError(context, 'Please enter your current password.');
       return false;
     }
     if (_newPasswordController.text.isEmpty) {
-      AppToast.showError(context, 'Please enter new password');
+      AppToast.showError(context, 'Please enter a new password.');
       return false;
     }
     if (_newPasswordController.text.length < 8) {
-      AppToast.showError(context, 'New password must be at least 8 characters');
+      AppToast.showError(
+          context, 'New password must be at least 8 characters.');
       return false;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      AppToast.showError(context, 'New passwords do not match');
+      AppToast.showError(context, 'Password confirmation does not match.');
       return false;
     }
     return true;
@@ -133,7 +136,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final isLoading = profileState.isLoading;
 
     return MainScaffold(
-      title: 'Edit Profile',
+      title: 'Edit profile',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -156,7 +159,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Profile Information',
+                            'Profile information',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -164,21 +167,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Name field
                       TextFormField(
                         controller: _nameController,
                         style: theme.textTheme.bodyLarge,
                         decoration: InputDecoration(
-                          labelText: 'Name *',
+                          labelText: 'Full name *',
                           border: const OutlineInputBorder(),
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.only(left: 16, right: 12),
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.only(left: 16, right: 12),
                             child: Align(
                               widthFactor: 1.0,
                               child: FaIcon(
                                 FontAwesomeIcons.user,
-                                color: const Color(0xFF6B8E7F),
+                                color: Color(0xFF6B8E7F),
                                 size: 20,
                               ),
                             ),
@@ -187,27 +190,27 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         enabled: !isLoading,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Name is required';
+                            return 'Please enter your full name';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Phone field
                       TextFormField(
                         controller: _phoneController,
                         style: theme.textTheme.bodyLarge,
                         decoration: InputDecoration(
-                          labelText: 'Phone',
+                          labelText: 'Phone number',
                           border: const OutlineInputBorder(),
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.only(left: 16, right: 12),
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.only(left: 16, right: 12),
                             child: Align(
                               widthFactor: 1.0,
                               child: FaIcon(
                                 FontAwesomeIcons.phone,
-                                color: const Color(0xFF6B8E7F),
+                                color: Color(0xFF6B8E7F),
                                 size: 20,
                               ),
                             ),
@@ -238,7 +241,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Change Password',
+                            'Change password',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -246,7 +249,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      
+
                       if (!_isChangingPassword) ...[
                         ElevatedButton.icon(
                           onPressed: () {
@@ -255,15 +258,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             });
                           },
                           icon: const FaIcon(FontAwesomeIcons.key, size: 16),
-                          label: const Text('Change Password'),
+                          label: const Text('Change password'),
                         ),
                       ] else ...[
-                        // Current password
                         TextFormField(
                           controller: _currentPasswordController,
                           style: theme.textTheme.bodyLarge,
                           decoration: InputDecoration(
-                            labelText: 'Current Password *',
+                            labelText: 'Current password *',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
@@ -274,7 +276,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               ),
                               onPressed: () {
                                 setState(() {
-                                  _obscureCurrentPassword = !_obscureCurrentPassword;
+                                  _obscureCurrentPassword =
+                                      !_obscureCurrentPassword;
                                 });
                               },
                             ),
@@ -283,13 +286,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           enabled: !isLoading,
                         ),
                         const SizedBox(height: 16),
-                        
-                        // New password
                         TextFormField(
                           controller: _newPasswordController,
                           style: theme.textTheme.bodyLarge,
                           decoration: InputDecoration(
-                            labelText: 'New Password *',
+                            labelText: 'New password *',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
@@ -310,13 +311,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           enabled: !isLoading,
                         ),
                         const SizedBox(height: 16),
-                        
-                        // Confirm password
                         TextFormField(
                           controller: _confirmPasswordController,
                           style: theme.textTheme.bodyLarge,
                           decoration: InputDecoration(
-                            labelText: 'Confirm New Password *',
+                            labelText: 'Confirm new password *',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.lock_clock),
                             suffixIcon: IconButton(
@@ -354,14 +353,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton(
-                              onPressed: isLoading ? null : _handleChangePassword,
+                              onPressed:
+                                  isLoading ? null : _handleChangePassword,
                               child: isLoading
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     )
-                                  : const Text('Change Password'),
+                                  : const Text('Update password'),
                             ),
                           ],
                         ),
@@ -384,11 +385,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Save Changes'),
+                    : const Text('Save changes'),
               ),
               const SizedBox(height: 8),
-              
-              // Cancel button
               OutlinedButton(
                 onPressed: () => context.pop(),
                 style: OutlinedButton.styleFrom(

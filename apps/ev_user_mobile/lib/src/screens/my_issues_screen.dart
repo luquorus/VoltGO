@@ -47,7 +47,7 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
     final filteredIssues = _getFilteredIssues(state.issues);
 
     return AppScaffold(
-      title: 'My Issues',
+      title: 'My reports',
       actions: [
         IconButton(
           icon: const FaIcon(FontAwesomeIcons.xmark),
@@ -111,7 +111,7 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
               value: _selectedStatusFilter,
               isExpanded: true,
               hint: Text(
-                'All Statuses',
+                'All statuses',
                 style: TextStyle(color: Colors.grey[600]),
               ),
               icon: FaIcon(
@@ -137,7 +137,7 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
                 DropdownMenuItem<String>(
                   value: null,
                   child: Text(
-                    'All Statuses',
+                    'All statuses',
                     style: TextStyle(color: tealColor),
                   ),
                 ),
@@ -169,26 +169,36 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
     ThemeData theme,
     List<Map<String, dynamic>> filteredIssues,
   ) {
-    if (state.isLoading) {
-      return const Center(child: LoadingState());
+    if (state.isLoading && state.issues.isEmpty) {
+      return const SkeletonList(count: 4);
     }
 
-    if (state.error != null) {
-      return Center(
-        child: ErrorState(
-          message: state.error!.message,
-          onRetry: () => _onRefresh(),
-        ),
+    if (state.error != null && state.issues.isEmpty) {
+      return ErrorState(
+        message: formatApiError(state.error),
+        code: state.error!.code,
+        traceId: state.error!.traceId,
+        onRetry: () => _onRefresh(),
       );
     }
 
     if (filteredIssues.isEmpty) {
-      return Center(
-        child: EmptyState(
-          message: _selectedStatusFilter == null
-              ? 'No issues reported yet'
-              : 'No issues with selected status',
-        ),
+      return EmptyState(
+        icon: FontAwesomeIcons.fileShield,
+        title: _selectedStatusFilter == null
+            ? 'No reports yet'
+            : 'No reports match the selected status',
+        message: _selectedStatusFilter == null
+            ? 'You can report an issue from a station detail page.'
+            : 'Try a different status or clear the filter.',
+        action: _selectedStatusFilter == null
+            ? null
+            : OutlinedButton.icon(
+                onPressed: () =>
+                    setState(() => _selectedStatusFilter = null),
+                icon: const FaIcon(FontAwesomeIcons.filterCircleXmark, size: 14),
+                label: const Text('Clear filter'),
+              ),
       );
     }
 
@@ -207,8 +217,7 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
     ThemeData theme,
     Map<String, dynamic> issue,
   ) {
-    final id = issue['id'] as String? ?? '';
-    final stationName = issue['stationName'] as String? ?? 'Unknown Station';
+    final stationName = issue['stationName'] as String? ?? 'Unnamed station';
     final category = issue['category'] as String? ?? 'OTHER';
     final description = issue['description'] as String? ?? '';
     final status = issue['status'] as String? ?? 'OPEN';
@@ -305,11 +314,12 @@ class _MyIssuesScreenState extends ConsumerState<MyIssuesScreen> {
 
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
-        return '${difference.inMinutes}m ago';
+        final minutes = difference.inMinutes;
+        return minutes <= 0 ? 'just now' : '$minutes min ago';
       }
-      return '${difference.inHours}h ago';
+      return '${difference.inHours} h ago';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays} d ago';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }

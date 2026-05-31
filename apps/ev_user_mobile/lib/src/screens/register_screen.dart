@@ -66,29 +66,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) {
         context.go('/home');
       }
-    } on ApiError catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-        _isLoading = false;
-      });
-      if (mounted) {
-        AppToast.showError(context, e.message);
-      }
     } catch (e) {
+      final friendly = formatApiError(e, fallback: 'Registration failed');
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = friendly;
         _isLoading = false;
       });
-      if (mounted) {
-        AppToast.showError(context, 'Registration failed: ${e.toString()}');
-      }
+      if (mounted) AppToast.showError(context, friendly);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AppScaffold(
-      title: 'Register',
+      title: 'Sign up',
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -108,7 +100,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       return 'Please enter your email';
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return 'Invalid email address';
                     }
                     return null;
                   },
@@ -121,7 +113,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   enabled: !_isLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return 'Please enter your password';
                     }
                     if (value.length < 8) {
                       return 'Password must be at least 8 characters';
@@ -130,7 +122,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                   suffixIcon: IconButton(
                     icon: FaIcon(
-                      _obscurePassword ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash,
+                      _obscurePassword
+                          ? FontAwesomeIcons.eye
+                          : FontAwesomeIcons.eyeSlash,
                     ),
                     onPressed: () {
                       setState(() {
@@ -141,7 +135,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
-                  label: 'Confirm Password',
+                  label: 'Confirm password',
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   enabled: !_isLoading,
@@ -153,7 +147,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                   suffixIcon: IconButton(
                     icon: FaIcon(
-                      _obscureConfirmPassword ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash,
+                      _obscureConfirmPassword
+                          ? FontAwesomeIcons.eye
+                          : FontAwesomeIcons.eyeSlash,
                     ),
                     onPressed: () {
                       setState(() {
@@ -168,14 +164,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Role',
                     filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'EV_USER', child: Text('EV User')),
-                    DropdownMenuItem(value: 'PROVIDER', child: Text('Provider')),
+                    DropdownMenuItem(
+                        value: 'EV_USER', child: Text('EV user')),
+                    DropdownMenuItem(
+                        value: 'PROVIDER', child: Text('Station provider')),
                   ],
                   onChanged: _isLoading
                       ? null
@@ -187,20 +185,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        FaIcon(FontAwesomeIcons.circleExclamation,
+                            color: theme.colorScheme.error, size: 14),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),
                 PrimaryButton(
-                  label: 'Register',
+                  label: 'Sign up',
                   onPressed: _isLoading ? null : _handleRegister,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SecondaryButton(
-                  label: 'Back to Login',
+                  label: 'Back to log in',
                   onPressed: _isLoading ? null : () => context.pop(),
                 ),
               ],

@@ -24,6 +24,7 @@ public class SwaggerSecurityConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .info(new Info()
                         .title("VoltGo EV Station Management API")
                         .version("1.0.0")

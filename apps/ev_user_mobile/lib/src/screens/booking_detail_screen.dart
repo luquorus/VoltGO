@@ -105,7 +105,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     final stationId = bookingAsync.value?['stationId'] as String?;
 
     return AppScaffold(
-      title: 'Booking Details',
+      title: 'Booking details',
       actions: [
         IconButton(
           icon: const FaIcon(FontAwesomeIcons.xmark),
@@ -114,10 +114,15 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
         ),
       ],
       body: bookingAsync.when(
-        loading: () => const LoadingState(),
+        loading: () =>
+            const LoadingState(message: 'Loading booking details...'),
         error: (e, st) => ErrorState(
-          message: e.toString(),
-          onRetry: () => ref.invalidate(bookingDetailProvider(widget.bookingId)),
+          title: 'Could not load booking',
+          message: formatApiError(e),
+          code: extractErrorCode(e),
+          traceId: extractTraceId(e),
+          onRetry: () =>
+              ref.invalidate(bookingDetailProvider(widget.bookingId)),
         ),
         data: (booking) {
           final stationId = booking['stationId'] as String?;
@@ -487,7 +492,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to create payment intent: ${e.toString()}');
+        AppToast.showError(context, 'Failed to create payment session: ${formatApiError(e)}');
       }
     }
   }
@@ -512,7 +517,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to simulate payment: ${e.toString()}');
+        AppToast.showError(context, 'Payment simulation failed: ${formatApiError(e)}');
       }
     }
   }
@@ -536,7 +541,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to simulate payment: ${e.toString()}');
+        AppToast.showError(context, 'Payment simulation failed: ${formatApiError(e)}');
       }
     }
   }
@@ -571,7 +576,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Failed to cancel booking: ${e.toString()}');
+        AppToast.showError(context, 'Failed to cancel booking: ${formatApiError(e)}');
       }
     }
   }
