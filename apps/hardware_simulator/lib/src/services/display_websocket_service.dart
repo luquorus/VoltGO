@@ -73,6 +73,7 @@ class DisplayWebSocketService {
   final Set<void Function(DisplaySlotUpdateEvent)> _slotUpdateListeners = {};
   final Set<void Function(DisplaySwapCodeEvent)> _swapCodeListeners = {};
   final Set<VoidCallback> _swapCompletedListeners = {};
+  final Set<VoidCallback> _swapCancelledListeners = {};
   final StreamController<DisplaySlotUpdateEvent> _slotUpdateController =
       StreamController<DisplaySlotUpdateEvent>.broadcast();
   final StreamController<DisplaySwapCodeEvent> _swapCodeController =
@@ -153,6 +154,11 @@ class DisplayWebSocketService {
   void removeSwapCompletedListener(VoidCallback cb) =>
       _swapCompletedListeners.remove(cb);
 
+  void addSwapCancelledListener(VoidCallback cb) =>
+      _swapCancelledListeners.add(cb);
+  void removeSwapCancelledListener(VoidCallback cb) =>
+      _swapCancelledListeners.remove(cb);
+
   void _send(Map<String, dynamic> data) {
     if (_channel != null && _serverConfirmedConnection) {
       _channel!.sink.add(jsonEncode(data));
@@ -189,6 +195,9 @@ class DisplayWebSocketService {
           break;
         case 'SWAP_COMPLETED':
           for (final cb in _swapCompletedListeners) cb();
+          break;
+        case 'SWAP_CANCELLED':
+          for (final cb in _swapCancelledListeners) cb();
           break;
       }
     } catch (e) {

@@ -63,4 +63,12 @@ public class BatterySwapBroadcastService {
             log.warn("[Broadcast] display swap completed broadcast failed: {}", e.getMessage());
         }
     }
+
+    public void broadcastSwapCancelled(UUID stationId, UUID slotId) {
+        try {
+            displayHandler.broadcastSwapCancelled(stationId, slotId);
+        } catch (Exception e) {
+            log.warn("[Broadcast] display swap cancelled broadcast failed: {}", e.getMessage());
+        }
+    }
 }

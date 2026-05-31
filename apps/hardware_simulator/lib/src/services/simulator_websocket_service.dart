@@ -80,6 +80,7 @@ class SimulatorWebSocketService {
   final Set<void Function(SlotUpdateEvent)> _slotUpdateListeners = {};
   final Set<void Function(SwapCodeEvent)> _swapCodeListeners = {};
   final Set<VoidCallback> _swapCompletedListeners = {};
+  final Set<VoidCallback> _swapCancelledListeners = {};
   final StreamController<SlotUpdateEvent> _slotUpdateController =
       StreamController<SlotUpdateEvent>.broadcast();
 
@@ -180,6 +181,11 @@ class SimulatorWebSocketService {
   void removeSwapCompletedListener(VoidCallback cb) =>
       _swapCompletedListeners.remove(cb);
 
+  void addSwapCancelledListener(VoidCallback cb) =>
+      _swapCancelledListeners.add(cb);
+  void removeSwapCancelledListener(VoidCallback cb) =>
+      _swapCancelledListeners.remove(cb);
+
   Stream<SlotUpdateEvent> get onSlotUpdate => _slotUpdateController.stream;
 
   void _send(Map<String, dynamic> data) {
@@ -222,6 +228,11 @@ class SimulatorWebSocketService {
           break;
         case 'SWAP_COMPLETED':
           for (final cb in _swapCompletedListeners) {
+            cb();
+          }
+          break;
+        case 'SWAP_CANCELLED':
+          for (final cb in _swapCancelledListeners) {
             cb();
           }
           break;

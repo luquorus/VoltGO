@@ -783,6 +783,7 @@ public class BatterySwapService {
         }
         reservation = reservationRepository.save(reservation);
         syncAvailableBatteries(reservation.getStationId(), now);
+        broadcastService.broadcastSwapCancelled(reservation.getStationId(), reservation.getSlotId());
         BatterySwapStationStateEntity stationState = stationStateRepository.findById(reservation.getStationId())
                 .orElseThrow();
         SwapPileEntity pile = reservation.getPileId() != null

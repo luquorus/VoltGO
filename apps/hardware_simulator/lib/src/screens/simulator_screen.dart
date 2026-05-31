@@ -39,6 +39,13 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     wsService.addConnectListener(_onWsConnected);
     wsService.addSwapCodeListener(_onSwapCodeReceived);
     wsService.addSwapCompletedListener(_onSwapCompleted);
+    wsService.addSwapCancelledListener(_onSwapCancelled);
+  }
+
+  void _onSwapCancelled() {
+    if (mounted) {
+      setState(() => _activeSwapCode = null);
+    }
   }
 
   void _onSwapCodeReceived(SwapCodeEvent event) {
@@ -168,6 +175,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     child: SwapCodeBanner(
                       swapCodeEvent: _activeSwapCode!,
                       onDismiss: () {
+                        setState(() => _activeSwapCode = null);
+                      },
+                      onExpired: () {
                         setState(() => _activeSwapCode = null);
                       },
                     ),

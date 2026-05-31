@@ -6,11 +6,13 @@ import '../services/simulator_websocket_service.dart';
 class SwapCodeBanner extends StatefulWidget {
   final SwapCodeEvent swapCodeEvent;
   final VoidCallback onDismiss;
+  final VoidCallback? onExpired;
 
   const SwapCodeBanner({
     super.key,
     required this.swapCodeEvent,
     required this.onDismiss,
+    this.onExpired,
   });
 
   @override
@@ -49,6 +51,7 @@ class _SwapCodeBannerState extends State<SwapCodeBanner> with SingleTickerProvid
       });
       if (remaining.isNegative) {
         _countdownTimer?.cancel();
+        widget.onExpired?.call();
       }
     }
   }

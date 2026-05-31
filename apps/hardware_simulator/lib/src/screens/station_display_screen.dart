@@ -19,6 +19,7 @@ class _StationDisplayScreenState extends ConsumerState<StationDisplayScreen> {
   StreamSubscription? _slotUpdateSub;
   StreamSubscription? _swapCodeSub;
   StreamSubscription? _swapCompletedSub;
+  StreamSubscription? _swapCancelledSub;
   bool _wsConnected = false;
   SimulatorStationPilesModel? _stationData;
   bool _isLoading = true;
@@ -95,12 +96,25 @@ class _StationDisplayScreenState extends ConsumerState<StationDisplayScreen> {
     ws.addSlotUpdateListener(_onSlotUpdate);
     _slotUpdateSub = ws.onSlotUpdate.listen(_onSlotUpdate);
     _swapCodeSub = ws.onSwapCode.listen(_onSwapCode);
-    _swapCompletedSub = ws.addSwapCompletedListener != null ? null : null;
+    ws.addSwapCompletedListener(_onSwapCompleted);
+    ws.addSwapCancelledListener(_onSwapCancelled);
   }
 
   void _onSwapCode(DisplaySwapCodeEvent event) {
     if (mounted) {
       ref.read(displayShownSwapCodeProvider.notifier).state = event;
+    }
+  }
+
+  void _onSwapCompleted() {
+    if (mounted) {
+      ref.read(displayShownSwapCodeProvider.notifier).state = null;
+    }
+  }
+
+  void _onSwapCancelled() {
+    if (mounted) {
+      ref.read(displayShownSwapCodeProvider.notifier).state = null;
     }
   }
 
@@ -173,6 +187,7 @@ class _StationDisplayScreenState extends ConsumerState<StationDisplayScreen> {
     _slotUpdateSub?.cancel();
     _swapCodeSub?.cancel();
     _swapCompletedSub?.cancel();
+    _swapCancelledSub?.cancel();
     _swapCodePollTimer?.cancel();
     super.dispose();
   }
@@ -211,6 +226,9 @@ class _StationDisplayScreenState extends ConsumerState<StationDisplayScreen> {
               child: _SwapCodeBannerOverlay(
                 event: activeSwapCode,
                 onDismiss: () {
+                  ref.read(displayShownSwapCodeProvider.notifier).state = null;
+                },
+                onExpired: () {
                   ref.read(displayShownSwapCodeProvider.notifier).state = null;
                 },
               ),
@@ -623,10 +641,12 @@ class _StationDisplayScreenState extends ConsumerState<StationDisplayScreen> {
 class _SwapCodeBannerOverlay extends StatefulWidget {
   final DisplaySwapCodeEvent event;
   final VoidCallback onDismiss;
+  final VoidCallback? onExpired;
 
   const _SwapCodeBannerOverlay({
     required this.event,
     required this.onDismiss,
+    this.onExpired,
   });
 
   @override
@@ -666,6 +686,7 @@ class _SwapCodeBannerOverlayState extends State<_SwapCodeBannerOverlay>
       });
       if (remaining.isNegative) {
         _timer?.cancel();
+        widget.onExpired?.call();
       }
     }
   }

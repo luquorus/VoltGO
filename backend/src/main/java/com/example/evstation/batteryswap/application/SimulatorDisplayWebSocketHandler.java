@@ -165,6 +165,22 @@ public class SimulatorDisplayWebSocketHandler extends TextWebSocketHandler {
         broadcast(stationIdStr, update);
     }
 
+    /**
+     * Broadcast swap cancellation to all display sessions subscribed to the station.
+     */
+    public void broadcastSwapCancelled(UUID stationId, UUID slotId) {
+        String stationIdStr = stationId.toString();
+
+        Map<String, Object> update = Map.of(
+                "type", "SWAP_CANCELLED",
+                "stationId", stationIdStr,
+                "slotId", slotId != null ? slotId.toString() : null
+        );
+
+        broadcast(stationIdStr, update);
+        log.info("[DisplayWS] Broadcast SWAP_CANCELLED to station {} (slot={})", stationIdStr, slotId);
+    }
+
     private void broadcast(String stationId, Map<String, Object> payload) {
         Set<WebSocketSession> sessions = stationSubscriptions.get(stationId);
         if (sessions == null || sessions.isEmpty()) return;
