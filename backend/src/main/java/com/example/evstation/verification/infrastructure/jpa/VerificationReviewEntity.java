@@ -39,6 +39,15 @@ public class VerificationReviewEntity {
     @Column(name = "reviewed_by", nullable = false, columnDefinition = "UUID")
     private UUID reviewedBy;
     
+    @Column(name = "swap_station_verified")
+    private Boolean swapStationVerified;
+    
+    @Column(name = "inventory_accurate")
+    private Boolean inventoryAccurate;
+    
+    @Column(name = "resolution_note")
+    private String resolutionNote;
+    
     @PrePersist
     protected void onCreate() {
         if (id == null) {

@@ -44,5 +44,8 @@ public interface StationVersionJpaRepository extends JpaRepository<StationVersio
         AND sv.workflowStatus = 'PUBLISHED'
         """)
     Optional<StationVersionEntity> findPublishedByStationId(@Param("stationId") UUID stationId);
+
+    @Query("SELECT COALESCE(MAX(sv.versionNo), 0) FROM StationVersionEntity sv WHERE sv.stationId = :stationId")
+    int findMaxVersionNoByStationId(@Param("stationId") UUID stationId);
 }
 

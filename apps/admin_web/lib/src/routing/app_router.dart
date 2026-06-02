@@ -24,6 +24,11 @@ import '../screens/stations_list_screen.dart';
 import '../screens/station_detail_screen.dart';
 import '../screens/create_station_screen.dart';
 import '../screens/csv_import_screen.dart';
+import '../screens/battery_swap_cr_list_screen.dart';
+import '../screens/battery_swap_cr_detail_screen.dart';
+import '../screens/battery_swap_stations_list_screen.dart';
+import '../screens/battery_swap_station_detail_screen.dart';
+import '../screens/swap_trust_dashboard_screen.dart';
 import '../models/admin_station.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -158,6 +163,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return StationDetailScreen(id: id);
+        },
+      ),
+      // Battery Swap Change Requests
+      GoRoute(
+        path: '/battery-swap/change-requests',
+        builder: (_, __) => const BatterySwapCRListScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap/change-requests/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return BatterySwapCRDetailScreen(id: id);
+        },
+      ),
+      // Battery Swap Stations
+      GoRoute(
+        path: '/battery-swap/stations',
+        builder: (_, __) => const BatterySwapStationsListScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap/stations/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return BatterySwapStationDetailScreen(id: id);
+        },
+      ),
+      // Battery Swap Trust
+      GoRoute(
+        path: '/battery-swap/trust',
+        builder: (_, __) => const SwapTrustDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap/trust/:stationId',
+        builder: (context, state) {
+          final stationId = state.pathParameters['stationId']!;
+          return SwapTrustDashboardScreen(stationId: stationId);
         },
       ),
     ],

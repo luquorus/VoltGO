@@ -81,6 +81,9 @@ public class SecurityConfig {
                         // Public API endpoints (no auth required — station display screen)
                         .requestMatchers("/api/public/**").permitAll()
 
+                        // Battery Swap Trust API endpoints (public for trust score queries)
+                        .requestMatchers("/api/v1/battery-swap/trust/**").permitAll()
+
                         // API endpoints - require authentication
                         // Role-based access is controlled by @PreAuthorize on controller methods
                         // EV_USER and PROVIDER can access /api/ev/stations and /api/ev/stations/{id}

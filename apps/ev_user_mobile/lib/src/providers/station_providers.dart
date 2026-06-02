@@ -697,6 +697,40 @@ final batterySwapProvider =
   return BatterySwapNotifier(repository);
 });
 
+/// Swap Trust Provider
+final swapTrustProvider =
+    FutureProvider.family<SwapTrustData, String>((ref, stationId) async {
+  final repository = ref.watch(stationRepositoryProvider);
+  return repository.getSwapTrust(stationId);
+});
+
+/// Swap Trust Data Model
+class SwapTrustData {
+  final int? score;
+  final String? level;
+  final int? verificationScore;
+  final int? consistencyScore;
+  final int? activityScore;
+
+  SwapTrustData({
+    this.score,
+    this.level,
+    this.verificationScore,
+    this.consistencyScore,
+    this.activityScore,
+  });
+
+  factory SwapTrustData.fromJson(Map<String, dynamic> json) {
+    return SwapTrustData(
+      score: (json['score'] as num?)?.toInt(),
+      level: json['level'] as String?,
+      verificationScore: (json['verificationScore'] as num?)?.toInt(),
+      consistencyScore: (json['consistencyScore'] as num?)?.toInt(),
+      activityScore: (json['activityScore'] as num?)?.toInt(),
+    );
+  }
+}
+
 final batterySwapWsProvider = Provider<BatterySwapWebSocketService>((ref) {
   final authState = ref.watch(authStateProvider);
   final baseUrl = ref.watch(baseUrlProvider);

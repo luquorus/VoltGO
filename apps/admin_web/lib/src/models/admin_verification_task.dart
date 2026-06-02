@@ -1,5 +1,31 @@
+class BatterySwapStationSnapshot {
+  final int totalBatteries;
+  final double avgChargePowerKw;
+  final int pileCount;
+  final int slotCount;
+  final int basePriceVnd;
+
+  BatterySwapStationSnapshot({
+    required this.totalBatteries,
+    required this.avgChargePowerKw,
+    required this.pileCount,
+    required this.slotCount,
+    required this.basePriceVnd,
+  });
+
+  factory BatterySwapStationSnapshot.fromJson(Map<String, dynamic> json) {
+    return BatterySwapStationSnapshot(
+      totalBatteries: (json['totalBatteries'] as num?)?.toInt() ?? 0,
+      avgChargePowerKw: (json['avgChargePowerKw'] as num?)?.toDouble() ?? 0.0,
+      pileCount: (json['pileCount'] as num?)?.toInt() ?? 0,
+      slotCount: (json['slotCount'] as num?)?.toInt() ?? 0,
+      basePriceVnd: (json['basePriceVnd'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Admin Verification Task Model
-/// 
+///
 /// Represents a verification task with all admin-specific fields
 class AdminVerificationTask {
   final String id;
@@ -16,6 +42,10 @@ class AdminVerificationTask {
   final List<Evidence> evidences;
   final Review? review;
   final List<String> stationServiceTypes;
+  final BatterySwapStationSnapshot? batterySwapStationSnapshot;
+  final List<String> riskReasons;
+  final bool requiresVerification;
+  final bool requiresAdminReview;
 
   AdminVerificationTask({
     required this.id,
@@ -32,6 +62,10 @@ class AdminVerificationTask {
     this.evidences = const [],
     this.review,
     this.stationServiceTypes = const [],
+    this.batterySwapStationSnapshot,
+    this.riskReasons = const [],
+    this.requiresVerification = false,
+    this.requiresAdminReview = false,
   });
 
   factory AdminVerificationTask.fromJson(Map<String, dynamic> json) {
@@ -64,6 +98,16 @@ class AdminVerificationTask {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      batterySwapStationSnapshot: json['batterySwapStationSnapshot'] != null
+          ? BatterySwapStationSnapshot.fromJson(
+              json['batterySwapStationSnapshot'] as Map<String, dynamic>)
+          : null,
+      riskReasons: (json['riskReasons'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      requiresVerification: json['requiresVerification'] as bool? ?? false,
+      requiresAdminReview: json['requiresAdminReview'] as bool? ?? false,
     );
   }
 
@@ -135,6 +179,9 @@ class CheckinInfo {
   final DateTime checkedInAt;
   final int? distanceM;
   final String? deviceNote;
+  final int? actualTotalBatteries;
+  final int? actualAvailableBatteries;
+  final double? observedAvgChargePowerKw;
 
   CheckinInfo({
     required this.lat,
@@ -142,6 +189,9 @@ class CheckinInfo {
     required this.checkedInAt,
     this.distanceM,
     this.deviceNote,
+    this.actualTotalBatteries,
+    this.actualAvailableBatteries,
+    this.observedAvgChargePowerKw,
   });
 
   factory CheckinInfo.fromJson(Map<String, dynamic> json) {
@@ -153,6 +203,9 @@ class CheckinInfo {
           : DateTime.now(),
       distanceM: (json['distanceM'] as num?)?.toInt(),
       deviceNote: json['deviceNote'] as String?,
+      actualTotalBatteries: (json['actualTotalBatteries'] as num?)?.toInt(),
+      actualAvailableBatteries: (json['actualAvailableBatteries'] as num?)?.toInt(),
+      observedAvgChargePowerKw: (json['observedAvgChargePowerKw'] as num?)?.toDouble(),
     );
   }
 }
@@ -190,12 +243,18 @@ class Review {
   final String? adminNote;
   final DateTime reviewedAt;
   final String reviewedBy;
+  final bool? swapStationVerified;
+  final bool? inventoryAccurate;
+  final String? resolutionNote;
 
   Review({
     required this.result,
     this.adminNote,
     required this.reviewedAt,
     required this.reviewedBy,
+    this.swapStationVerified,
+    this.inventoryAccurate,
+    this.resolutionNote,
   });
 
   factory Review.fromJson(Map<String, dynamic> json) {
@@ -206,6 +265,9 @@ class Review {
           ? DateTime.parse(json['reviewedAt'] as String)
           : DateTime.now(),
       reviewedBy: json['reviewedBy'] as String? ?? 'Unknown',
+      swapStationVerified: json['swapStationVerified'] as bool?,
+      inventoryAccurate: json['inventoryAccurate'] as bool?,
+      resolutionNote: json['resolutionNote'] as String?,
     );
   }
 

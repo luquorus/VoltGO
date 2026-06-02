@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/station_providers.dart';
 import '../widgets/report_issue_bottom_sheet.dart';
+import '../widgets/swap_trust_badge.dart';
 
 /// Station Detail Screen
 class StationDetailScreen extends ConsumerStatefulWidget {
@@ -90,6 +91,8 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
     final publicStatus = station['publicStatus'] as String? ?? 'ACTIVE';
     final ports = station['ports'] as List<dynamic>? ?? [];
     final supportsSwap = station['supportsBatterySwap'] == true;
+    final swapTrustScore = station['swapTrustScore'] as int?;
+    final swapTrustLevel = station['swapTrustLevel'] as String?;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -98,6 +101,17 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
         children: [
           // Header: name + address + trustScore badge
           _buildHeader(context, theme, name, address, trustScore),
+
+          // Swap Trust Badge (for battery swap stations)
+          if (supportsSwap) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: SwapTrustBadge(
+                trustScore: swapTrustScore,
+                trustLevel: swapTrustLevel,
+              ),
+            ),
+          ],
 
           // Info section: hours, parking, status
           _buildInfoSection(context, theme, operatingHours, parking, publicStatus, visibility),

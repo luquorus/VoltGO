@@ -40,5 +40,14 @@ public interface VerificationReviewJpaRepository extends JpaRepository<Verificat
     List<VerificationReviewEntity> findRecentReviewsForStation(
             @Param("stationId") UUID stationId,
             @Param("since") Instant since);
+
+    // For trust history: find all reviews for a station ordered by review date
+    @Query("""
+        SELECT r FROM VerificationReviewEntity r
+        JOIN VerificationTaskEntity t ON t.id = r.taskId
+        WHERE t.stationId = :stationId
+        ORDER BY r.reviewedAt DESC
+        """)
+    List<VerificationReviewEntity> findAllReviewsForStation(@Param("stationId") UUID stationId);
 }
 

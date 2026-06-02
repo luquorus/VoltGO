@@ -41,6 +41,15 @@ public class VerificationCheckinEntity {
     @Column(name = "device_note")
     private String deviceNote;
     
+    @Column(name = "actual_total_batteries")
+    private Integer actualTotalBatteries;
+    
+    @Column(name = "actual_available_batteries")
+    private Integer actualAvailableBatteries;
+    
+    @Column(name = "observed_avg_charge_power_kw", precision = 6, scale = 2)
+    private java.math.BigDecimal observedAvgChargePowerKw;
+    
     @PrePersist
     protected void onCreate() {
         if (id == null) {

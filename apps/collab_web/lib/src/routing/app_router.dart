@@ -10,6 +10,8 @@ import '../screens/task_kpi_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/contracts_screen.dart';
+import '../screens/swap_verification_tasks_screen.dart';
+import '../screens/swap_kpi_screen.dart';
 
 /// Route paths for Collaborator Web
 class CollabRoutes {
@@ -21,6 +23,10 @@ class CollabRoutes {
   static const String tasks = '/tasks';
   static const String taskHistory = '/tasks/history';
   static const String taskKpi = '/tasks/kpi';
+
+  // Battery swap task routes
+  static const String batterySwapTasks = '/battery-swap';
+  static const String batterySwapKpi = '/battery-swap/kpi';
 
   // Profile/Account routes
   static const String profile = '/me/profile';
@@ -86,6 +92,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: CollabRoutes.taskKpi,
         builder: (_, __) => const TaskKPIScreen(),
+      ),
+      // Battery swap task routes
+      GoRoute(
+        path: CollabRoutes.batterySwapTasks,
+        builder: (_, __) => const SwapVerificationTasksScreen(),
+      ),
+      GoRoute(
+        path: CollabRoutes.batterySwapKpi,
+        builder: (_, __) => const SwapKPIScreen(),
       ),
       // Profile/Account routes
       GoRoute(

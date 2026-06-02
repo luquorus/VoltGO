@@ -6,6 +6,7 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_api/shared_api.dart';
 import '../models/admin_verification_task.dart';
 import '../providers/verification_task_providers.dart';
+import '../providers/battery_swap_trust_providers.dart';
 import '../providers/file_viewer_providers.dart';
 import '../services/file_viewer_service.dart';
 import '../theme/admin_theme.dart';
@@ -175,6 +176,12 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
           _buildBasicInfoSection(context, theme, task),
           const SizedBox(height: 24),
 
+          // Battery Swap Specific Info
+          if (task.isBatterySwapStation) ...[
+            _buildBatterySwapInfoSection(context, theme, ref, task),
+            const SizedBox(height: 24),
+          ],
+
           // Check-in Info
           if (task.checkin != null) ...[
             _buildCheckinSection(context, theme, task.checkin!),
@@ -323,6 +330,136 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
             if (task.assignedToEmail != null)
               _buildInfoRow(context, theme, 'Assigned To', task.assignedToEmail!,
                   icon: Icons.person),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBatterySwapInfoSection(BuildContext context, ThemeData theme, WidgetRef ref, AdminVerificationTask task) {
+    final trustAsync = ref.watch(batterySwapTrustProvider(task.stationId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.battery_charging_full, color: Colors.amber),
+                const SizedBox(width: 8),
+                Text(
+                  'Battery Swap Station Info',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Snapshot comparison (expected vs actual)
+            if (task.batterySwapStationSnapshot != null) ...[
+              _buildSnapshotComparison(theme, task),
+              const SizedBox(height: 16),
+            ],
+
+            trustAsync.when(
+              data: (trust) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: trust.scoreColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: trust.scoreColor.withOpacity(0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          trust.levelIcon,
+                          color: trust.scoreColor,
+                          size: 32,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Trust Score',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              Text(
+                                '${trust.score} / 100 (${trust.levelLabel})',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: trust.scoreColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            context.push('/battery-swap/trust/${task.stationId}');
+                          },
+                          icon: const Icon(Icons.dashboard, size: 16),
+                          label: const Text('Details'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AdminTheme.primaryTeal,
+                            side: BorderSide(color: AdminTheme.primaryTeal),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'This verification task is for a battery swap station. During verification, '
+                    'ensure that the battery inventory, pile count, and slot count match the expected values.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (error, stack) => Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning, color: theme.colorScheme.error, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Could not load trust score',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -864,6 +1001,202 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     return Colors.blue;
   }
 
+  Widget _buildSnapshotComparison(ThemeData theme, AdminVerificationTask task) {
+    final snapshot = task.batterySwapStationSnapshot!;
+    final checkin = task.checkin;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.compare_arrows, color: AdminTheme.primaryTeal, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Inventory Snapshot',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildComparisonRow(
+            theme,
+            'Total Batteries',
+            snapshot.totalBatteries,
+            checkin?.actualTotalBatteries,
+          ),
+          const SizedBox(height: 8),
+          _buildComparisonRow(
+            theme,
+            'Available Batteries',
+            null,
+            checkin?.actualAvailableBatteries,
+            subtitle: 'Expected: N/A (dynamic)',
+          ),
+          const SizedBox(height: 8),
+          _buildComparisonRow(
+            theme,
+            'Pile Count',
+            snapshot.pileCount,
+            null,
+            subtitle: checkin != null ? null : 'Collab submits at site',
+          ),
+          const SizedBox(height: 8),
+          _buildComparisonRow(
+            theme,
+            'Slot Count',
+            snapshot.slotCount,
+            null,
+            subtitle: checkin != null ? null : 'Collab submits at site',
+          ),
+          const SizedBox(height: 8),
+          _buildComparisonRow(
+            theme,
+            'Avg Charge Power',
+            null,
+            null,
+            subtitle: snapshot.avgChargePowerKw > 0
+                ? '${snapshot.avgChargePowerKw.toStringAsFixed(1)} kW (expected)'
+                : 'N/A',
+          ),
+          const SizedBox(height: 8),
+          _buildComparisonRow(
+            theme,
+            'Base Price',
+            null,
+            null,
+            subtitle: snapshot.basePriceVnd > 0
+                ? '${snapshot.basePriceVnd} VND'
+                : 'N/A',
+          ),
+          if (task.riskReasons.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Risk Reasons:',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 4),
+            ...task.riskReasons.map((r) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber, size: 14,
+                          color: Colors.orange.shade700),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          r,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComparisonRow(
+    ThemeData theme,
+    String label,
+    int? expected,
+    int? actual, {
+    String? subtitle,
+  }) {
+    final bool showMismatch = expected != null && actual != null && expected != actual;
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+        if (expected != null) ...[
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AdminTheme.primaryTeal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$expected',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AdminTheme.primaryTeal,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.arrow_forward, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: actual != null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: showMismatch
+                          ? Colors.red.shade50
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: showMismatch
+                          ? Border.all(color: Colors.red.shade200)
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$actual',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: showMismatch ? Colors.red : Colors.green,
+                      ),
+                    ),
+                  )
+                : Text(
+                    subtitle ?? '—',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+          ),
+        ] else ...[
+          Expanded(
+            flex: 3,
+            child: Text(
+              subtitle ?? '—',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} '
         '${dateTime.hour.toString().padLeft(2, '0')}:'
@@ -875,109 +1208,153 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     String? selectedResult;
     final noteController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final bool isBatterySwap = task.isBatterySwapStation;
+    bool swapStationVerified = true;
+    bool inventoryAccurate = true;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Review Task'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Select review result:'),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedResult,
-                  decoration: const InputDecoration(
-                    labelText: 'Result *',
-                    border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Review Task'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Select review result:'),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedResult,
+                    decoration: const InputDecoration(
+                      labelText: 'Result *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'PASS', child: Text('PASS')),
+                      DropdownMenuItem(value: 'FAIL', child: Text('FAIL')),
+                    ],
+                    validator: (value) =>
+                        value == null ? 'Result is required' : null,
+                    onChanged: (value) {
+                      selectedResult = value;
+                    },
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'PASS', child: Text('PASS')),
-                    DropdownMenuItem(value: 'FAIL', child: Text('FAIL')),
+                  if (isBatterySwap) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Battery Swap Verification Assessment:',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      value: swapStationVerified,
+                      onChanged: (v) {
+                        setDialogState(() => swapStationVerified = v ?? true);
+                      },
+                      title: const Text('Swap station verified'),
+                      subtitle: const Text(
+                          'Collab confirmed station is operational'),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    CheckboxListTile(
+                      value: inventoryAccurate,
+                      onChanged: (v) {
+                        setDialogState(() => inventoryAccurate = v ?? true);
+                      },
+                      title: const Text('Inventory accurate'),
+                      subtitle: const Text(
+                          'Battery count matches expected snapshot'),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
                   ],
-                  validator: (value) =>
-                      value == null ? 'Result is required' : null,
-                  onChanged: (value) {
-                    selectedResult = value;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Admin Note (Optional)',
-                    hintText: 'Add a note...',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Admin Note (Optional)',
+                      hintText: 'Add a note...',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
                   ),
-                  maxLines: 3,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate() && selectedResult != null) {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Confirm Review'),
-                    content: Text(
-                      'Are you sure you want to mark this task as $selectedResult?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate() && selectedResult != null) {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Confirm Review'),
+                      content: Text(
+                        'Are you sure you want to mark this task as $selectedResult?',
                       ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AdminTheme.primaryTeal,
-                          foregroundColor: Colors.white,
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel'),
                         ),
-                        child: const Text('Confirm'),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirmed == true) {
-                  await _handleReview(
-                    context,
-                    ref,
-                    task,
-                    selectedResult!,
-                    noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AdminTheme.primaryTeal,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Confirm'),
+                        ),
+                      ],
+                    ),
                   );
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
+
+                  if (confirmed == true) {
+                    await _handleReview(
+                      context,
+                      ref,
+                      task,
+                      selectedResult!,
+                      noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
+                      isBatterySwap ? swapStationVerified : null,
+                      isBatterySwap ? inventoryAccurate : null,
+                    );
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
                   }
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AdminTheme.primaryTeal,
-              foregroundColor: Colors.white,
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primaryTeal,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Submit Review'),
             ),
-            child: const Text('Submit Review'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _handleReview(BuildContext context, WidgetRef ref,
-      AdminVerificationTask task, String result, String? adminNote) async {
+      AdminVerificationTask task, String result, String? adminNote,
+      [bool? swapStationVerified, bool? inventoryAccurate]) async {
     try {
       final factory = ref.read(apiClientFactoryProvider);
       if (factory == null) throw Exception('API client not initialized');
@@ -986,6 +1363,8 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
         id: task.id,
         result: result,
         adminNote: adminNote,
+        swapStationVerified: swapStationVerified,
+        inventoryAccurate: inventoryAccurate,
       );
 
       if (context.mounted) {

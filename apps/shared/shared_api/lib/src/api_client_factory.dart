@@ -585,6 +585,54 @@ class CollaboratorMobileApiClient extends BaseApiClient {
       },
     );
   }
+
+  // ============================================
+  // Battery Swap Verification Endpoints
+  // ============================================
+
+  /// POST /api/collab/mobile/tasks/{id}/battery-swap-check-in
+  Future<Map<String, dynamic>> batterySwapCheckIn({
+    required String taskId,
+    required double lat,
+    required double lng,
+    required int batteryInventoryCount,
+    required int pileCount,
+    required int slotCount,
+    required bool isOperatingHoursAccurate,
+    int? parkingFee,
+    String? notes,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/collab/mobile/tasks/$taskId/battery-swap-check-in',
+      data: {
+        'lat': lat,
+        'lng': lng,
+        'batteryInventoryCount': batteryInventoryCount,
+        'pileCount': pileCount,
+        'slotCount': slotCount,
+        'isOperatingHoursAccurate': isOperatingHoursAccurate,
+        if (parkingFee != null) 'parkingFee': parkingFee,
+        if (notes != null) 'notes': notes,
+      },
+    );
+  }
+
+  /// POST /api/collab/mobile/tasks/{id}/battery-swap-submit-evidence
+  Future<Map<String, dynamic>> batterySwapSubmitEvidence({
+    required String taskId,
+    required String photoObjectKey,
+    String? evidenceType,
+    String? note,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/collab/mobile/tasks/$taskId/battery-swap-submit-evidence',
+      data: {
+        'photoObjectKey': photoObjectKey,
+        if (evidenceType != null) 'evidenceType': evidenceType,
+        if (note != null) 'note': note,
+      },
+    );
+  }
 }
 
 /// Collaborator Web API Client
@@ -668,6 +716,36 @@ class CollaboratorWebApiClient extends BaseApiClient {
       },
     );
   }
+
+  // ============================================
+  // Battery Swap Verification Tasks Endpoints
+  // ============================================
+
+  /// GET /api/collab/web/battery-swap/tasks
+  Future<Map<String, dynamic>> getBatterySwapTasks({
+    String? status,
+    int page = 0,
+    int size = 50,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/collab/web/battery-swap/tasks',
+      queryParameters: {
+        if (status != null) 'status': status,
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/collab/web/battery-swap/tasks/{id}
+  Future<Map<String, dynamic>> getBatterySwapTask(String id) {
+    return get<Map<String, dynamic>>('/api/collab/web/battery-swap/tasks/$id');
+  }
+
+  /// GET /api/collab/web/battery-swap/kpi
+  Future<Map<String, dynamic>> getBatterySwapKpi() {
+    return get<Map<String, dynamic>>('/api/collab/web/battery-swap/kpi');
+  }
 }
 
 /// Public API Client
@@ -745,6 +823,7 @@ class AdminWebApiClient extends BaseApiClient {
     String? changeRequestId,
     int? priority,
     String? slaDueAt, // ISO 8601 string
+    String? verificationType, // CHARGING or BATTERY_SWAP
   }) {
     return post<Map<String, dynamic>>(
       '/api/admin/verification-tasks',
@@ -753,6 +832,7 @@ class AdminWebApiClient extends BaseApiClient {
         if (changeRequestId != null) 'changeRequestId': changeRequestId,
         if (priority != null) 'priority': priority,
         if (slaDueAt != null) 'slaDueAt': slaDueAt,
+        if (verificationType != null) 'verificationType': verificationType,
       },
     );
   }
@@ -760,6 +840,7 @@ class AdminWebApiClient extends BaseApiClient {
   /// GET /api/admin/verification-tasks
   Future<Map<String, dynamic>> getVerificationTasks({
     String? status,
+    String? verificationType,
     int page = 0,
     int size = 20,
   }) {
@@ -767,6 +848,7 @@ class AdminWebApiClient extends BaseApiClient {
       '/api/admin/verification-tasks',
       queryParameters: {
         if (status != null) 'status': status,
+        if (verificationType != null) 'verificationType': verificationType,
         'page': page,
         'size': size,
       },
@@ -817,12 +899,16 @@ class AdminWebApiClient extends BaseApiClient {
     required String id,
     required String result, // PASS or FAIL
     String? adminNote,
+    bool? swapStationVerified,
+    bool? inventoryAccurate,
   }) {
     return post<Map<String, dynamic>>(
       '/api/admin/verification-tasks/$id/review',
       data: {
         'result': result,
         if (adminNote != null) 'adminNote': adminNote,
+        if (swapStationVerified != null) 'swapStationVerified': swapStationVerified,
+        if (inventoryAccurate != null) 'inventoryAccurate': inventoryAccurate,
       },
     );
   }
@@ -1069,6 +1155,116 @@ class AdminWebApiClient extends BaseApiClient {
   /// Delete (archive) a station
   Future<void> deleteStation(String id) {
     return delete<void>('/api/admin/stations/$id');
+  }
+
+  // ============================================
+  // Battery Swap Change Request Endpoints
+  // ============================================
+
+  /// GET /api/admin/battery-swap/change-requests
+  Future<List<dynamic>> getBatterySwapChangeRequests({String? status}) {
+    return get<List<dynamic>>(
+      '/api/admin/battery-swap/change-requests',
+      queryParameters: status != null ? {'status': status} : null,
+    );
+  }
+
+  /// GET /api/admin/battery-swap/change-requests/{id}
+  Future<Map<String, dynamic>> getBatterySwapChangeRequest(String id) {
+    return get<Map<String, dynamic>>('/api/admin/battery-swap/change-requests/$id');
+  }
+
+  /// POST /api/admin/battery-swap/change-requests/{id}/approve
+  Future<Map<String, dynamic>> approveBatterySwapChangeRequest(String id, {String? note}) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/battery-swap/change-requests/$id/approve',
+      data: note != null ? {'note': note} : null,
+    );
+  }
+
+  /// POST /api/admin/battery-swap/change-requests/{id}/reject
+  Future<Map<String, dynamic>> rejectBatterySwapChangeRequest(String id, {required String reason}) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/battery-swap/change-requests/$id/reject',
+      data: {'reason': reason},
+    );
+  }
+
+  /// POST /api/admin/battery-swap/change-requests/{id}/publish
+  Future<Map<String, dynamic>> publishBatterySwapChangeRequest(String id) {
+    return post<Map<String, dynamic>>('/api/admin/battery-swap/change-requests/$id/publish');
+  }
+
+  // ============================================
+  // Battery Swap Trust Endpoints
+  // ============================================
+
+  /// GET /api/admin/battery-swap/trust/{stationId}
+  Future<Map<String, dynamic>> getBatterySwapTrust(String stationId) {
+    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId');
+  }
+
+  /// GET /api/admin/battery-swap/trust/{stationId}/breakdown
+  Future<Map<String, dynamic>> getBatterySwapTrustBreakdown(String stationId) {
+    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId/breakdown');
+  }
+
+  /// GET /api/admin/battery-swap/trust/{stationId}/level
+  Future<String> getBatterySwapTrustLevel(String stationId) {
+    return get<String>('/api/admin/battery-swap/trust/$stationId/level');
+  }
+
+  /// POST /api/admin/battery-swap/trust/{stationId}/recalculate
+  Future<Map<String, dynamic>> recalculateBatterySwapTrust(String stationId) {
+    return post<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId/recalculate');
+  }
+
+  /// GET /api/admin/battery-swap/trust/summary
+  Future<Map<String, dynamic>> getBatterySwapTrustSummary() {
+    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/summary');
+  }
+
+  // ============================================
+  // Battery Swap Station Management Endpoints
+  // ============================================
+
+  /// GET /api/admin/battery-swap/stations
+  Future<Map<String, dynamic>> getBatterySwapStations({int page = 0, int size = 20}) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/battery-swap/stations',
+      queryParameters: {'page': page, 'size': size},
+    );
+  }
+
+  /// GET /api/admin/battery-swap/stations/{stationId}
+  Future<Map<String, dynamic>> getBatterySwapStation(String stationId) {
+    return get<Map<String, dynamic>>('/api/admin/battery-swap/stations/$stationId');
+  }
+
+  /// PUT /api/admin/battery-swap/stations/{stationId}
+  /// Update a battery swap station directly (admin edit)
+  Future<Map<String, dynamic>> updateBatterySwapStation(String stationId, Map<String, dynamic> data) {
+    return put<Map<String, dynamic>>(
+      '/api/admin/battery-swap/stations/$stationId',
+      data: data,
+    );
+  }
+
+  /// POST /api/admin/battery-swap/change-requests
+  Future<Map<String, dynamic>> createBatterySwapChangeRequest(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/battery-swap/change-requests',
+      data: data,
+    );
+  }
+
+  /// PUT /api/admin/battery-swap/change-requests/{id}
+  /// Update a DRAFT battery swap change request
+  Future<Map<String, dynamic>> updateBatterySwapChangeRequest(String crId, Map<String, dynamic> data) {
+    return put<Map<String, dynamic>>(
+      '/api/admin/battery-swap/change-requests/$crId',
+      data: data,
+    );
   }
 }
 

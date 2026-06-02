@@ -53,6 +53,12 @@ class CollabSidebar extends StatelessWidget {
       icon: Icons.battery_charging_full_outlined,
       activeIcon: Icons.battery_charging_full,
     ),
+    SidebarItem(
+      path: '/battery-swap/kpi',
+      label: 'Swap KPI',
+      icon: Icons.analytics_outlined,
+      activeIcon: Icons.analytics,
+    ),
   ];
 
   static const List<SidebarItem> _profileItems = [
@@ -76,6 +82,10 @@ class CollabSidebar extends StatelessWidget {
           (currentPath.startsWith('/tasks/') && 
            currentPath != '/tasks/history' && 
            currentPath != '/tasks/kpi');
+    }
+    if (path == '/battery-swap') {
+      return currentPath == '/battery-swap' || 
+          currentPath.startsWith('/battery-swap/');
     }
     return currentPath == path || currentPath.startsWith('$path/');
   }

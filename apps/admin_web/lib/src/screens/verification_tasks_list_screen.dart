@@ -134,6 +134,67 @@ class _VerificationTasksListScreenState
               ),
             ),
           ),
+          const SizedBox(width: 24),
+          Text(
+            'Type:',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(width: 16),
+          // Type filter toggle buttons
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: theme.colorScheme.outline),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: VerificationTypeFilter.values.map((type) {
+                final isSelected = filters.typeFilter == type;
+                return InkWell(
+                  onTap: () {
+                    ref.read(verificationTaskFiltersProvider.notifier).state =
+                        filters.copyWith(typeFilter: type);
+                    ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AdminTheme.primaryTeal.withOpacity(0.1) : null,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          type == VerificationTypeFilter.batterySwap
+                              ? Icons.battery_charging_full
+                              : type == VerificationTypeFilter.chargingStation
+                                  ? Icons.ev_station
+                                  : Icons.list,
+                          size: 16,
+                          color: isSelected
+                              ? AdminTheme.primaryTeal
+                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          type.displayName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isSelected
+                                ? AdminTheme.primaryTeal
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontWeight: isSelected ? FontWeight.w600 : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         ],
       ),
     );
@@ -146,10 +207,17 @@ class _VerificationTasksListScreenState
     int assigned = 0;
     int submitted = 0;
     int reviewed = 0;
+    int chargingCount = 0;
+    int batterySwapCount = 0;
 
     tasksPageAsync.whenData((page) {
       total = page.totalElements;
       for (final task in page.content) {
+        if (task.isBatterySwapStation) {
+          batterySwapCount++;
+        } else if (task.isChargingStation) {
+          chargingCount++;
+        }
         switch (task.status) {
           case VerificationTaskStatus.open:
             open++;
@@ -179,6 +247,10 @@ class _VerificationTasksListScreenState
         _buildStatCard(theme, icon: Icons.pending, label: 'Submitted', value: submitted.toString(), color: Colors.purple),
         const SizedBox(width: 16),
         _buildStatCard(theme, icon: Icons.check_circle, label: 'Reviewed', value: reviewed.toString(), color: Colors.green),
+        const SizedBox(width: 16),
+        _buildStatCard(theme, icon: Icons.ev_station, label: 'Charging', value: chargingCount.toString(), color: Colors.teal),
+        const SizedBox(width: 16),
+        _buildStatCard(theme, icon: Icons.battery_charging_full, label: 'Battery Swap', value: batterySwapCount.toString(), color: Colors.amber),
       ],
     );
   }
@@ -351,11 +423,25 @@ class _VerificationTasksListScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.stationName,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      if (task.isBatterySwapStation) ...[
+                        Icon(Icons.battery_charging_full, size: 16, color: Colors.amber),
+                        const SizedBox(width: 4),
+                      ] else if (task.isChargingStation) ...[
+                        Icon(Icons.ev_station, size: 16, color: Colors.teal),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          task.stationName,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(

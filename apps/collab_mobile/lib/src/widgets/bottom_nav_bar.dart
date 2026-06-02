@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 
 /// Bottom Navigation Bar for Collaborator Mobile App
@@ -15,7 +14,8 @@ class CollabBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isTasks = currentLocation == '/tasks' || currentLocation.startsWith('/tasks/');
+    final isChargingTasks = currentLocation == '/tasks' || currentLocation.startsWith('/tasks/');
+    final isBatterySwap = currentLocation == '/battery-swap' || currentLocation.startsWith('/battery-swap/');
     final isProfile = currentLocation == '/profile';
 
     return Container(
@@ -29,18 +29,23 @@ class CollabBottomNavBar extends StatelessWidget {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _getCurrentIndex(isTasks, isProfile),
+        currentIndex: _getCurrentIndex(isChargingTasks, isBatterySwap, isProfile),
         onTap: (index) => _onTap(context, index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: theme.colorScheme.primary,
         unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
-            label: 'Tasks',
+            label: 'Charging',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.battery_charging_full_outlined),
+            activeIcon: Icon(Icons.battery_charging_full),
+            label: 'Swap',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -52,10 +57,11 @@ class CollabBottomNavBar extends StatelessWidget {
     );
   }
 
-  int _getCurrentIndex(bool isTasks, bool isProfile) {
-    if (isTasks) return 0;
-    if (isProfile) return 1;
-    return 0; // Default to tasks
+  int _getCurrentIndex(bool isChargingTasks, bool isBatterySwap, bool isProfile) {
+    if (isBatterySwap) return 1;
+    if (isChargingTasks) return 0;
+    if (isProfile) return 2;
+    return 0;
   }
 
   void _onTap(BuildContext context, int index) {
@@ -64,9 +70,11 @@ class CollabBottomNavBar extends StatelessWidget {
         context.go('/tasks');
         break;
       case 1:
+        context.go('/battery-swap');
+        break;
+      case 2:
         context.go('/profile');
         break;
     }
   }
 }
-

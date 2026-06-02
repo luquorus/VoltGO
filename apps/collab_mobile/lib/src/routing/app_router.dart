@@ -9,6 +9,8 @@ import '../screens/task_detail_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/forbidden_screen.dart';
+import '../screens/swap_verification_task_detail_screen.dart';
+import '../screens/swap_task_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -50,6 +52,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final taskId = state.pathParameters['taskId'] ?? '';
           return TaskDetailScreen(taskId: taskId);
+        },
+      ),
+      // Battery swap verification routes
+      GoRoute(
+        path: '/battery-swap',
+        builder: (_, __) => const SwapTaskListScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap/:taskId',
+        builder: (context, state) {
+          final taskId = state.pathParameters['taskId'] ?? '';
+          return SwapVerificationTaskDetailScreen(taskId: taskId);
         },
       ),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),

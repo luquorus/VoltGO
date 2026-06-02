@@ -1,9 +1,14 @@
 package com.example.evstation.risk.application;
 
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapChangeRequestEntity;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationVersionEntity;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationVersionJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapTrustJpaRepository;
 import com.example.evstation.risk.domain.RiskAssessment;
 import com.example.evstation.risk.domain.RiskReasonCode;
 import com.example.evstation.station.domain.ChangeRequestType;
 import com.example.evstation.station.domain.ServiceType;
+import com.example.evstation.station.domain.WorkflowStatus;
 import com.example.evstation.station.infrastructure.jpa.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +45,10 @@ public class RiskEngineService {
     private final StationVersionJpaRepository stationVersionRepository;
     private final StationServiceJpaRepository stationServiceRepository;
     private final ChargingPortJpaRepository chargingPortRepository;
+    private final BatterySwapStationVersionJpaRepository batterySwapStationVersionRepository;
+    private final BatterySwapTrustJpaRepository batterySwapTrustRepository;
+    private final BatterySwapRiskAssessor batterySwapRiskAssessor;
+    private final StationJpaRepository stationRepository;
 
     /**
      * Assess the risk of a change request.
@@ -310,6 +319,48 @@ public class RiskEngineService {
                 .toList();
         
         return chargingPortRepository.findByStationServiceIds(serviceIds);
+    }
+
+    /**
+     * Assess the risk of a battery swap change request.
+     * Delegates to BatterySwapRiskAssessor for detailed analysis.
+     * 
+     * @param changeRequest The battery swap change request entity
+     * @return BatterySwapRiskAssessmentResult containing score, reasons, and flags
+     */
+    @Transactional(readOnly = true)
+    public BatterySwapRiskAssessmentResult assessBatterySwapChangeRequest(BatterySwapChangeRequestEntity changeRequest) {
+        log.info("Assessing battery swap change request: id={}, type={}, status={}", 
+                changeRequest.getId(), changeRequest.getType(), changeRequest.getStatus());
+        
+        // Load proposed version
+        BatterySwapStationVersionEntity proposedVersion = batterySwapStationVersionRepository
+                .findById(changeRequest.getProposedVersionId())
+                .orElseThrow(() -> new IllegalStateException("Proposed battery swap station version not found: " + 
+                        changeRequest.getProposedVersionId()));
+        
+        // Load published version for comparison (if exists)
+        BatterySwapStationVersionEntity publishedVersion = null;
+        if (changeRequest.getStationId() != null) {
+            publishedVersion = batterySwapStationVersionRepository
+                    .findByStationIdAndWorkflowStatus(changeRequest.getStationId(), 
+                            WorkflowStatus.PUBLISHED)
+                    .orElse(null);
+        }
+        
+        // Load station entity if stationId exists
+        StationEntity station = null;
+        if (changeRequest.getStationId() != null) {
+            station = stationRepository.findById(changeRequest.getStationId()).orElse(null);
+        }
+        
+        // Load trust record
+        var trust = changeRequest.getStationId() != null 
+                ? batterySwapTrustRepository.findByStationId(changeRequest.getStationId()).orElse(null)
+                : null;
+        
+        // Delegate to BatterySwapRiskAssessor
+        return batterySwapRiskAssessor.assess(changeRequest, proposedVersion, publishedVersion, station, trust);
     }
 }
 
