@@ -37,10 +37,12 @@ public class AdminBatterySwapStationController {
             @Parameter(description = "Page number (0-based)")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size")
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Search by station name or ID")
+            @RequestParam(required = false) String search) {
 
-        log.info("Admin listing battery swap stations: page={}, size={}", page, size);
-        PaginationResponse<BatterySwapStationListDTO> response = service.listStations(page, size);
+        log.info("Admin listing battery swap stations: page={}, size={}, search={}", page, size, search);
+        PaginationResponse<BatterySwapStationListDTO> response = service.listStations(page, size, search);
         return ResponseEntity.ok(response);
     }
 

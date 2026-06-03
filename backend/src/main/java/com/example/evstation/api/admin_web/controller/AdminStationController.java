@@ -47,12 +47,14 @@ public class AdminStationController {
     public ResponseEntity<PaginationResponse<AdminStationDTO>> getAllStations(
             PaginationRequest pagination,
             @Parameter(description = "Filter by service type (CHARGING or BATTERY_SWAP). Defaults to CHARGING.")
-            @RequestParam(required = false, defaultValue = "CHARGING") ServiceType serviceType) {
-        
-        log.info("Admin getting all stations: page={}, size={}, serviceType={}", 
-                pagination.getPage(), pagination.getSize(), serviceType);
-        
-        Page<AdminStationDTO> page = adminStationService.getAllStations(pagination.toPageable(), serviceType);
+            @RequestParam(required = false, defaultValue = "CHARGING") ServiceType serviceType,
+            @Parameter(description = "Search by station name or ID")
+            @RequestParam(required = false) String search) {
+
+        log.info("Admin getting all stations: page={}, size={}, serviceType={}, search={}",
+                pagination.getPage(), pagination.getSize(), serviceType, search);
+
+        Page<AdminStationDTO> page = adminStationService.getAllStations(pagination.toPageable(), serviceType, search);
         return ResponseEntity.ok(PaginationResponse.fromPage(page));
     }
     

@@ -162,7 +162,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       // Refresh stations list if any were imported successfully
       if (successCount > 0) {
         // Invalidate all station providers to refresh the list
-        ref.invalidate(stationsProvider((page: 0, size: 20)));
+        ref.invalidate(stationsProvider((page: 0, size: 20, search: null)));
       }
 
       // Show detailed notification

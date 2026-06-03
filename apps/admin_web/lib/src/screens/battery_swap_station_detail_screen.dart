@@ -966,7 +966,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
                       ),
                     );
                     ref.invalidate(batterySwapStationsProvider(
-                        (page: 0, size: 20)));
+                        (page: 0, size: 20, search: null)));
                     ref.invalidate(batterySwapStationProvider(station.id));
                   }
                 } catch (e) {

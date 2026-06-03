@@ -339,7 +339,7 @@ class StationDetailScreen extends ConsumerWidget {
                 print('Delete successful');
                 
                 // Invalidate stations provider to refresh the list
-                ref.invalidate(stationsProvider((page: 0, size: 20)));
+                ref.invalidate(stationsProvider((page: 0, size: 20, search: null)));
                 
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

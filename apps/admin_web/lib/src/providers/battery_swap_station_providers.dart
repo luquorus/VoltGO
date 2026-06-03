@@ -3,9 +3,9 @@ import 'package:shared_api/shared_api.dart';
 import '../models/battery_swap_station.dart';
 import '../models/pagination_response.dart';
 
-/// Provider for battery swap stations list with pagination
+/// Provider for battery swap stations list with pagination and optional search
 final batterySwapStationsProvider =
-    FutureProvider.family<PaginationResponse<BatterySwapStation>, ({int page, int size})>(
+    FutureProvider.family<PaginationResponse<BatterySwapStation>, ({int page, int size, String? search})>(
         (ref, params) async {
   final factory = ref.watch(apiClientFactoryProvider);
   if (factory == null) throw Exception('API client not initialized');
@@ -13,6 +13,7 @@ final batterySwapStationsProvider =
   final response = await factory.admin.getBatterySwapStations(
     page: params.page,
     size: params.size,
+    search: params.search,
   );
 
   final content = (response['content'] as List<dynamic>?)
@@ -47,3 +48,6 @@ final batterySwapStationsPageProvider = StateProvider<int>((ref) => 0);
 
 /// Provider for page size
 final batterySwapStationsPageSizeProvider = StateProvider<int>((ref) => 20);
+
+/// Provider for search query
+final batterySwapStationsSearchProvider = StateProvider<String?>((ref) => null);

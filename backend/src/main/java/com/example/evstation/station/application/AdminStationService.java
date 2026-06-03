@@ -58,22 +58,27 @@ public class AdminStationService {
      * Defaults to CHARGING stations only to match the /stations admin page.
      */
     @Transactional(readOnly = true)
-    public Page<AdminStationDTO> getAllStations(Pageable pageable, ServiceType serviceType) {
-        log.info("Admin getting all stations: page={}, size={}, serviceType={}", 
-                pageable.getPageNumber(), pageable.getPageSize(), serviceType);
-        
-        Page<StationEntity> stations = stationRepository.findByServiceType(serviceType, pageable);
-        
+    public Page<AdminStationDTO> getAllStations(Pageable pageable, ServiceType serviceType, String search) {
+        log.info("Admin getting all stations: page={}, size={}, serviceType={}, search={}",
+                pageable.getPageNumber(), pageable.getPageSize(), serviceType, search);
+
+        Page<StationEntity> stations;
+        if (search != null && !search.isBlank()) {
+            stations = stationRepository.findByServiceTypeAndSearch(serviceType, search.trim(), pageable);
+        } else {
+            stations = stationRepository.findByServiceType(serviceType, pageable);
+        }
+
         return stations.map(this::buildAdminStationDTO);
     }
     
     /**
      * Get all stations with pagination, defaulting to CHARGING service type.
-     * @deprecated Use {@link #getAllStations(Pageable, ServiceType)} instead.
+     * @deprecated Use {@link #getAllStations(Pageable, ServiceType, String)} instead.
      */
     @Transactional(readOnly = true)
     public Page<AdminStationDTO> getAllStations(Pageable pageable) {
-        return getAllStations(pageable, ServiceType.CHARGING);
+        return getAllStations(pageable, ServiceType.CHARGING, null);
     }
     
     /**

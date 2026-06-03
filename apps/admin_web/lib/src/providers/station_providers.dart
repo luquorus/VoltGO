@@ -3,14 +3,15 @@ import 'package:shared_api/shared_api.dart';
 import '../models/admin_station.dart';
 import '../models/pagination_response.dart';
 
-/// Provider for stations list with pagination
-final stationsProvider = FutureProvider.family<PaginationResponse<AdminStation>, ({int page, int size})>((ref, params) async {
+/// Provider for stations list with pagination and optional search
+final stationsProvider = FutureProvider.family<PaginationResponse<AdminStation>, ({int page, int size, String? search})>((ref, params) async {
   final factory = ref.watch(apiClientFactoryProvider);
   if (factory == null) throw Exception('API client not initialized');
 
   final response = await factory.admin.getStations(
     page: params.page,
     size: params.size,
+    search: params.search,
   );
   
   final content = (response['content'] as List<dynamic>?)
@@ -43,3 +44,5 @@ final stationsPageProvider = StateProvider<int>((ref) => 0);
 /// Provider for page size
 final stationsPageSizeProvider = StateProvider<int>((ref) => 20);
 
+/// Provider for search query
+final stationsSearchProvider = StateProvider<String?>((ref) => null);

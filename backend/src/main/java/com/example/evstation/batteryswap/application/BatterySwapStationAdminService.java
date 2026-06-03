@@ -45,8 +45,8 @@ public class BatterySwapStationAdminService {
     private final SwapStationStateApplyService swapStationStateApplyService;
 
     @Transactional(readOnly = true)
-    public PaginationResponse<BatterySwapStationListDTO> listStations(int page, int size) {
-        log.info("Admin listing battery swap stations: page={}, size={}", page, size);
+    public PaginationResponse<BatterySwapStationListDTO> listStations(int page, int size, String search) {
+        log.info("Admin listing battery swap stations: page={}, size={}, search={}", page, size, search);
 
         List<UUID> bsStationIds = bsVersionRepository.findAll().stream()
                 .map(BatterySwapStationVersionEntity::getStationId)
@@ -55,6 +55,20 @@ public class BatterySwapStationAdminService {
 
         List<StationEntity> bsStations = stationRepository.findAll().stream()
                 .filter(s -> bsStationIds.contains(s.getId()))
+                .filter(s -> {
+                    if (search == null || search.isBlank()) {
+                        return true;
+                    }
+                    String searchLower = search.trim().toLowerCase();
+                    boolean matchesId = s.getId().toString().toLowerCase().contains(searchLower);
+                    var publishedVersion = stationVersionRepository
+                            .findByStationIdAndWorkflowStatus(s.getId(), WorkflowStatus.PUBLISHED)
+                            .orElse(null);
+                    boolean matchesName = publishedVersion != null
+                            && publishedVersion.getName() != null
+                            && publishedVersion.getName().toLowerCase().contains(searchLower);
+                    return matchesId || matchesName;
+                })
                 .toList();
 
         int total = bsStations.size();

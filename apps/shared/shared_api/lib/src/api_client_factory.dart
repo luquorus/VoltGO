@@ -1121,12 +1121,14 @@ class AdminWebApiClient extends BaseApiClient {
   Future<Map<String, dynamic>> getStations({
     int page = 0,
     int size = 20,
+    String? search,
   }) {
     return get<Map<String, dynamic>>(
       '/api/admin/stations',
       queryParameters: {
         'page': page,
         'size': size,
+        if (search != null && search.isNotEmpty) 'search': search,
       },
     );
   }
@@ -1234,10 +1236,14 @@ class AdminWebApiClient extends BaseApiClient {
   // ============================================
 
   /// GET /api/admin/battery-swap/stations
-  Future<Map<String, dynamic>> getBatterySwapStations({int page = 0, int size = 20}) {
+  Future<Map<String, dynamic>> getBatterySwapStations({int page = 0, int size = 20, String? search}) {
     return get<Map<String, dynamic>>(
       '/api/admin/battery-swap/stations',
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: {
+        'page': page,
+        'size': size,
+        if (search != null && search.isNotEmpty) 'search': search,
+      },
     );
   }
 

@@ -9,16 +9,30 @@ import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Battery Swap Stations List Screen
-class BatterySwapStationsListScreen extends ConsumerWidget {
+class BatterySwapStationsListScreen extends ConsumerStatefulWidget {
   const BatterySwapStationsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BatterySwapStationsListScreen> createState() => _BatterySwapStationsListScreenState();
+}
+
+class _BatterySwapStationsListScreenState extends ConsumerState<BatterySwapStationsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final page = ref.watch(batterySwapStationsPageProvider);
     final pageSize = ref.watch(batterySwapStationsPageSizeProvider);
+    final search = ref.watch(batterySwapStationsSearchProvider);
     final stationsAsync =
-        ref.watch(batterySwapStationsProvider((page: page, size: pageSize)));
+        ref.watch(batterySwapStationsProvider((page: page, size: pageSize, search: search)));
 
     return AdminScaffold(
       title: 'Battery Swap Stations',
@@ -88,6 +102,40 @@ class BatterySwapStationsListScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+            // Search bar
+            SizedBox(
+              width: 400,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search by name or ID...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: search != null && search.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref.read(batterySwapStationsSearchProvider.notifier).state = null;
+                            ref.read(batterySwapStationsPageProvider.notifier).state = 0;
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) {
+                  ref.read(batterySwapStationsSearchProvider.notifier).state = value.isEmpty ? null : value;
+                  ref.read(batterySwapStationsPageProvider.notifier).state = 0;
+                },
+                onSubmitted: (_) {
+                  ref.read(batterySwapStationsPageProvider.notifier).state = 0;
+                },
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Stations Table
@@ -106,7 +154,7 @@ class BatterySwapStationsListScreen extends ConsumerWidget {
                     traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(
-                          batterySwapStationsProvider((page: page, size: pageSize)));
+                          batterySwapStationsProvider((page: page, size: pageSize, search: search)));
                     },
                   ),
                 ),

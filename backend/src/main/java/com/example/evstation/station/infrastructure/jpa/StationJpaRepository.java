@@ -41,5 +41,22 @@ public interface StationJpaRepository extends JpaRepository<StationEntity, UUID>
         WHERE ss.serviceType = :serviceType
         """)
     Page<StationEntity> findByServiceType(@Param("serviceType") ServiceType serviceType, Pageable pageable);
+
+    /**
+     * Find all stations that have a published version with a specific service type,
+     * optionally filtered by name or station ID search.
+     */
+    @Query("""
+        SELECT DISTINCT s FROM StationEntity s
+        JOIN StationVersionEntity sv ON sv.stationId = s.id AND sv.workflowStatus = 'PUBLISHED'
+        JOIN StationServiceEntity ss ON ss.stationVersionId = sv.id
+        WHERE ss.serviceType = :serviceType
+        AND (LOWER(sv.name) LIKE LOWER(CONCAT('%', :search, '%'))
+             OR LOWER(CAST(s.id AS string)) LIKE LOWER(CONCAT('%', :search, '%')))
+        """)
+    Page<StationEntity> findByServiceTypeAndSearch(
+            @Param("serviceType") ServiceType serviceType,
+            @Param("search") String search,
+            Pageable pageable);
 }
 
