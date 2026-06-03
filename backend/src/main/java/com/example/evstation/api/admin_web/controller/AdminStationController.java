@@ -5,6 +5,7 @@ import com.example.evstation.common.web.PaginationRequest;
 import com.example.evstation.common.web.PaginationResponse;
 import com.example.evstation.station.application.AdminStationService;
 import com.example.evstation.station.application.CsvImportService;
+import com.example.evstation.station.domain.ServiceType;
 import com.example.evstation.trust.application.TrustScoringService;
 import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,15 +41,18 @@ public class AdminStationController {
 
     @Operation(
         summary = "List all stations",
-        description = "Get paginated list of all stations (admin only)"
+        description = "Get paginated list of all stations (admin only). Defaults to CHARGING stations only."
     )
     @GetMapping
     public ResponseEntity<PaginationResponse<AdminStationDTO>> getAllStations(
-            PaginationRequest pagination) {
+            PaginationRequest pagination,
+            @Parameter(description = "Filter by service type (CHARGING or BATTERY_SWAP). Defaults to CHARGING.")
+            @RequestParam(required = false, defaultValue = "CHARGING") ServiceType serviceType) {
         
-        log.info("Admin getting all stations: page={}, size={}", pagination.getPage(), pagination.getSize());
+        log.info("Admin getting all stations: page={}, size={}, serviceType={}", 
+                pagination.getPage(), pagination.getSize(), serviceType);
         
-        Page<AdminStationDTO> page = adminStationService.getAllStations(pagination.toPageable());
+        Page<AdminStationDTO> page = adminStationService.getAllStations(pagination.toPageable(), serviceType);
         return ResponseEntity.ok(PaginationResponse.fromPage(page));
     }
     
@@ -120,6 +124,16 @@ public class AdminStationController {
     }
     
     @Operation(
+        summary = "Get station trust score summary",
+        description = "Get aggregate trust score summary across all stations (admin only)"
+    )
+    @GetMapping("/trust/summary")
+    public ResponseEntity<StationTrustSummaryDTO> getTrustSummary() {
+        log.info("Admin getting station trust summary");
+        return ResponseEntity.ok(trustScoringService.getSummary());
+    }
+
+    @Operation(
         summary = "Get station trust score breakdown",
         description = "Get full trust score with detailed breakdown for a station (admin only)"
     )
@@ -127,9 +141,9 @@ public class AdminStationController {
     public ResponseEntity<StationTrustDTO> getStationTrust(
             @Parameter(description = "Station ID", required = true)
             @PathVariable UUID stationId) {
-        
+
         log.info("Admin getting trust score for station: {}", stationId);
-        
+
         return trustScoringService.getTrustEntity(stationId)
                 .map(entity -> StationTrustDTO.builder()
                         .stationId(entity.getStationId().toString())

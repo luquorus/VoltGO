@@ -979,6 +979,11 @@ class AdminWebApiClient extends BaseApiClient {
     return post<Map<String, dynamic>>('/api/admin/stations/$stationId/trust/recalculate');
   }
 
+  /// GET /api/admin/stations/trust/summary
+  Future<Map<String, dynamic>> getStationsTrustSummary() {
+    return get<Map<String, dynamic>>('/api/admin/stations/trust/summary');
+  }
+
   // ============================================
   // Audit Logs Endpoints
   // ============================================

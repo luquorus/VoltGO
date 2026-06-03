@@ -4,6 +4,8 @@ import com.example.evstation.batteryswap.application.BatterySwapTrustScoreDTO;
 import com.example.evstation.batteryswap.application.BatterySwapTrustScoringService;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapTrustEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapTrustJpaRepository;
+import com.example.evstation.station.infrastructure.jpa.StationVersionJpaRepository;
+import com.example.evstation.station.domain.WorkflowStatus;
 import com.example.evstation.verification.infrastructure.jpa.VerificationReviewEntity;
 import com.example.evstation.verification.infrastructure.jpa.VerificationReviewJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +42,7 @@ public class AdminBatterySwapTrustController {
     private final BatterySwapTrustScoringService trustScoringService;
     private final BatterySwapTrustJpaRepository trustRepository;
     private final VerificationReviewJpaRepository reviewRepository;
+    private final StationVersionJpaRepository stationVersionRepository;
 
     @Operation(
             summary = "Get trust score for a battery swap station",
@@ -194,6 +197,10 @@ public class AdminBatterySwapTrustController {
         summary.put("stationId", t.getStationId().toString());
         summary.put("score", t.getScore());
         summary.put("level", t.getTrustLevel());
+
+        stationVersionRepository.findByStationIdAndWorkflowStatus(t.getStationId(), WorkflowStatus.PUBLISHED)
+                .ifPresent(sv -> summary.put("stationName", sv.getName()));
+
         return summary;
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,5 +48,12 @@ public interface StationVersionJpaRepository extends JpaRepository<StationVersio
 
     @Query("SELECT COALESCE(MAX(sv.versionNo), 0) FROM StationVersionEntity sv WHERE sv.stationId = :stationId")
     int findMaxVersionNoByStationId(@Param("stationId") UUID stationId);
+
+    @Query("""
+        SELECT sv FROM StationVersionEntity sv
+        WHERE sv.workflowStatus = 'PUBLISHED'
+        AND sv.stationId IN :stationIds
+        """)
+    List<StationVersionEntity> findPublishedByStationIds(@Param("stationIds") List<UUID> stationIds);
 }
 

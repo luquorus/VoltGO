@@ -701,7 +701,8 @@ final batterySwapProvider =
 final swapTrustProvider =
     FutureProvider.family<SwapTrustData, String>((ref, stationId) async {
   final repository = ref.watch(stationRepositoryProvider);
-  return repository.getSwapTrust(stationId);
+  final data = await repository.getSwapTrust(stationId);
+  return SwapTrustData.fromJson(data);
 });
 
 /// Swap Trust Data Model
