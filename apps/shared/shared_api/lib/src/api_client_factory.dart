@@ -1277,5 +1277,76 @@ class AdminWebApiClient extends BaseApiClient {
       data: data,
     );
   }
+
+  // ============================================
+  // Dashboard Analytics Endpoints
+  // ============================================
+
+  /// GET /api/admin/dashboard/stats
+  Future<Map<String, dynamic>> getDashboardStats() {
+    return get<Map<String, dynamic>>('/api/admin/dashboard/stats');
+  }
+
+  /// GET /api/admin/dashboard/trends
+  Future<Map<String, dynamic>> getDashboardTrends({int days = 30}) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/dashboard/trends',
+      queryParameters: {'days': days},
+    );
+  }
+
+  /// GET /api/admin/dashboard/booking-stats
+  Future<Map<String, dynamic>> getBookingStats() {
+    return get<Map<String, dynamic>>('/api/admin/dashboard/booking-stats');
+  }
+
+  /// GET /api/admin/dashboard/issue-stats
+  Future<Map<String, dynamic>> getIssueStats() {
+    return get<Map<String, dynamic>>('/api/admin/dashboard/issue-stats');
+  }
+
+  /// GET /api/admin/dashboard/trust-overview
+  Future<Map<String, dynamic>> getTrustOverview({
+    int page = 0,
+    int size = 20,
+    String? sortBy,
+    String? sortDir,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/dashboard/trust-overview',
+      queryParameters: {
+        'page': page,
+        'size': size,
+        if (sortBy != null) 'sortBy': sortBy,
+        if (sortDir != null) 'sortDir': sortDir,
+      },
+    );
+  }
+  // ============================================
+  // Collaborator Performance Endpoints
+  // ============================================
+
+  /// GET /api/admin/collaborators/performance
+  Future<Map<String, dynamic>> getCollaboratorsPerformance({
+    int page = 0,
+    int size = 20,
+    String? sortBy,
+    String? sortDir,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/collaborators/performance',
+      queryParameters: {
+        'page': page,
+        'size': size,
+        if (sortBy != null) 'sortBy': sortBy,
+        if (sortDir != null) 'sortDir': sortDir,
+      },
+    );
+  }
+
+  /// GET /api/admin/collaborators/{id}/performance
+  Future<Map<String, dynamic>> getCollaboratorPerformanceDetail(String collaboratorId) {
+    return get<Map<String, dynamic>>('/api/admin/collaborators/$collaboratorId/performance');
+  }
 }
 

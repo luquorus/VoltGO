@@ -29,6 +29,9 @@ import '../screens/battery_swap_cr_detail_screen.dart';
 import '../screens/battery_swap_stations_list_screen.dart';
 import '../screens/battery_swap_station_detail_screen.dart';
 import '../screens/swap_trust_dashboard_screen.dart';
+import '../screens/analytics_dashboard_screen.dart';
+import '../screens/collaborator_performance_screen.dart';
+import '../screens/collaborator_performance_detail_screen.dart';
 import '../models/admin_station.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -199,6 +202,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final stationId = state.pathParameters['stationId']!;
           return SwapTrustDashboardScreen(stationId: stationId);
+        },
+      ),
+      // Analytics Dashboard
+      GoRoute(
+        path: '/dashboard',
+        builder: (_, __) => const AnalyticsDashboardScreen(),
+      ),
+      // Collaborator Performance
+      GoRoute(
+        path: '/collaborators/performance',
+        builder: (_, __) => const CollaboratorPerformanceScreen(),
+      ),
+      GoRoute(
+        path: '/collaborators/:id/performance',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CollaboratorPerformanceDetailScreen(collaboratorId: id);
         },
       ),
     ],

@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequestMapping("/api/admin/collaborators")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-public class AdminCollaboratorController {
+public class AdminCollaboratorManagementController {
     
     private final CollaboratorService collaboratorService;
 

@@ -85,6 +85,14 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  icon: Icons.analytics,
+                  label: 'Analytics',
+                  route: '/dashboard',
+                  isActive: currentRoute == '/dashboard',
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
                   icon: Icons.description_rounded,
                   label: 'Change Requests',
                   route: '/change-requests',
@@ -121,7 +129,16 @@ class AdminSidebar extends StatelessWidget {
                   icon: Icons.people_rounded,
                   label: 'Collaborators',
                   route: '/collaborators',
-                  isActive: currentRoute.startsWith('/collaborators'),
+                  isActive: currentRoute.startsWith('/collaborators') &&
+                      !currentRoute.contains('/performance'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.trending_up,
+                  label: 'Collaborator Performance',
+                  route: '/collaborators/performance',
+                  isActive: currentRoute.startsWith('/collaborators/performance'),
                 ),
                 _buildNavItem(
                   context,

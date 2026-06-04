@@ -13,19 +13,10 @@ final stationsProvider = FutureProvider.family<PaginationResponse<AdminStation>,
     size: params.size,
     search: params.search,
   );
-  
-  final content = (response['content'] as List<dynamic>?)
-      ?.map((json) => AdminStation.fromJson(json as Map<String, dynamic>))
-      .toList() ?? [];
-  
-  return PaginationResponse<AdminStation>(
-    content: content,
-    totalElements: response['totalElements'] as int? ?? 0,
-    totalPages: response['totalPages'] as int? ?? 0,
-    size: response['size'] as int? ?? params.size,
-    page: response['number'] as int? ?? params.page,
-    first: response['first'] as bool? ?? false,
-    last: response['last'] as bool? ?? false,
+
+  return PaginationResponse.fromJson(
+    Map<String, dynamic>.from(response),
+    AdminStation.fromJson,
   );
 });
 
@@ -34,8 +25,23 @@ final stationProvider = FutureProvider.family<AdminStation, String>((ref, id) as
   final factory = ref.watch(apiClientFactoryProvider);
   if (factory == null) throw Exception('API client not initialized');
 
-  final response = await factory.admin.getStation(id);
-  return AdminStation.fromJson(response);
+  final dynamic raw = await factory.admin.getStation(id);
+
+  Map<String, dynamic> data;
+  if (raw is List && raw.isNotEmpty) {
+    final first = raw.first;
+    if (first is Map) {
+      data = Map<String, dynamic>.from(first);
+    } else {
+      throw Exception('Station item is not a Map: ${first.runtimeType}');
+    }
+  } else if (raw is Map) {
+    data = Map<String, dynamic>.from(raw);
+  } else {
+    throw Exception('Unexpected response type: ${raw.runtimeType}');
+  }
+
+  return AdminStation.fromJson(data);
 });
 
 /// Provider for current page

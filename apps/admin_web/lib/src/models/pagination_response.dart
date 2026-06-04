@@ -23,15 +23,18 @@ class PaginationResponse<T> {
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromJsonT,
   ) {
+    final contentList = json['content'] as List?;
+    final content = contentList
+            ?.whereType<Map>()
+            .map((e) => fromJsonT(Map<String, dynamic>.from(e)))
+            .toList() ??
+        [];
     return PaginationResponse<T>(
-      content: (json['content'] as List<dynamic>?)
-              ?.map((e) => fromJsonT(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      page: json['page'] as int? ?? 0,
-      size: json['size'] as int? ?? 20,
+      content: content,
+      page: (json['page'] as num?)?.toInt() ?? (json['number'] as num?)?.toInt() ?? 0,
+      size: (json['size'] as num?)?.toInt() ?? 20,
       totalElements: (json['totalElements'] as num?)?.toInt() ?? 0,
-      totalPages: json['totalPages'] as int? ?? 0,
+      totalPages: (json['totalPages'] as num?)?.toInt() ?? 0,
       first: json['first'] as bool? ?? false,
       last: json['last'] as bool? ?? false,
     );
