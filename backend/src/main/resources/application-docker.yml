@@ -22,6 +22,7 @@ spring:
         use_sql_comments: false
   flyway:
     enabled: true
+    validateMigrationNaming: false
     validate-on-migrate: false
   
   data:

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/ev/routing")
-@PreAuthorize("hasAnyRole('EV_USER', 'PROVIDER')")
+@PreAuthorize("hasRole('EV_USER')")
 @Tag(name = "EV Routing", description = "Route calculation and charging station recommendations")
 public class RoutingController {
 

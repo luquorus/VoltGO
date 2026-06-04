@@ -205,8 +205,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     switch (role) {
       case 'EV_USER':
         return 'EV user';
-      case 'PROVIDER':
-        return 'Provider';
       case 'ADMIN':
         return 'Administrator';
       case 'COLLABORATOR':

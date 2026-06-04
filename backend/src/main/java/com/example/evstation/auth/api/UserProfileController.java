@@ -31,7 +31,7 @@ public class UserProfileController {
         description = "Get current user's profile information"
     )
     @GetMapping("/me")
-    @PreAuthorize("hasAnyRole('EV_USER', 'PROVIDER', 'COLLABORATOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EV_USER', 'COLLABORATOR', 'ADMIN')")
     public ResponseEntity<UserProfileDTO> getMyProfile(Authentication authentication) {
         UUID userId = extractUserId(authentication);
         log.info("Getting profile for user: {}", userId);
@@ -46,7 +46,7 @@ public class UserProfileController {
         description = "Update current user's profile (name, phone)"
     )
     @PutMapping("/me")
-    @PreAuthorize("hasAnyRole('EV_USER', 'PROVIDER', 'COLLABORATOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EV_USER', 'COLLABORATOR', 'ADMIN')")
     public ResponseEntity<UserProfileDTO> updateMyProfile(
             @Valid @RequestBody UpdateProfileRequest request,
             Authentication authentication) {
@@ -63,7 +63,7 @@ public class UserProfileController {
         description = "Change current user's password"
     )
     @PostMapping("/me/change-password")
-    @PreAuthorize("hasAnyRole('EV_USER', 'PROVIDER', 'COLLABORATOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EV_USER', 'COLLABORATOR', 'ADMIN')")
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication) {

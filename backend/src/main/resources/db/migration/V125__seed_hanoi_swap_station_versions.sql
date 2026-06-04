@@ -206,3 +206,11 @@ INSERT INTO battery_swap_pile_template (id, station_version_id, pile_index, slot
 INSERT INTO battery_swap_pile_template (id, station_version_id, pile_index, slots_per_pile) VALUES ('h1200000-0000-0000-0000-000000000023', 'g1000000-0000-0000-0000-000000000023', 2, 6) ON CONFLICT DO NOTHING;
 INSERT INTO battery_swap_pile_template (id, station_version_id, pile_index, slots_per_pile) VALUES ('h1300000-0000-0000-0000-000000000023', 'g1000000-0000-0000-0000-000000000023', 3, 6) ON CONFLICT DO NOTHING;
 INSERT INTO battery_swap_pile_template (id, station_version_id, pile_index, slots_per_pile) VALUES ('h1400000-0000-0000-0000-000000000023', 'g1000000-0000-0000-0000-000000000023', 4, 6) ON CONFLICT DO NOTHING;
+
+-- =============================================================================
+-- Fix operating_hours to '24/7' for ALL seeded battery swap station versions.
+-- This ensures consistent data regardless of whether records were freshly
+-- inserted or already existed from a previous run.
+-- =============================================================================
+UPDATE battery_swap_station_version
+SET    operating_hours = '24/7';

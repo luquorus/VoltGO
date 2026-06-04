@@ -41,7 +41,7 @@ public class EvUserMobileController {
         description = "Find published charging stations within specified radius. Only returns PUBLISHED versions."
     )
     @GetMapping("/stations")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<PaginationResponse<StationListItemDTO>> searchStations(
             @Parameter(description = "Latitude", required = true)
             @RequestParam @NotNull @DecimalMin(value = "-90") @DecimalMax(value = "90") Double lat,
@@ -72,7 +72,7 @@ public class EvUserMobileController {
         description = "Get full detail of a published station including all charging ports"
     )
     @GetMapping("/stations/{stationId}")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<StationDetailDTO> getStationDetail(
             @Parameter(description = "Station ID", required = true)
             @PathVariable UUID stationId) {
@@ -96,7 +96,7 @@ public class EvUserMobileController {
         description = "Search published charging stations by name (case-insensitive, partial match). Only returns PUBLISHED versions."
     )
     @GetMapping("/stations/search/by-name")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<PaginationResponse<StationListItemDTO>> searchStationsByName(
             @Parameter(description = "Search query for station name", required = true)
             @RequestParam @NotNull String name,
@@ -115,7 +115,7 @@ public class EvUserMobileController {
         description = "Get optimal station recommendations based on battery level, capacity, and target charge level. Optimizes for minimum total time (travel + charging)."
     )
     @PostMapping("/stations/recommendations")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<RecommendationResponseDTO> getRecommendations(
             @RequestBody @jakarta.validation.Valid RecommendationRequestDTO request) {
         

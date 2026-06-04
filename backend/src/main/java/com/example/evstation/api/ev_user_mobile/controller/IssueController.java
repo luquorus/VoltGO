@@ -32,7 +32,7 @@ public class IssueController {
         description = "Report a data discrepancy (location, price, hours, ports, other) on a published station"
     )
     @PostMapping("/stations/{stationId}/issues")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<IssueResponseDTO> reportIssue(
             @Parameter(description = "Station ID", required = true)
             @PathVariable UUID stationId,
@@ -52,7 +52,7 @@ public class IssueController {
         description = "Get all issues reported by the current user"
     )
     @GetMapping("/issues/mine")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<List<IssueResponseDTO>> getMyIssues(Authentication authentication) {
         
         UUID userId = extractUserId(authentication);

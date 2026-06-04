@@ -42,7 +42,7 @@ public class UserAccount {
     }
 
     public boolean canAccessEvApi() {
-        return isActive() && (role == Role.EV_USER || role == Role.PROVIDER);
+        return isActive() && role == Role.EV_USER;
     }
 
     public boolean canAccessCollabApi() {

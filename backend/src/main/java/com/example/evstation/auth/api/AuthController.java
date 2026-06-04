@@ -25,7 +25,7 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
     private final UserAccountRepository userAccountRepository;
 
-    @Operation(summary = "Register new user", description = "Register EV_USER, PROVIDER, or COLLABORATOR")
+    @Operation(summary = "Register new user", description = "Register EV_USER or COLLABORATOR")
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         Role role;

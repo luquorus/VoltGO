@@ -75,7 +75,7 @@ paths:
       tags:
         - Authentication
       summary: Register new user
-      description: Register EV_USER, PROVIDER, or COLLABORATOR
+      description: Register EV_USER or COLLABORATOR
       requestBody:
         required: true
         content:
@@ -2018,7 +2018,7 @@ components:
           example: "SecurePass123!"
         role:
           type: string
-          enum: [EV_USER, PROVIDER, COLLABORATOR]
+          enum: [EV_USER, COLLABORATOR]
           example: "EV_USER"
 
     LoginRequest:

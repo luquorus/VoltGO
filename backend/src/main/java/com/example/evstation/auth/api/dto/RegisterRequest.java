@@ -18,6 +18,6 @@ public class RegisterRequest {
     private String password;
 
     @NotBlank
-    private String role; // EV_USER, PROVIDER, COLLABORATOR
+    private String role; // EV_USER, COLLABORATOR
 }
 

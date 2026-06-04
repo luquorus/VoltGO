@@ -86,7 +86,7 @@ public class SecurityConfig {
 
                         // API endpoints - require authentication
                         // Role-based access is controlled by @PreAuthorize on controller methods
-                        // EV_USER and PROVIDER can access /api/ev/stations and /api/ev/stations/{id}
+                        // EV_USER can access /api/ev/stations and /api/ev/stations/{id}
                         .requestMatchers("/api/**").authenticated()
                         
                         // Everything else requires authentication

@@ -33,7 +33,7 @@ public class BatterySwapChangeRequestController {
             description = "Create a new DRAFT change request for creating or updating a battery swap station."
     )
     @PostMapping
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<BatterySwapCRDTO> createChangeRequest(
             @Valid @RequestBody CreateBatterySwapCRDTO request,
             Authentication authentication) {
@@ -50,7 +50,7 @@ public class BatterySwapChangeRequestController {
             description = "Get all battery swap change requests submitted by the current user."
     )
     @GetMapping
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<List<BatterySwapCRListDTO>> getMyChangeRequests(Authentication authentication) {
         UUID userId = extractUserId(authentication);
         log.info("Getting battery swap CRs for user: {}", userId);
@@ -64,7 +64,7 @@ public class BatterySwapChangeRequestController {
             description = "Get details of a specific battery swap change request by ID."
     )
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<BatterySwapCRDTO> getChangeRequest(
             @Parameter(description = "Change request ID", required = true)
             @PathVariable UUID id,
@@ -83,7 +83,7 @@ public class BatterySwapChangeRequestController {
             description = "Submit a DRAFT change request for review. Status changes from DRAFT to PENDING and risk assessment runs."
     )
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<BatterySwapCRDTO> submitChangeRequest(
             @Parameter(description = "Change request ID", required = true)
             @PathVariable UUID id,

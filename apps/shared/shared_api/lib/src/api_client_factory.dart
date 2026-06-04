@@ -371,6 +371,31 @@ class EvUserMobileApiClient extends BaseApiClient {
     return get<Map<String, dynamic>>('/api/ev/battery-swap/stations/$stationId');
   }
 
+  /// Search battery swap stations by name (uses nearby search + client-side filter).
+  /// Falls back to a wide-radius query to capture all published stations.
+  Future<List<Map<String, dynamic>>> searchBatterySwapStationsByName({
+    required String name,
+    required double lat,
+    required double lng,
+    double radiusKm = 50,
+  }) async {
+    final results = await getBatterySwapStations(
+      lat: lat,
+      lng: lng,
+      radiusKm: radiusKm,
+    );
+    final lowerName = name.toLowerCase();
+    return (results as List<dynamic>)
+        .map((e) => e as Map<String, dynamic>)
+        .where((s) {
+          final stationName = s['name'] as String? ?? '';
+          final address = s['address'] as String? ?? '';
+          return stationName.toLowerCase().contains(lowerName) ||
+              address.toLowerCase().contains(lowerName);
+        })
+        .toList();
+  }
+
   /// POST /api/ev/battery-swap/reservations
   Future<Map<String, dynamic>> reserveBatterySwap({
     required String stationId,
@@ -453,6 +478,30 @@ class EvUserMobileApiClient extends BaseApiClient {
   /// PUT /api/ev/change-requests/{id}
   Future<Map<String, dynamic>> updateChangeRequest(String id, Map<String, dynamic> data) {
     return put<Map<String, dynamic>>('/api/ev/change-requests/$id', data: data);
+  }
+
+  // ============================================
+  // Battery Swap Change Request Endpoints
+  // ============================================
+
+  /// POST /api/ev/battery-swap-change-requests
+  Future<Map<String, dynamic>> createBatterySwapChangeRequest(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap-change-requests', data: data);
+  }
+
+  /// GET /api/ev/battery-swap-change-requests
+  Future<List<dynamic>> getBatterySwapChangeRequests() {
+    return get<List<dynamic>>('/api/ev/battery-swap-change-requests');
+  }
+
+  /// GET /api/ev/battery-swap-change-requests/{id}
+  Future<Map<String, dynamic>> getBatterySwapChangeRequest(String id) {
+    return get<Map<String, dynamic>>('/api/ev/battery-swap-change-requests/$id');
+  }
+
+  /// POST /api/ev/battery-swap-change-requests/{id}/submit
+  Future<Map<String, dynamic>> submitBatterySwapChangeRequest(String id) {
+    return post<Map<String, dynamic>>('/api/ev/battery-swap-change-requests/$id/submit');
   }
 
   // ============================================

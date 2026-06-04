@@ -7,7 +7,9 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_api/shared_api.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/change_request_providers.dart';
+import '../providers/battery_swap_change_request_providers.dart';
 import '../repositories/change_request_repository.dart';
+import '../repositories/battery_swap_change_request_repository.dart';
 import '../widgets/main_scaffold.dart';
 import '../widgets/station_search_dropdown.dart';
 
@@ -22,36 +24,74 @@ class ChangeRequestCreateScreen extends ConsumerStatefulWidget {
 class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
-  
-  // Form fields
-  String? _type; // CREATE_STATION or UPDATE_STATION
-  String? _selectedStationId; // Selected station ID for UPDATE_STATION
+
+  // Request type: CREATE_STATION or UPDATE_STATION
+  String? _type;
+  // Selected station ID for UPDATE_STATION
+  String? _selectedStationId;
+
+  // Primary station kind — determines which form to show
+  // 'CHARGING' → charging station form
+  // 'BATTERY_SWAP' → battery swap station form
+  String _stationKind = 'CHARGING';
+
+  // Shared station name/address/location fields
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
   final _operatingHoursController = TextEditingController();
-  String? _parking; // PAID, FREE, UNKNOWN
-  String? _visibility; // PUBLIC, PRIVATE, RESTRICTED
-  String? _publicStatus; // ACTIVE, INACTIVE, MAINTENANCE
-  
-  // Primary station kind (drives default service config)
-  String _stationKind = 'CHARGING'; // CHARGING | BATTERY_SWAP
+  String? _visibility;
+  String? _publicStatus;
 
-  // Services
+  // Charging station services
   List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
-  
+
+  // Battery swap specific fields
+  final _totalBatteriesController = TextEditingController(text: '20');
+  final _avgChargePowerKwController = TextEditingController(text: '35.0');
+
+  // Default location for station search
+  double _defaultLat = 0;
+  double _defaultLng = 0;
+
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
   bool _isLoadingStation = false;
 
   @override
+  void initState() {
+    super.initState();
+    _initDefaultLocation();
+  }
+
+  Future<void> _initDefaultLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        final position = await Geolocator.getCurrentPosition();
+        if (mounted) {
+          setState(() {
+            _defaultLat = position.latitude;
+            _defaultLng = position.longitude;
+          });
+        }
+      }
+    } catch (_) {
+      // Silently fail — dropdown search will use 0,0 which is fine
+    }
+  }
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
     _latController.dispose();
     _lngController.dispose();
     _operatingHoursController.dispose();
+    _totalBatteriesController.dispose();
+    _avgChargePowerKwController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -59,7 +99,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return MainScaffold(
       title: 'Create Station Proposal',
       child: Form(
@@ -70,245 +110,22 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Type selector
+              // Station kind selector (top level)
+              _buildStationKindSelector(theme),
+              const SizedBox(height: 24),
+
+              // Request type selector
               _buildTypeSelector(theme),
               const SizedBox(height: 24),
-              
-              // Station Selection (only for UPDATE)
-              if (_type == 'UPDATE_STATION') ...[
-                StationSearchDropdown(
-                  onStationSelected: (stationId) {
-                    if (stationId != null) {
-                      _loadStationData(stationId);
-                    } else {
-                      setState(() {
-                        _selectedStationId = null;
-                        _clearForm();
-                      });
-                    }
-                  },
-                  initialStationId: _selectedStationId,
-                  enabled: !_isSubmitting && !_isLoadingStation,
-                  validator: (value) {
-                    if (_type == 'UPDATE_STATION' && _selectedStationId == null) {
-                      return 'Please select a station';
-                    }
-                    return null;
-                  },
-                ),
-                if (_isLoadingStation) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Loading station data...',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 24),
-              ],
-              
-              // Station Data Section
-              Text(
-                'Station Information',
-                style: theme.textTheme.titleLarge,
-              ),
+
+              // Station kind-specific form
+              if (_stationKind == 'CHARGING')
+                ..._buildChargingStationForm(theme)
+              else
+                ..._buildBatterySwapStationForm(theme),
+
               const SizedBox(height: 16),
-              
-              AppTextField(
-                label: 'Station Name *',
-                controller: _nameController,
-                enabled: !_isSubmitting,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Name is required';
-                  }
-                  if (value.length < 3) {
-                    return 'Name must be at least 3 characters';
-                  }
-                  if (value.length > 255) {
-                    return 'Name must be at most 255 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              AppTextField(
-                label: 'Address',
-                controller: _addressController,
-                enabled: !_isSubmitting,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              
-              // Location
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Location',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                  SecondaryButton(
-                    label: _isGettingLocation ? 'Getting...' : 'Use Current Location',
-                    onPressed: _isSubmitting || _isGettingLocation ? null : _getCurrentLocation,
-                    isLoading: _isGettingLocation,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latController,
-                      enabled: !_isSubmitting,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Latitude',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Latitude is required';
-                        }
-                        final lat = double.tryParse(value.trim());
-                        if (lat == null) {
-                          return 'Invalid latitude';
-                        }
-                        if (lat < -90 || lat > 90) {
-                          return 'Latitude must be between -90 and 90';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lngController,
-                      enabled: !_isSubmitting,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Longitude',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Longitude is required';
-                        }
-                        final lng = double.tryParse(value.trim());
-                        if (lng == null) {
-                          return 'Invalid longitude';
-                        }
-                        if (lng < -180 || lng > 180) {
-                          return 'Longitude must be between -180 and 180';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              
-              AppTextField(
-                label: 'Operating Hours',
-                controller: _operatingHoursController,
-                enabled: !_isSubmitting,
-                hint: 'e.g., 24/7, Mon-Fri 8AM-6PM',
-              ),
-              const SizedBox(height: 16),
-              
-              // Parking
-              _buildDropdown(
-                theme,
-                'Parking Type',
-                _parking,
-                ['PAID', 'FREE', 'UNKNOWN'],
-                (value) => setState(() => _parking = value),
-              ),
-              const SizedBox(height: 16),
-              
-              // Visibility
-              _buildDropdown(
-                theme,
-                'Visibility',
-                _visibility,
-                ['PUBLIC', 'PRIVATE', 'RESTRICTED'],
-                (value) => setState(() => _visibility = value),
-              ),
-              const SizedBox(height: 16),
-              
-              // Public Status
-              _buildDropdown(
-                theme,
-                'Public Status',
-                _publicStatus,
-                ['ACTIVE', 'INACTIVE', 'MAINTENANCE'],
-                (value) => setState(() => _publicStatus = value),
-              ),
-              const SizedBox(height: 24),
-              
-              // Station kind & services
-              _buildStationKindSelector(theme),
-              const SizedBox(height: 16),
-              if (_stationKind == 'CHARGING') ...[
-                Text(
-                  'Charging ports',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ..._services.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final service = entry.value;
-                  return _buildServiceEditor(theme, index, service);
-                }),
-              ] else ...[
-                Text(
-                  'Battery swap configuration',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                _buildBatterySwapConfig(theme),
-              ],
-              const SizedBox(height: 24),
-              
-              // Images Section
-              Text(
-                'Photos',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Upload photos of the station (optional)',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-              const SizedBox(height: 16),
+
               // Submit Button
               PrimaryButton(
                 label: 'Create Station Proposal',
@@ -323,6 +140,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     );
   }
 
+  /// Builds the station kind selector card (top of form).
   Widget _buildStationKindSelector(ThemeData theme) {
     return Card(
       child: Padding(
@@ -331,12 +149,12 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Station type *',
-              style: theme.textTheme.titleLarge,
+              'Station Type *',
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose charging or battery swap — configuration fields depend on this choice.',
+              'Choose the type of station you want to create or update.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
@@ -349,25 +167,13 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                     title: const Text('Charging station'),
                     value: 'CHARGING',
                     groupValue: _stationKind,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _stationKind = value;
-                              _services = [
-                                ServiceData(
-                                  type: 'CHARGING',
-                                  chargingPorts: [
-                                    ChargingPortData(
-                                      powerType: 'AC',
-                                      count: 1,
-                                    ),
-                                  ],
-                                ),
-                              ];
-                            });
-                          },
+                    onChanged: _isSubmitting ? null : (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _stationKind = value;
+                        _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
+                      });
+                    },
                   ),
                 ),
                 Expanded(
@@ -375,22 +181,13 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                     title: const Text('Battery swap station'),
                     value: 'BATTERY_SWAP',
                     groupValue: _stationKind,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _stationKind = value;
-                              _services = [
-                                ServiceData(
-                                  type: 'BATTERY_SWAP',
-                                  chargingPorts: [],
-                                  totalBatteries: 20,
-                                  avgChargePowerKw: 35.0,
-                                ),
-                              ];
-                            });
-                          },
+                    onChanged: _isSubmitting ? null : (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _stationKind = value;
+                        _services = [];
+                      });
+                    },
                   ),
                 ),
               ],
@@ -401,8 +198,312 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     );
   }
 
+  /// Builds the charging station form sections.
+  List<Widget> _buildChargingStationForm(ThemeData theme) {
+    return [
+      if (_type == 'UPDATE_STATION') ...[
+        StationSearchDropdown(
+          onStationSelected: (stationId) {
+            if (stationId != null) {
+              _loadStationData(stationId);
+            } else {
+              setState(() {
+                _selectedStationId = null;
+                _clearChargingForm();
+              });
+            }
+          },
+          initialStationId: _selectedStationId,
+          enabled: !_isSubmitting && !_isLoadingStation,
+          stationKind: 'CHARGING',
+          defaultLat: _defaultLat,
+          defaultLng: _defaultLng,
+        ),
+        if (_isLoadingStation) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Loading station data...',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
+
+      _buildChargingStationFields(theme),
+    ];
+  }
+
+  /// Shared station info fields for charging station.
+  Widget _buildChargingStationFields(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Station Information',
+          style: theme.textTheme.titleLarge,
+        ),
+        const SizedBox(height: 16),
+
+        AppTextField(
+          label: 'Station Name *',
+          controller: _nameController,
+          enabled: !_isSubmitting,
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Name is required';
+            if (value.length < 3) return 'Name must be at least 3 characters';
+            if (value.length > 255) return 'Name must be at most 255 characters';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+
+        AppTextField(
+          label: 'Address',
+          controller: _addressController,
+          enabled: !_isSubmitting,
+          maxLines: 2,
+        ),
+        const SizedBox(height: 16),
+
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Location',
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            SecondaryButton(
+              label: _isGettingLocation ? 'Getting...' : 'Use Current Location',
+              onPressed: _isSubmitting || _isGettingLocation ? null : _getCurrentLocation,
+              isLoading: _isGettingLocation,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _latController,
+                enabled: !_isSubmitting,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Latitude',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Latitude is required';
+                  final lat = double.tryParse(value.trim());
+                  if (lat == null) return 'Invalid latitude';
+                  if (lat < -90 || lat > 90) return 'Latitude must be between -90 and 90';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _lngController,
+                enabled: !_isSubmitting,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Longitude',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Longitude is required';
+                  final lng = double.tryParse(value.trim());
+                  if (lng == null) return 'Invalid longitude';
+                  if (lng < -180 || lng > 180) return 'Longitude must be between -180 and 180';
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        AppTextField(
+          label: 'Operating Hours',
+          controller: _operatingHoursController,
+          enabled: !_isSubmitting,
+          hint: 'e.g., 24/7, Mon-Fri 8AM-6PM',
+        ),
+        const SizedBox(height: 16),
+
+        _buildDropdown(theme, 'Visibility', _visibility, ['PUBLIC', 'PRIVATE', 'RESTRICTED'],
+            (v) => setState(() => _visibility = v)),
+        const SizedBox(height: 16),
+
+        _buildDropdown(theme, 'Public Status', _publicStatus, ['ACTIVE', 'INACTIVE', 'MAINTENANCE'],
+            (v) => setState(() => _publicStatus = v)),
+        const SizedBox(height: 24),
+
+        Text(
+          'Charging ports',
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        ..._services.asMap().entries.map((entry) {
+          return _buildServiceEditor(theme, entry.key, entry.value);
+        }),
+      ],
+    );
+  }
+
+  /// Builds the battery swap station form sections.
+  List<Widget> _buildBatterySwapStationForm(ThemeData theme) {
+    return [
+      if (_type == 'UPDATE_STATION') ...[
+        StationSearchDropdown(
+          onStationSelected: (stationId) {
+            if (stationId != null) {
+              _loadBatterySwapStationData(stationId);
+            } else {
+              setState(() {
+                _selectedStationId = null;
+                _clearBatterySwapForm();
+              });
+            }
+          },
+          initialStationId: _selectedStationId,
+          enabled: !_isSubmitting && !_isLoadingStation,
+          stationKind: 'BATTERY_SWAP',
+          defaultLat: _defaultLat,
+          defaultLng: _defaultLng,
+        ),
+        if (_isLoadingStation) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Loading station data...',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
+
+      _buildBatterySwapFields(theme),
+    ];
+  }
+
+  /// Battery swap station form fields.
+  /// Note: CreateBatterySwapCRDTO only supports totalBatteries, avgChargePowerKw,
+  /// operatingHours, parkingFee (optional), note (optional), pileTemplates (optional).
+  /// Fields like name/address/location are managed by the parent StationEntity separately.
+  Widget _buildBatterySwapFields(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Battery Swap Configuration',
+          style: theme.textTheme.titleLarge,
+        ),
+        const SizedBox(height: 16),
+
+        AppTextField(
+          label: 'Operating Hours *',
+          controller: _operatingHoursController,
+          enabled: !_isSubmitting,
+          hint: 'e.g., 06:00-22:00',
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Operating hours is required';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+
+        TextFormField(
+          controller: _totalBatteriesController,
+          decoration: InputDecoration(
+            labelText: 'Total batteries *',
+            hintText: 'Number of batteries in the station',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          enabled: !_isSubmitting,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Total batteries is required';
+            }
+            final n = int.tryParse(value.trim());
+            if (n == null || n <= 0) {
+              return 'Must be greater than 0';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+
+        TextFormField(
+          controller: _avgChargePowerKwController,
+          decoration: InputDecoration(
+            labelText: 'Avg charge power (kW) *',
+            hintText: 'Average charging power per battery',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+          ],
+          enabled: !_isSubmitting,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Average charge power is required';
+            }
+            final n = double.tryParse(value.trim());
+            if (n == null || n <= 0) {
+              return 'Must be greater than 0';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+
+        _buildBatterySwapConfig(theme),
+      ],
+    );
+  }
+
   Widget _buildBatterySwapConfig(ThemeData theme) {
-    final service = _services.first;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -410,7 +511,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextFormField(
-              initialValue: '${service.totalBatteries ?? 20}',
+              controller: _totalBatteriesController,
               decoration: InputDecoration(
                 labelText: 'Total batteries *',
                 border: OutlineInputBorder(
@@ -418,17 +519,12 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                 ),
               ),
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               enabled: !_isSubmitting,
-              onChanged: (v) {
-                final n = int.tryParse(v.trim());
-                setState(() {
-                  _services[0].totalBatteries = n;
-                });
-              },
             ),
             const SizedBox(height: 12),
             TextFormField(
-              initialValue: '${service.avgChargePowerKw ?? 35.0}',
+              controller: _avgChargePowerKwController,
               decoration: InputDecoration(
                 labelText: 'Avg charge power (kW) *',
                 border: OutlineInputBorder(
@@ -437,13 +533,10 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
               enabled: !_isSubmitting,
-              onChanged: (v) {
-                final n = double.tryParse(v.trim());
-                setState(() {
-                  _services[0].avgChargePowerKw = n;
-                });
-              },
             ),
           ],
         ),
@@ -474,7 +567,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
                       setState(() {
                         _type = value;
                         _selectedStationId = null;
-                        _clearForm(); // Clear form when switching to CREATE
+                        _clearAllForms();
                       });
                     },
                   ),
@@ -796,7 +889,6 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         }
 
         _operatingHoursController.text = stationData['operatingHours'] as String? ?? '';
-        _parking = stationData['parking'] as String?;
         _visibility = stationData['visibility'] as String?;
         _publicStatus = stationData['publicStatus'] as String?;
 
@@ -898,26 +990,38 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     }
   }
 
-  void _clearForm() {
+  void _clearAllForms() {
     _nameController.clear();
     _addressController.clear();
     _latController.clear();
     _lngController.clear();
     _operatingHoursController.clear();
-    _parking = null;
+    _visibility = null;
+    _publicStatus = null;
+    _totalBatteriesController.text = '20';
+    _avgChargePowerKwController.text = '35.0';
+    setState(() {
+      _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
+    });
+  }
+
+  void _clearChargingForm() {
+    _nameController.clear();
+    _addressController.clear();
+    _latController.clear();
+    _lngController.clear();
+    _operatingHoursController.clear();
     _visibility = null;
     _publicStatus = null;
     setState(() {
-      _stationKind = 'CHARGING';
-      _services = [
-        ServiceData(
-          type: 'CHARGING',
-          chargingPorts: [
-            ChargingPortData(powerType: 'AC', count: 1),
-          ],
-        ),
-      ];
+      _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
     });
+  }
+
+  void _clearBatterySwapForm() {
+    _operatingHoursController.clear();
+    _totalBatteriesController.text = '20';
+    _avgChargePowerKwController.text = '35.0';
   }
 
   Future<void> _handleSubmit() async {
@@ -925,170 +1029,47 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       return;
     }
 
-    // Validate type
     if (_type == null) {
       AppToast.showError(context, 'Please select request type');
       return;
     }
 
-    // Validate name (required)
-    if (_nameController.text.trim().isEmpty) {
-      AppToast.showError(context, 'Station name is required');
-      return;
-    }
-
-    // Validate latitude (required)
-    if (_latController.text.trim().isEmpty) {
-      AppToast.showError(context, 'Latitude is required');
-      return;
-    }
-    final lat = double.tryParse(_latController.text.trim());
-    if (lat == null || lat < -90 || lat > 90) {
-      AppToast.showError(context, 'Invalid latitude');
-      return;
-    }
-
-    // Validate longitude (required)
-    if (_lngController.text.trim().isEmpty) {
-      AppToast.showError(context, 'Longitude is required');
-      return;
-    }
-    final lng = double.tryParse(_lngController.text.trim());
-    if (lng == null || lng < -180 || lng > 180) {
-      AppToast.showError(context, 'Invalid longitude');
-      return;
-    }
-
-    // Validate services
-    for (int i = 0; i < _services.length; i++) {
-      final service = _services[i];
-      if (service.type == 'CHARGING') {
-        if (service.chargingPorts.isEmpty) {
-          AppToast.showError(context, 'Service ${i + 1}: At least one charging port is required');
-          return;
-        }
-        for (int j = 0; j < service.chargingPorts.length; j++) {
-          final port = service.chargingPorts[j];
-          if (port.powerType.isEmpty) {
-            AppToast.showError(context, 'Service ${i + 1}, Port ${j + 1}: Power type is required');
-            return;
-          }
-          if (port.count < 1) {
-            AppToast.showError(context, 'Service ${i + 1}, Port ${j + 1}: Count must be >= 1');
-            return;
-          }
-          if (port.powerType == 'DC' && (port.powerKw == null || port.powerKw! <= 0)) {
-            AppToast.showError(context, 'Service ${i + 1}, Port ${j + 1}: Power (kW) is required and must be > 0 for DC');
-            return;
-          }
-        }
-      } else if (service.type == 'BATTERY_SWAP') {
-        final tb = service.totalBatteries;
-        final avg = service.avgChargePowerKw;
-        if (tb == null || tb <= 0) {
-          AppToast.showError(
-              context, 'Service ${i + 1}: total batteries must be > 0');
-          return;
-        }
-        if (avg == null || avg <= 0) {
-          AppToast.showError(context,
-              'Service ${i + 1}: avg charge power (kW) must be > 0');
-          return;
-        }
+    // Charging station requires name and location
+    if (_stationKind == 'CHARGING') {
+      if (_nameController.text.trim().isEmpty) {
+        AppToast.showError(context, 'Station name is required');
+        return;
+      }
+      if (_latController.text.trim().isEmpty || _lngController.text.trim().isEmpty) {
+        AppToast.showError(context, 'Location is required');
+        return;
+      }
+      final lat = double.tryParse(_latController.text.trim());
+      final lng = double.tryParse(_lngController.text.trim());
+      if (lat == null || lat < -90 || lat > 90) {
+        AppToast.showError(context, 'Invalid latitude');
+        return;
+      }
+      if (lng == null || lng < -180 || lng > 180) {
+        AppToast.showError(context, 'Invalid longitude');
+        return;
       }
     }
+    // Battery swap validation is handled by Form validators in _buildBatterySwapFields
 
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      final repository = ref.read(changeRequestRepositoryProvider);
-      
-      // Build station data with defaults for required fields
-      final stationData = <String, dynamic>{
-        'name': _nameController.text.trim(),
-        'address': _addressController.text.trim().isNotEmpty 
-            ? _addressController.text.trim() 
-            : 'Address not provided',
-        'location': {
-          'lat': double.parse(_latController.text.trim()),
-          'lng': double.parse(_lngController.text.trim()),
-        },
-        'parking': _parking ?? 'UNKNOWN',
-        'visibility': _visibility ?? 'PUBLIC',
-        'publicStatus': _publicStatus ?? 'ACTIVE',
-        'services': _services.isNotEmpty
-            ? _services.map((service) {
-                final serviceData = <String, dynamic>{
-                  'type': service.type,
-                };
-                if (service.type == 'CHARGING' && service.chargingPorts.isNotEmpty) {
-                  serviceData['chargingPorts'] = service.chargingPorts.map((port) {
-                    final portData = <String, dynamic>{
-                      'powerType': port.powerType,
-                      'count': port.count,
-                    };
-                    if (port.powerKw != null) {
-                      portData['powerKw'] = port.powerKw;
-                    }
-                    return portData;
-                  }).toList();
-                }
-                if (service.type == 'BATTERY_SWAP') {
-                  serviceData['totalBatteries'] = service.totalBatteries;
-                  serviceData['avgChargePowerKw'] = service.avgChargePowerKw;
-                }
-                return serviceData;
-              }).toList()
-            : _stationKind == 'BATTERY_SWAP'
-                ? [
-                    {
-                      'type': 'BATTERY_SWAP',
-                      'totalBatteries': 20,
-                      'avgChargePowerKw': 35.0,
-                    }
-                  ]
-                : [
-                    {
-                      'type': 'CHARGING',
-                      'chargingPorts': [
-                        {'powerType': 'AC', 'count': 1}
-                      ]
-                    }
-                  ],
-      };
-
-      if (_operatingHoursController.text.trim().isNotEmpty) {
-        stationData['operatingHours'] = _operatingHoursController.text.trim();
+      if (_stationKind == 'CHARGING') {
+        await _submitChargingStation();
+      } else {
+        await _submitBatterySwapStation();
       }
-
-      // Validate station selection for UPDATE_STATION
-      if (_type == 'UPDATE_STATION' && _selectedStationId == null) {
-        AppToast.showError(context, 'Please select a station to update');
-        return;
-      }
-
-      // Create change request first (without images)
-      final data = <String, dynamic>{
-        'type': _type,
-        if (_type == 'UPDATE_STATION' && _selectedStationId != null)
-          'stationId': _selectedStationId,
-        'stationData': stationData,
-      };
-
-      if (mounted) {
-        AppToast.showInfo(context, 'Creating station proposal...');
-      }
-
-      final response = await repository.createChangeRequest(data);
-      final changeRequestId = response['id'] as String;
 
       if (mounted) {
         AppToast.showSuccess(context, 'Station proposal created successfully');
-      }
-
-      if (mounted) {
         ref.invalidate(changeRequestListProvider);
         context.pop();
       }
@@ -1101,6 +1082,151 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         setState(() {
           _isSubmitting = false;
         });
+      }
+    }
+  }
+
+  Future<void> _submitChargingStation() async {
+    // Validate charging ports
+    for (int i = 0; i < _services.length; i++) {
+      final service = _services[i];
+      if (service.chargingPorts.isEmpty) {
+        throw Exception('Service ${i + 1}: At least one charging port is required');
+      }
+      for (int j = 0; j < service.chargingPorts.length; j++) {
+        final port = service.chargingPorts[j];
+        if (port.count < 1) {
+          throw Exception('Service ${i + 1}, Port ${j + 1}: Count must be >= 1');
+        }
+        if (port.powerType == 'DC' && (port.powerKw == null || port.powerKw! <= 0)) {
+          throw Exception('Service ${i + 1}, Port ${j + 1}: Power (kW) is required and must be > 0 for DC');
+        }
+      }
+    }
+
+    final repository = ref.read(changeRequestRepositoryProvider);
+
+    final stationData = <String, dynamic>{
+      'name': _nameController.text.trim(),
+      'address': _addressController.text.trim().isNotEmpty
+          ? _addressController.text.trim()
+          : 'Address not provided',
+      'location': {
+        'lat': double.parse(_latController.text.trim()),
+        'lng': double.parse(_lngController.text.trim()),
+      },
+      'visibility': _visibility ?? 'PUBLIC',
+      'publicStatus': _publicStatus ?? 'ACTIVE',
+      'services': _services.map((service) {
+        final serviceData = <String, dynamic>{
+          'type': service.type,
+        };
+        if (service.chargingPorts.isNotEmpty) {
+          serviceData['chargingPorts'] = service.chargingPorts.map((port) {
+            final portData = <String, dynamic>{
+              'powerType': port.powerType,
+              'count': port.count,
+            };
+            if (port.powerKw != null) {
+              portData['powerKw'] = port.powerKw;
+            }
+            return portData;
+          }).toList();
+        }
+        return serviceData;
+      }).toList(),
+    };
+
+    if (_operatingHoursController.text.trim().isNotEmpty) {
+      stationData['operatingHours'] = _operatingHoursController.text.trim();
+    }
+
+    final data = <String, dynamic>{
+      'type': _type,
+      if (_type == 'UPDATE_STATION' && _selectedStationId != null)
+        'stationId': _selectedStationId,
+      'stationData': stationData,
+    };
+
+    await repository.createChangeRequest(data);
+  }
+
+  Future<void> _submitBatterySwapStation() async {
+    final totalBatteries = int.tryParse(_totalBatteriesController.text.trim());
+    final avgPowerKw = double.tryParse(_avgChargePowerKwController.text.trim());
+
+    if (totalBatteries == null || totalBatteries <= 0) {
+      throw Exception('Total batteries must be greater than 0');
+    }
+    if (avgPowerKw == null || avgPowerKw <= 0) {
+      throw Exception('Average charge power (kW) must be greater than 0');
+    }
+    if (_operatingHoursController.text.trim().isEmpty) {
+      throw Exception('Operating hours is required for battery swap stations');
+    }
+
+    final repository = ref.read(batterySwapChangeRequestRepositoryProvider);
+
+    // Fields in CreateBatterySwapCRDTO: type, stationId, totalBatteries,
+    // avgChargePowerKw, operatingHours, parkingFee (optional), note (optional),
+    // pileTemplates (optional).
+    final data = <String, dynamic>{
+      'type': _type == 'CREATE_STATION'
+          ? 'CREATE_BATTERY_SWAP_STATION'
+          : 'UPDATE_BATTERY_SWAP_STATION',
+      if (_type == 'UPDATE_STATION' && _selectedStationId != null)
+        'stationId': _selectedStationId,
+      'totalBatteries': totalBatteries,
+      'avgChargePowerKw': avgPowerKw,
+      'operatingHours': _operatingHoursController.text.trim(),
+      'pileTemplates': [],
+    };
+
+    await repository.createChangeRequest(data);
+  }
+
+  Future<void> _loadBatterySwapStationData(String stationId) async {
+    setState(() {
+      _isLoadingStation = true;
+      _selectedStationId = stationId;
+    });
+
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) {
+        throw Exception('API client not initialized');
+      }
+
+      final stationData = await factory.ev.getBatterySwapStationDetail(stationId);
+
+      if (mounted) {
+        _nameController.text = stationData['name'] as String? ?? '';
+
+        final lat = stationData['lat'] as double?;
+        final lng = stationData['lng'] as double?;
+        if (lat != null) _latController.text = lat.toStringAsFixed(6);
+        if (lng != null) _lngController.text = lng.toStringAsFixed(6);
+
+        final avgPowerKw = stationData['avgChargePowerKw'];
+        if (avgPowerKw != null) {
+          _avgChargePowerKwController.text = (avgPowerKw as num).toDouble().toStringAsFixed(1);
+        }
+
+        setState(() {
+          _isLoadingStation = false;
+        });
+
+        if (mounted) {
+          AppToast.showSuccess(context, 'Station data loaded successfully');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStation = false;
+          _selectedStationId = null;
+        });
+        AppToast.showError(context, 'Failed to load station data: ${formatApiError(e)}');
       }
     }
   }

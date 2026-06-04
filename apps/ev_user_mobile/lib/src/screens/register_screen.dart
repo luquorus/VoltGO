@@ -172,8 +172,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   items: const [
                     DropdownMenuItem(
                         value: 'EV_USER', child: Text('EV user')),
-                    DropdownMenuItem(
-                        value: 'PROVIDER', child: Text('Station provider')),
                   ],
                   onChanged: _isLoading
                       ? null

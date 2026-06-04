@@ -15,6 +15,7 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/change_request_list_screen.dart';
 import '../screens/change_request_detail_screen.dart';
 import '../screens/change_request_create_screen.dart';
+import '../screens/battery_swap_change_request_detail_screen.dart';
 import '../screens/my_issues_screen.dart';
 import '../screens/recommendation_screen.dart';
 import '../screens/battery_swap_screen.dart';
@@ -42,7 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       
       // Check role guard for EV app
-      if (role != 'EV_USER' && role != 'PROVIDER') {
+      if (role != 'EV_USER') {
         return '/forbidden';
       }
       
@@ -115,6 +116,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
           return ChangeRequestDetailScreen(changeRequestId: id);
+        },
+      ),
+      GoRoute(
+        path: '/change-requests/battery-swap/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return BatterySwapChangeRequestDetailScreen(changeRequestId: id);
         },
       ),
       GoRoute(

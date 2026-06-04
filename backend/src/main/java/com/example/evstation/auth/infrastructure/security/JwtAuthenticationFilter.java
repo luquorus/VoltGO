@@ -18,13 +18,12 @@ import java.util.List;
 
 /**
  * JWT Authentication Filter
- * 
+ *
  * Maps JWT claim "role" to Spring Security GrantedAuthority:
  * - EV_USER -> ROLE_EV_USER
- * - PROVIDER -> ROLE_PROVIDER
  * - COLLABORATOR -> ROLE_COLLABORATOR
  * - ADMIN -> ROLE_ADMIN
- * 
+ *
  * This allows @PreAuthorize("hasRole('EV_USER')") to work correctly.
  */
 @Slf4j

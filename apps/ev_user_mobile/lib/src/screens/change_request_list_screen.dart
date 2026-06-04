@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
-import 'package:shared_auth/shared_auth.dart';
 import '../providers/change_request_providers.dart';
 import '../widgets/main_scaffold.dart';
 
@@ -16,32 +15,10 @@ class ChangeRequestListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChangeRequestListScreenState extends ConsumerState<ChangeRequestListScreen> {
-  String? _lastUserId;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authState = ref.read(authStateProvider);
-      _lastUserId = authState.userId;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(changeRequestListProvider);
-    final authState = ref.watch(authStateProvider);
     final theme = Theme.of(context);
-
-    // Refresh list if userId changed
-    if (_lastUserId != null && _lastUserId != authState.userId) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(changeRequestListProvider.notifier).refresh();
-      });
-      _lastUserId = authState.userId;
-    } else if (_lastUserId == null) {
-      _lastUserId = authState.userId;
-    }
 
     return MainScaffold(
       title: 'Station edit proposals',
@@ -94,31 +71,31 @@ class _ChangeRequestListScreenState extends ConsumerState<ChangeRequestListScree
       itemCount: state.changeRequests.length,
       itemBuilder: (context, index) {
         final cr = state.changeRequests[index];
-        return _ChangeRequestCard(changeRequest: cr);
+        return _ChangeRequestCard(cr: cr);
       },
     );
   }
 }
 
 class _ChangeRequestCard extends StatelessWidget {
-  final Map<String, dynamic> changeRequest;
+  final ChangeRequestListItem cr;
 
-  const _ChangeRequestCard({required this.changeRequest});
+  const _ChangeRequestCard({required this.cr});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final id = changeRequest['id'] as String? ?? '';
-    final type = changeRequest['type'] as String? ?? 'UNKNOWN';
-    final status = changeRequest['status'] as String? ?? 'UNKNOWN';
-    final createdAt = _parseDateTime(changeRequest['createdAt'] as String?);
-    final stationData = changeRequest['stationData'] as Map<String, dynamic>?;
-    final stationName = stationData?['name'] as String? ?? 'Unnamed station';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => context.push('/change-requests/$id'),
+        onTap: () {
+          if (cr.kind == 'BATTERY_SWAP') {
+            context.push('/change-requests/battery-swap/${cr.id}');
+          } else {
+            context.push('/change-requests/${cr.id}');
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -126,63 +103,77 @@ class _ChangeRequestCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  // Station kind badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: cr.kind == 'BATTERY_SWAP'
+                          ? Colors.orange.withOpacity(0.15)
+                          : Colors.blue.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      cr.kind == 'BATTERY_SWAP' ? 'Battery Swap' : 'Charging',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cr.kind == 'BATTERY_SWAP' ? Colors.orange : Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Text(
+                      cr.stationName,
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  StatusPill(
+                    label: _statusLabel(cr.status),
+                    colorMapper: (_) => _statusColor(cr.status),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  FaIcon(
+                    FontAwesomeIcons.bolt,
+                    size: 12,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_typeLabel(cr.type)} • #${cr.id.length >= 8 ? cr.id.substring(0, 8) : cr.id}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (cr.createdAt != null)
+                    Row(
                       children: [
-                        Text(
-                          stationName,
-                          style: theme.textTheme.titleMedium,
+                        FaIcon(
+                          FontAwesomeIcons.calendar,
+                          size: 12,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(width: 4),
                         Text(
-                          '${_typeLabel(type)} • #${id.length >= 8 ? id.substring(0, 8) : id}',
+                          _formatDateTime(cr.createdAt!),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  StatusPill(
-                    label: _statusLabel(status),
-                    colorMapper: (_) => _statusColor(status),
-                  ),
                 ],
               ),
-              if (createdAt != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    FaIcon(
-                      FontAwesomeIcons.calendar,
-                      size: 12,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDateTime(createdAt),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
-  }
-
-  DateTime? _parseDateTime(String? dateStr) {
-    if (dateStr == null) return null;
-    try {
-      return DateTime.parse(dateStr).toLocal();
-    } catch (e) {
-      return null;
-    }
   }
 
   String _formatDateTime(DateTime date) {
