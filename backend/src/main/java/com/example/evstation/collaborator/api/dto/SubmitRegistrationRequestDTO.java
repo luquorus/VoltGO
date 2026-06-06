@@ -40,7 +40,5 @@ public class SubmitRegistrationRequestDTO {
     @NotBlank(message = "Bank name is required")
     private String bankName;
 
-    private String referralCode;
-
     private String contractAgreedAt;  // optional — backend generates if not provided
 }

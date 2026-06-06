@@ -219,8 +219,6 @@ class _RegistrationRequestDetailScreenState
             _buildInfoRow(theme, 'Age', request.age != null ? '${request.age} years old' : 'N/A'),
             _buildInfoRow(theme, 'Address', request.address ?? 'N/A'),
             _buildInfoRow(theme, 'ID Card Number', request.idCardNumber ?? 'N/A'),
-            if (request.referralCode != null && request.referralCode!.isNotEmpty)
-              _buildInfoRow(theme, 'Referral Code', request.referralCode!),
           ],
         ),
       ),

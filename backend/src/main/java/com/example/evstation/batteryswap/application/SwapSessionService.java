@@ -10,6 +10,7 @@ import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.loyalty.application.BadgeService;
 import com.example.evstation.loyalty.application.LoyaltyPointService;
 import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.application.ReferralService;
 import com.example.evstation.loyalty.domain.BadgeCriteriaType;
 import com.example.evstation.loyalty.domain.EligibilityType;
 import com.example.evstation.loyalty.domain.PointSource;
@@ -44,6 +45,7 @@ public class SwapSessionService {
     private final LoyaltyPointService loyaltyPointService;
     private final RatingEligibilityService ratingEligibilityService;
     private final BadgeService badgeService;
+    private final ReferralService referralService;
 
     @Value("${voltgo.battery-swap.charge-duration-minutes:60}")
     private int chargeDurationMinutes;
@@ -148,12 +150,16 @@ public class SwapSessionService {
         batterySwapServiceSyncAvailable(reservation.getStationId());
 
         // Loyalty: award points for completed battery swap
-        loyaltyPointService.earnPoints(reservation.getUserId(), PointSource.BATTERY_SWAP, reservation.getId(),
+        UUID refereeId = reservation.getUserId();
+        loyaltyPointService.earnPoints(refereeId, PointSource.BATTERY_SWAP, reservation.getId(),
                 String.format("Completed battery swap at station %s", reservation.getStationId()));
-        loyaltyPointService.incrementSwapCount(reservation.getUserId());
-        badgeService.checkAndAwardBadges(reservation.getUserId(), BadgeCriteriaType.FIRST_SWAP, 1);
-        var profile = loyaltyPointService.getProfile(reservation.getUserId());
-        profile.ifPresent(p -> badgeService.checkAndAwardBadges(reservation.getUserId(), BadgeCriteriaType.SWAP_COUNT, p.getTotalSwaps()));
+        loyaltyPointService.incrementSwapCount(refereeId);
+        badgeService.checkAndAwardBadges(refereeId, BadgeCriteriaType.FIRST_SWAP, 1);
+        var profile = loyaltyPointService.getProfile(refereeId);
+        profile.ifPresent(p -> badgeService.checkAndAwardBadges(refereeId, BadgeCriteriaType.SWAP_COUNT, p.getTotalSwaps()));
+
+        // Referral: award referral bonus if this is referee's first completed booking/swap
+        referralService.onRefereeFirstBookingCompleted(refereeId);
 
         // Loyalty: mark station as eligible for rating
         ratingEligibilityService.markEligible(

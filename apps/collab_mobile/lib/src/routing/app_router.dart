@@ -4,6 +4,7 @@ import 'package:shared_auth/shared_auth.dart';
 import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
+import '../screens/dashboard_overview_screen.dart';
 import '../screens/task_list_screen.dart';
 import '../screens/task_detail_screen.dart';
 import '../screens/profile_screen.dart';
@@ -14,6 +15,7 @@ import '../screens/swap_task_list_screen.dart';
 import '../screens/registration_form_screen.dart';
 import '../screens/registration_pending_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/contracts_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -51,9 +53,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      // Redirect /home to /charging-station
-      if (location == '/home') {
-        return '/charging-station';
+      // Redirect root to /home (dashboard)
+      if (location == '/' || location == '/home') {
+        return null;
       }
       
       return null;
@@ -62,6 +64,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+      // Home / Dashboard
+      GoRoute(path: '/home', builder: (_, __) => const DashboardOverviewScreen()),
       GoRoute(path: '/charging-station', builder: (_, __) => const TaskListScreen()),
       GoRoute(
         path: '/charging-station/:taskId',
@@ -83,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+      GoRoute(path: '/profile/contracts', builder: (_, __) => const ContractsScreen()),
       GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
       GoRoute(path: '/forbidden', builder: (_, __) => const ForbiddenScreen()),
       // Registration flow

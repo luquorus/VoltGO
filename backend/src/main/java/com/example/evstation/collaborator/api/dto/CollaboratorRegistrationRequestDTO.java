@@ -26,7 +26,6 @@ public class CollaboratorRegistrationRequestDTO {
     private String idCardNumber;
     private String bankAccountNumber;
     private String bankName;
-    private String referralCode;
     private Instant contractAgreedAt;
     private RegistrationRequestStatus status;
     private String rejectionReason;

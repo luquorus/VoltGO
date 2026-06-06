@@ -37,16 +37,20 @@ public class ReferralService {
 
     @Transactional
     public void onReferralSignup(String referralCode, UUID refereeId) {
+        log.info("REFERRAL_SERVICE: onReferralSignup called with code='{}', refereeId={}", referralCode, refereeId);
         var allReferrals = referralRepository.findAll().stream()
                 .filter(r -> r.getReferralCode().equalsIgnoreCase(referralCode))
                 .toList();
+        log.info("REFERRAL_SERVICE: Found {} referral(s) matching code '{}'", allReferrals.size(), referralCode);
         if (allReferrals.isEmpty()) return;
         ReferralEntity referral = allReferrals.get(0);
+        log.info("REFERRAL_SERVICE: Matching referral found - referrerId={}, existingRefereeId={}, status={}",
+                referral.getReferrerId(), referral.getRefereeId(), referral.getStatus());
         if (referral.getRefereeId() != null) return;
         referral.setRefereeId(refereeId);
         referral.setStatus(ReferralStatus.REGISTERED);
         referralRepository.save(referral);
-        log.info("Referral registered: referrer={}, referee={}", referral.getReferrerId(), refereeId);
+        log.info("REFERRAL_SERVICE: Referral registered - referrer={}, referee={}", referral.getReferrerId(), refereeId);
     }
 
     @Transactional
@@ -55,9 +59,14 @@ public class ReferralService {
             if (r.getStatus() == ReferralStatus.REGISTERED) {
                 r.setStatus(ReferralStatus.EARNED);
                 referralRepository.save(r);
+                // Referrer earns: use referral record ID as sourceId
                 loyaltyPointService.earnPoints(r.getReferrerId(), PointSource.REFERRAL, r.getId(),
                         "Referral bonus: referee completed first booking");
-                loyaltyPointService.earnPoints(refereeId, PointSource.REFERRAL, r.getId(),
+                // Referee earns: use referral record ID + referee ID composite as sourceId
+                // to avoid duplicate detection (same referral ID was used for referrer)
+                UUID refereeSourceId = UUID.nameUUIDFromBytes(
+                        (r.getId().toString() + "_referee_" + refereeId.toString()).getBytes());
+                loyaltyPointService.earnPoints(refereeId, PointSource.REFERRAL, refereeSourceId,
                         "Referral bonus: completed first booking");
                 log.info("Referral earned: referrer={}, referee={}", r.getReferrerId(), refereeId);
             }

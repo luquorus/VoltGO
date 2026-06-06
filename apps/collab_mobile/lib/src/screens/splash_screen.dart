@@ -12,7 +12,7 @@ class SplashScreen extends ConsumerWidget {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (authState.isAuthenticated && authState.role == 'COLLABORATOR') {
-        context.go('/charging-station');
+        context.go('/home');
       } else if (authState.isAuthenticated) {
         context.go('/forbidden');
       } else {

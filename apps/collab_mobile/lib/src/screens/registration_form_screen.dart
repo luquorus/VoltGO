@@ -21,7 +21,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _idCardController = TextEditingController();
   final _bankAccountController = TextEditingController();
   final _bankNameController = TextEditingController();
-  final _referralCodeController = TextEditingController();
 
   DateTime? _dateOfBirth;
   bool _isLoading = false;
@@ -35,7 +34,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     _idCardController.dispose();
     _bankAccountController.dispose();
     _bankNameController.dispose();
-    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -79,9 +77,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
         idCardNumber: _idCardController.text.trim(),
         bankAccountNumber: _bankAccountController.text.trim(),
         bankName: _bankNameController.text.trim(),
-        referralCode: _referralCodeController.text.trim().isEmpty
-            ? null
-            : _referralCodeController.text.trim(),
       );
 
       if (mounted) {
@@ -252,12 +247,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // Referral Code (Optional)
-                AppTextField(
-                  label: 'Referral Code (Optional)',
-                  controller: _referralCodeController,
-                  enabled: !_isLoading,
-                ),
                 const SizedBox(height: 24),
 
                 // Contract Agreement

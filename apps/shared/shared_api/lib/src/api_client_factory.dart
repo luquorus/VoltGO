@@ -144,6 +144,7 @@ class AuthApiClient extends BaseApiClient {
     required String email,
     required String password,
     required String role,
+    String? referralCode,
   }) {
     return post<Map<String, dynamic>>(
       '/auth/register',
@@ -151,6 +152,7 @@ class AuthApiClient extends BaseApiClient {
         'email': email,
         'password': password,
         'role': role,
+        if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
       },
     );
   }
@@ -883,6 +885,17 @@ class CollaboratorMobileApiClient extends BaseApiClient {
       data: preferences,
     );
   }
+  /// GET /api/collab/web/tasks/kpi
+  /// Get monthly KPI (reviewedCount, passCount, failCount)
+  Future<Map<String, dynamic>> getKpi() {
+    return get<Map<String, dynamic>>('/api/collab/web/tasks/kpi');
+  }
+
+  /// GET /api/collab/web/me/contracts
+  /// Get my contracts with active flag
+  Future<List<dynamic>> getContracts() {
+    return get<List<dynamic>>('/api/collab/web/me/contracts');
+  }
 }
 
 /// Collaborator Web API Client
@@ -1038,7 +1051,6 @@ class PublicApiClient extends BaseApiClient {
     required String idCardNumber,
     required String bankAccountNumber,
     required String bankName,
-    String? referralCode,
     String? contractAgreedAt,
   }) {
     return post<Map<String, dynamic>>(
@@ -1051,7 +1063,6 @@ class PublicApiClient extends BaseApiClient {
         'idCardNumber': idCardNumber,
         'bankAccountNumber': bankAccountNumber,
         'bankName': bankName,
-        if (referralCode != null) 'referralCode': referralCode,
         'contractAgreedAt': contractAgreedAt ?? DateTime.now().toUtc().toIso8601String(),
       },
     );

@@ -8,6 +8,7 @@ import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.loyalty.application.BadgeService;
 import com.example.evstation.loyalty.application.LoyaltyPointService;
 import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.application.ReferralService;
 import com.example.evstation.loyalty.domain.BadgeCriteriaType;
 import com.example.evstation.loyalty.domain.EligibilityType;
 import com.example.evstation.loyalty.domain.PointSource;
@@ -37,6 +38,7 @@ public class PaymentService {
     private final LoyaltyPointService loyaltyPointService;
     private final RatingEligibilityService ratingEligibilityService;
     private final BadgeService badgeService;
+    private final ReferralService referralService;
     private final Clock clock;
     
     // Fallback amount if price snapshot is missing or invalid
@@ -196,6 +198,9 @@ public class PaymentService {
         badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.FIRST_BOOKING, 1);
         var profileOpt = loyaltyPointService.getProfile(loyaltyUserId);
         profileOpt.ifPresent(p -> badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.BOOKING_COUNT, p.getTotalBookings()));
+
+        // Referral: award referral bonus if this is referee's first completed booking
+        referralService.onRefereeFirstBookingCompleted(loyaltyUserId);
 
         // Loyalty: mark station as eligible for rating
         ratingEligibilityService.markEligible(

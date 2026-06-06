@@ -5,18 +5,22 @@ import com.example.evstation.auth.application.port.UserAccountRepository;
 import com.example.evstation.auth.domain.Role;
 import com.example.evstation.auth.domain.UserAccount;
 import com.example.evstation.auth.domain.UserStatus;
+import com.example.evstation.loyalty.application.ReferralService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RegisterUseCase {
     private final UserAccountRepository repository;
     private final PasswordEncoder passwordEncoder;
+    private final ReferralService referralService;
 
     @Transactional
-    public UserAccount execute(String email, String name, String password, Role role) {
+    public UserAccount execute(String email, String name, String password, Role role, String referralCode) {
         // Validate role
         if (role == Role.ADMIN) {
             throw new IllegalArgumentException("Cannot register as ADMIN");
@@ -43,7 +47,19 @@ public class RegisterUseCase {
                 role,
                 initialStatus);
 
-        return repository.save(account);
+        account = repository.save(account);
+
+        // Process referral if EV_USER registered with a referral code
+        if (role == Role.EV_USER && referralCode != null && !referralCode.isBlank()) {
+            log.info("REGISTER_USE_CASE: EV_USER registered with referralCode='{}', email='{}', userId={}",
+                    referralCode, email, account.getId());
+            referralService.onReferralSignup(referralCode.trim(), account.getId());
+        } else {
+            log.info("REGISTER_USE_CASE: No referral code - role={}, referralCode='{}', email='{}'",
+                    role, referralCode, email);
+        }
+
+        return account;
     }
 }
 

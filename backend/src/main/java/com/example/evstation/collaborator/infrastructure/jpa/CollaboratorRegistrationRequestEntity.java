@@ -57,9 +57,6 @@ public class CollaboratorRegistrationRequestEntity {
     @Column(name = "bank_name", length = 100)
     private String bankName;
 
-    @Column(name = "referral_code", length = 50)
-    private String referralCode;
-
     @Column(name = "contract_agreed_at")
     private Instant contractAgreedAt;
 

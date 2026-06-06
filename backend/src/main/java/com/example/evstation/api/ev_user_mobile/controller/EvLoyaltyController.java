@@ -158,7 +158,9 @@ public class EvLoyaltyController {
     public ResponseEntity<ReferralCodeDTO> generateReferralCode(Authentication authentication) {
         UUID userId = extractUserId(authentication);
         String code = referralService.generateReferralCode(userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ReferralCodeDTO.builder().code(code).build());
+        String referralLink = "voltgo://register?ref=" + code;
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ReferralCodeDTO.builder().code(code).referralLink(referralLink).build());
     }
 
     @Operation(summary = "Get station ratings (public)")

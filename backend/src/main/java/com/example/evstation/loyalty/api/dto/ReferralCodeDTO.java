@@ -7,4 +7,5 @@ import lombok.Data;
 @Builder
 public class ReferralCodeDTO {
     private String code;
+    private String referralLink;
 }

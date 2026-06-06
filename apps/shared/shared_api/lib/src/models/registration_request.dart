@@ -11,7 +11,6 @@ class RegistrationRequest {
   final String? idCardNumber;
   final String? bankAccountNumber;
   final String? bankName;
-  final String? referralCode;
   final DateTime? contractAgreedAt;
   final RegistrationRequestStatus status;
   final String? rejectionReason;
@@ -32,7 +31,6 @@ class RegistrationRequest {
     this.idCardNumber,
     this.bankAccountNumber,
     this.bankName,
-    this.referralCode,
     this.contractAgreedAt,
     required this.status,
     this.rejectionReason,
@@ -55,7 +53,6 @@ class RegistrationRequest {
       idCardNumber: json['idCardNumber'] as String?,
       bankAccountNumber: json['bankAccountNumber'] as String?,
       bankName: json['bankName'] as String?,
-      referralCode: json['referralCode'] as String?,
       contractAgreedAt: json['contractAgreedAt'] != null
           ? DateTime.parse(json['contractAgreedAt'] as String)
           : null,
@@ -85,7 +82,6 @@ class RegistrationRequest {
       if (idCardNumber != null) 'idCardNumber': idCardNumber,
       if (bankAccountNumber != null) 'bankAccountNumber': bankAccountNumber,
       if (bankName != null) 'bankName': bankName,
-      if (referralCode != null) 'referralCode': referralCode,
       if (contractAgreedAt != null) 'contractAgreedAt': contractAgreedAt!.toUtc().toIso8601String(),
       'status': status.value,
       if (rejectionReason != null) 'rejectionReason': rejectionReason,

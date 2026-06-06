@@ -23,6 +23,7 @@ import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.loyalty.application.BadgeService;
 import com.example.evstation.loyalty.application.LoyaltyPointService;
 import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.application.ReferralService;
 import com.example.evstation.loyalty.domain.BadgeCriteriaType;
 import com.example.evstation.loyalty.domain.EligibilityType;
 import com.example.evstation.loyalty.domain.PointSource;
@@ -76,6 +77,7 @@ public class BatterySwapService {
     private final LoyaltyPointService loyaltyPointService;
     private final RatingEligibilityService ratingEligibilityService;
     private final BadgeService badgeService;
+    private final ReferralService referralService;
 
     @Value("${voltgo.battery-swap.base-price-vnd:5000}")
     private long configuredBasePriceVnd;
@@ -764,6 +766,9 @@ public class BatterySwapService {
         badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.FIRST_SWAP, 1);
         var profileOpt = loyaltyPointService.getProfile(loyaltyUserId);
         profileOpt.ifPresent(p -> badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.SWAP_COUNT, p.getTotalSwaps()));
+
+        // Referral: award referral bonus if this is referee's first completed booking/swap
+        referralService.onRefereeFirstBookingCompleted(loyaltyUserId);
 
         // Loyalty: mark station as eligible for rating
         ratingEligibilityService.markEligible(

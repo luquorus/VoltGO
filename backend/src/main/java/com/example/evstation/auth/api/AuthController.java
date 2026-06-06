@@ -39,7 +39,8 @@ public class AuthController {
                 request.getEmail(),
                 request.getName(),
                 request.getPassword(),
-                role);
+                role,
+                request.getReferralCode());
 
         // Generate token for registered user (includes status in JWT)
         String token = loginUseCase.execute(request.getEmail(), request.getPassword())

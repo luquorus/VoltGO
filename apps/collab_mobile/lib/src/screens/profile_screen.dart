@@ -286,6 +286,18 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
+            // Contracts button
+            Card(
+              child: ListTile(
+                leading: Icon(Icons.description_outlined, color: theme.colorScheme.primary),
+                title: const Text('My Contracts'),
+                subtitle: const Text('View your contracts and agreements'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/profile/contracts'),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Edit Profile button
             ElevatedButton.icon(
               onPressed: () => context.push('/profile/edit'),

@@ -19,10 +19,11 @@ class CollabBottomNavBar extends ConsumerWidget {
     final notificationsState = ref.watch(notificationsProvider);
     final unreadCount = notificationsState.unreadCount;
 
+    final isHome = currentLocation == '/home';
     final isChargingTasks = currentLocation == '/charging-station' || currentLocation.startsWith('/charging-station/');
     final isSwapStation = currentLocation == '/swap-station' || currentLocation.startsWith('/swap-station/');
     final isNotifications = currentLocation == '/notifications';
-    final isProfile = currentLocation == '/profile';
+    final isProfile = currentLocation == '/profile' || currentLocation == '/profile/contracts';
 
     return Container(
       decoration: BoxDecoration(
@@ -35,7 +36,7 @@ class CollabBottomNavBar extends ConsumerWidget {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _getCurrentIndex(isChargingTasks, isSwapStation, isNotifications, isProfile),
+        currentIndex: _getCurrentIndex(isHome, isChargingTasks, isSwapStation, isNotifications, isProfile),
         onTap: (index) => _onTap(context, index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: theme.colorScheme.primary,
@@ -44,14 +45,19 @@ class CollabBottomNavBar extends ConsumerWidget {
         unselectedFontSize: 12,
         items: [
           const BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
-            label: 'Charging Station',
+            label: 'Charging',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.battery_charging_full_outlined),
             activeIcon: Icon(Icons.battery_charging_full),
-            label: 'Swap Station',
+            label: 'Swap',
           ),
           BottomNavigationBarItem(
             icon: NotificationBadgeIcon(
@@ -76,26 +82,30 @@ class CollabBottomNavBar extends ConsumerWidget {
     );
   }
 
-  int _getCurrentIndex(bool isChargingTasks, bool isSwapStation, bool isNotifications, bool isProfile) {
-    if (isNotifications) return 2;
-    if (isSwapStation) return 1;
-    if (isChargingTasks) return 0;
-    if (isProfile) return 3;
+  int _getCurrentIndex(bool isHome, bool isChargingTasks, bool isSwapStation, bool isNotifications, bool isProfile) {
+    if (isNotifications) return 3;
+    if (isSwapStation) return 2;
+    if (isChargingTasks) return 1;
+    if (isProfile) return 4;
+    if (isHome) return 0;
     return 0;
   }
 
   void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/charging-station');
+        context.go('/home');
         break;
       case 1:
-        context.go('/swap-station');
+        context.go('/charging-station');
         break;
       case 2:
-        context.go('/notifications');
+        context.go('/swap-station');
         break;
       case 3:
+        context.go('/notifications');
+        break;
+      case 4:
         context.go('/profile');
         break;
     }

@@ -91,7 +91,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   /// Register via API (using AuthService or ApiClientFactory)
   /// registrationSubmitted=false because user just registered but hasn't submitted the form yet
-  Future<void> register(String email, String password, String role) async {
+  Future<void> register(String email, String password, String role, {String? referralCode}) async {
     if (_authService != null) {
       final response = await _authService!.register(email, password, role);
       await _saveAuthResponse(response, registrationSubmitted: false);
@@ -108,8 +108,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
   }
 
   /// Register via ApiClientFactory (new method)
-  Future<void> registerWithApiClient(AuthApiClient authClient, String email, String password, String role) async {
-    final responseData = await authClient.register(email: email, password: password, role: role);
+  Future<void> registerWithApiClient(AuthApiClient authClient, String email, String password, String role, {String? referralCode}) async {
+    final responseData = await authClient.register(email: email, password: password, role: role, referralCode: referralCode);
     final response = AuthResponse.fromJson(responseData);
     await _saveAuthResponse(response, registrationSubmitted: false);
   }

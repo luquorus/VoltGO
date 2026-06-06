@@ -18,6 +18,7 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final FocusNode? focusNode;
   final String? Function(String?)? validator;
+  final TextInputAction? textInputAction;
 
   const AppTextField({
     super.key,
@@ -37,6 +38,7 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.focusNode,
     this.validator,
+    this.textInputAction,
   });
 
   @override
@@ -52,6 +54,7 @@ class AppTextField extends StatelessWidget {
       maxLength: maxLength,
       enabled: enabled,
       focusNode: focusNode,
+      textInputAction: textInputAction,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
