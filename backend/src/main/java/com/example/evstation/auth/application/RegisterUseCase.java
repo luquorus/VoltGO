@@ -4,6 +4,7 @@ import com.example.evstation.auth.application.port.PasswordEncoder;
 import com.example.evstation.auth.application.port.UserAccountRepository;
 import com.example.evstation.auth.domain.Role;
 import com.example.evstation.auth.domain.UserAccount;
+import com.example.evstation.auth.domain.UserStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +29,20 @@ public class RegisterUseCase {
 
         // Create account
         String passwordHash = passwordEncoder.encode(password);
-        UserAccount account = new UserAccount(email, name != null ? name : email, passwordHash, role);
-        
+
+        // Collaborator accounts start as PENDING_COLLABORATOR (awaiting admin approval),
+        // EV_USER accounts are immediately ACTIVE
+        UserStatus initialStatus = (role == Role.COLLABORATOR)
+                ? UserStatus.PENDING_COLLABORATOR
+                : UserStatus.ACTIVE;
+
+        UserAccount account = new UserAccount(
+                email,
+                name != null ? name : email,
+                passwordHash,
+                role,
+                initialStatus);
+
         return repository.save(account);
     }
 }

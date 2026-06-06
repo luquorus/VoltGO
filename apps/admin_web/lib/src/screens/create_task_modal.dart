@@ -4,6 +4,7 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_api/shared_api.dart';
 import '../theme/admin_theme.dart';
 import '../providers/battery_swap_trust_providers.dart';
+import '../widgets/station_search_dropdown.dart';
 
 /// Task type for create modal
 enum TaskCreationType {
@@ -31,7 +32,37 @@ enum TaskCreationType {
 
 /// Create Task Modal
 class CreateTaskModal extends ConsumerStatefulWidget {
-  const CreateTaskModal({super.key});
+  final String? preselectedStationId;
+  final String? preselectedStationName;
+  final String? preselectedChangeRequestId;
+  final TaskCreationType preselectedType;
+  
+  const CreateTaskModal({
+    super.key,
+    this.preselectedStationId,
+    this.preselectedStationName,
+    this.preselectedChangeRequestId,
+    this.preselectedType = TaskCreationType.chargingStation,
+  });
+
+  /// Factory constructor for creating a pre-filled task modal from context
+  factory CreateTaskModal.withContext({
+    Key? key,
+    required String preselectedStationId,
+    String? preselectedStationName,
+    String? preselectedChangeRequestId,
+    TaskCreationType preselectedType = TaskCreationType.chargingStation,
+  }) {
+    return CreateTaskModal(
+      key: key,
+      preselectedStationId: preselectedStationId,
+      preselectedStationName: preselectedStationName,
+      preselectedChangeRequestId: preselectedChangeRequestId,
+      preselectedType: preselectedType,
+    );
+  }
+
+  bool get _isPrefilled => preselectedStationId != null;
 
   @override
   ConsumerState<CreateTaskModal> createState() => _CreateTaskModalState();
@@ -39,13 +70,15 @@ class CreateTaskModal extends ConsumerStatefulWidget {
 
 class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _stationIdController = TextEditingController();
   final _changeRequestIdController = TextEditingController();
+  StationSearchItem? _selectedStationItem;
   double _priority = 3.0;
   DateTime? _slaDueAt;
   bool _isLoading = false;
   late TabController _tabController;
   TaskCreationType _selectedType = TaskCreationType.chargingStation;
+  String? _stationError;
+  bool _tabSwitchingDisabled = false;
 
   @override
   void initState() {
@@ -54,17 +87,34 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
+          _selectedStationItem = null;
           _selectedType = _tabController.index == 0
               ? TaskCreationType.chargingStation
               : TaskCreationType.batterySwap;
         });
       }
     });
+
+    // Handle pre-fill values
+    if (widget.preselectedChangeRequestId != null) {
+      _changeRequestIdController.text = widget.preselectedChangeRequestId!;
+    }
+    
+    if (widget._isPrefilled) {
+      _selectedType = widget.preselectedType;
+      _tabSwitchingDisabled = true;
+      
+      // Pre-select the matching tab
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.index = widget.preselectedType == TaskCreationType.chargingStation ? 0 : 1;
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
-    _stationIdController.dispose();
     _changeRequestIdController.dispose();
     _tabController.dispose();
     super.dispose();
@@ -144,9 +194,24 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
   }
 
   Future<void> _handleSubmit() async {
+    // Handle pre-filled station
+    String? effectiveStationId;
+    if (widget._isPrefilled) {
+      effectiveStationId = widget.preselectedStationId;
+    } else {
+      if (_selectedStationItem == null) {
+        setState(() => _stationError = 'Station is required');
+        return;
+      }
+      effectiveStationId = _selectedStationItem!.id;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _stationError = null;
+      _isLoading = true;
+    });
 
     try {
       final factory = ref.read(apiClientFactoryProvider);
@@ -158,16 +223,23 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
         slaDueAtString = _slaDueAt!.toUtc().toIso8601String();
       }
 
-      // Determine verification type based on selected tab
-      final verificationType = _selectedType == TaskCreationType.batterySwap
-          ? 'BATTERY_SWAP'
-          : 'CHARGING';
+      // Determine verification type string
+      String? verificationType;
+      String? changeRequestId;
+      if (_selectedType == TaskCreationType.chargingStation) {
+        verificationType = 'CHARGING_STATION';
+        changeRequestId = _changeRequestIdController.text.trim().isEmpty
+            ? null
+            : _changeRequestIdController.text.trim();
+      } else {
+        verificationType = 'BATTERY_SWAP';
+        // Battery swap CRs are in a separate table, not in the charging CR table.
+        // Omit changeRequestId to avoid FK constraint violation.
+      }
 
       await factory.admin.createVerificationTask(
-        stationId: _stationIdController.text.trim(),
-        changeRequestId: _changeRequestIdController.text.trim().isEmpty
-            ? null
-            : _changeRequestIdController.text.trim(),
+        stationId: effectiveStationId!,
+        changeRequestId: changeRequestId,
         priority: _priority.round(),
         slaDueAt: slaDueAtString,
         verificationType: verificationType,
@@ -193,7 +265,9 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -225,45 +299,15 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
             ),
             const SizedBox(height: 16),
 
-            // Type Tabs
+            // Type Tabs or locked single type indicator
             Container(
               decoration: BoxDecoration(
                 color: AdminTheme.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AdminTheme.primaryTeal.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelColor: AdminTheme.primaryTeal,
-                unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.ev_station, size: 18),
-                        const SizedBox(width: 8),
-                        const Text('Charging Station'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.battery_charging_full, size: 18),
-                        const SizedBox(width: 8),
-                        const Text('Battery Swap'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              child: _tabSwitchingDisabled
+                  ? _buildLockedTypeIndicator(theme)
+                  : _buildTypeTabBar(theme),
             ),
             const SizedBox(height: 16),
 
@@ -319,20 +363,49 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
   }
 
   Widget _buildChargingStationForm(ThemeData theme) {
+    final isPrefilled = widget._isPrefilled && widget.preselectedType == TaskCreationType.chargingStation;
+    
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppTextField(
-            label: 'Station ID *',
-            controller: _stationIdController,
-            enabled: !_isLoading,
-            hint: 'Enter station UUID',
-            validator: (v) => v?.isEmpty ?? true ? 'Station ID is required' : null,
-          ),
+          if (isPrefilled)
+            TextFormField(
+              initialValue: widget.preselectedStationName ?? widget.preselectedStationId,
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: 'Station Name *',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(Icons.lock, size: 18, color: Colors.grey),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              ),
+            )
+          else
+            StationSearchDropdown(
+              stationType: StationType.charging,
+              selectedStationId: _selectedStationItem?.id,
+              onChanged: (item) {
+                setState(() {
+                  _selectedStationItem = item;
+                  _stationError = null;
+                });
+              },
+              errorText: _stationError,
+              enabled: !_isLoading,
+            ),
           const SizedBox(height: 8),
           Text(
-            'Applies to charging station verification tasks.',
+            isPrefilled 
+                ? 'Station is pre-selected from the change request.'
+                : 'Search and select a charging station by name.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.65),
             ),
@@ -342,7 +415,7 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
           AppTextField(
             label: 'Change Request ID (Optional)',
             controller: _changeRequestIdController,
-            enabled: !_isLoading,
+            enabled: !_isLoading || widget.preselectedChangeRequestId != null,
             hint: 'Enter change request UUID',
           ),
           const SizedBox(height: 16),
@@ -357,25 +430,51 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
   }
 
   Widget _buildBatterySwapForm(ThemeData theme) {
-    final stationId = _stationIdController.text.trim();
-    final isValidId = stationId.length > 5;
+    final isPrefilled = widget._isPrefilled && widget.preselectedType == TaskCreationType.batterySwap;
+    final stationId = _selectedStationItem?.id ?? (isPrefilled ? widget.preselectedStationId : null);
+    final isValidId = stationId != null && stationId.isNotEmpty;
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppTextField(
-            label: 'Battery Swap Station ID *',
-            controller: _stationIdController,
-            enabled: !_isLoading,
-            hint: 'Enter battery swap station UUID',
-            onChanged: (_) => setState(() {}),
-            validator: (v) => v?.isEmpty ?? true ? 'Station ID is required' : null,
-          ),
+          if (isPrefilled)
+            TextFormField(
+              initialValue: widget.preselectedStationName ?? widget.preselectedStationId,
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: 'Station Name *',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(Icons.lock, size: 18, color: Colors.grey),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              ),
+            )
+          else
+            StationSearchDropdown(
+              stationType: StationType.batterySwap,
+              selectedStationId: _selectedStationItem?.id,
+              onChanged: (item) {
+                setState(() {
+                  _selectedStationItem = item;
+                  _stationError = null;
+                });
+              },
+              errorText: _stationError,
+              enabled: !_isLoading,
+            ),
           const SizedBox(height: 8),
           Text(
-            'Applies to battery swap station verification tasks. '
-            'Trust score will be displayed for the selected station.',
+            isPrefilled 
+                ? 'Station is pre-selected from the change request.'
+                : 'Search and select a battery swap station by name.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.65),
             ),
@@ -385,7 +484,7 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
           AppTextField(
             label: 'Change Request ID (Optional)',
             controller: _changeRequestIdController,
-            enabled: !_isLoading,
+            enabled: !_isLoading || widget.preselectedChangeRequestId != null,
             hint: 'Enter battery swap change request UUID',
           ),
           const SizedBox(height: 16),
@@ -417,7 +516,7 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
           const SizedBox(height: 16),
 
           // Station snapshot preview
-          if (isValidId) _buildStationSnapshotPreview(theme, stationId),
+          if (isValidId) _buildStationSnapshotPreview(theme, stationId!),
           if (isValidId) const SizedBox(height: 16),
 
           _buildPrioritySection(theme),
@@ -707,6 +806,69 @@ class _CreateTaskModalState extends ConsumerState<CreateTaskModal> with SingleTi
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildLockedTypeIndicator(ThemeData theme) {
+    final isBatterySwap = widget.preselectedType == TaskCreationType.batterySwap;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isBatterySwap ? Icons.battery_charging_full : Icons.ev_station,
+            size: 18,
+            color: AdminTheme.primaryTeal,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isBatterySwap ? 'Battery Swap Task' : 'Charging Station Task',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AdminTheme.primaryTeal,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.lock, size: 14, color: AdminTheme.primaryTeal),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeTabBar(ThemeData theme) {
+    return TabBar(
+      controller: _tabController,
+      indicator: BoxDecoration(
+        color: AdminTheme.primaryTeal.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      labelColor: AdminTheme.primaryTeal,
+      unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+      tabs: [
+        Tab(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.ev_station, size: 18),
+              const SizedBox(width: 8),
+              const Text('Charging Station'),
+            ],
+          ),
+        ),
+        Tab(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.battery_charging_full, size: 18),
+              const SizedBox(width: 8),
+              const Text('Battery Swap'),
+            ],
+          ),
+        ),
       ],
     );
   }

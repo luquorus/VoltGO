@@ -15,7 +15,7 @@ class SwapKPIScreen extends ConsumerWidget {
     final kpiAsync = ref.watch(swapKpiProvider);
 
     return DashboardShell(
-      title: 'Battery Swap KPIs',
+      title: 'Swap Station KPIs',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -36,7 +36,7 @@ class SwapKPIScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Battery swap verification KPI metrics for current month',
+                        'Swap station verification KPI metrics for current month',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),

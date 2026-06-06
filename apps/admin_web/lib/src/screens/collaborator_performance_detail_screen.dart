@@ -139,7 +139,7 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${(detail.passRate * 100).toStringAsFixed(0)}% Pass Rate',
+                              '${detail.passRate.toStringAsFixed(0)}% Pass Rate',
                               style: TextStyle(
                                 color: AdminTheme.primaryTeal,
                                 fontWeight: FontWeight.w600,
@@ -181,7 +181,7 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
               context,
               width: cardWidth,
               icon: Icons.check_circle,
-              value: '${(detail.passRate * 100).toStringAsFixed(1)}%',
+              value: '${detail.passRate.toStringAsFixed(1)}%',
               label: 'Pass Rate',
               color: const Color(0xFF22C55E),
             ),
@@ -197,7 +197,7 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
               context,
               width: cardWidth,
               icon: Icons.speed,
-              value: '${(detail.slaComplianceRate * 100).toStringAsFixed(1)}%',
+              value: '${detail.slaComplianceRate.toStringAsFixed(1)}%',
               label: 'SLA Compliance',
               color: const Color(0xFF8B5CF6),
             ),
@@ -326,18 +326,18 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
       return const Center(child: Text('No data'));
     }
 
-    final maxTasks = monthlyData.map((m) => m.tasksCompleted).reduce((a, b) => a > b ? a : b);
+    final maxTotalTasks = monthlyData.map((m) => m.totalTasks).reduce((a, b) => a > b ? a : b);
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: maxTasks.toDouble() * 1.2,
+        maxY: maxTotalTasks > 0 ? maxTotalTasks.toDouble() * 1.2 : 10.0,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final month = monthlyData[groupIndex];
               return BarTooltipItem(
-                '${month.displayMonth}\n${month.tasksCompleted} tasks\n${(month.passRate * 100).toStringAsFixed(0)}% pass',
+                '${month.displayMonth}\n${month.totalTasks} tasks (${month.passedTasks} pass, ${month.failedTasks} fail)\n${month.passRate.toStringAsFixed(0)}% pass',
                 const TextStyle(color: Colors.white, fontSize: 12),
               );
             },
@@ -386,19 +386,16 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
           ),
         ),
         borderData: FlBorderData(show: false),
-        barGroups: monthlyData.asMap().entries.map((entry) {
-          final passTasks = (entry.value.tasksCompleted * entry.value.passRate).round();
-          final failTasks = entry.value.tasksCompleted - passTasks;
-          
+        barGroups: monthlyData.map((month) {
           return BarChartGroupData(
-            x: entry.key,
+            x: monthlyData.indexOf(month),
             barRods: [
               BarChartRodData(
-                toY: entry.value.tasksCompleted.toDouble(),
+                toY: month.totalTasks.toDouble(),
                 width: 24,
                 rodStackItems: [
-                  BarChartRodStackItem(0, passTasks.toDouble(), const Color(0xFF22C55E)),
-                  BarChartRodStackItem(passTasks.toDouble(), entry.value.tasksCompleted.toDouble(), const Color(0xFFEF4444)),
+                  BarChartRodStackItem(0, month.passedTasks.toDouble(), const Color(0xFF22C55E)),
+                  BarChartRodStackItem(month.passedTasks.toDouble(), month.totalTasks.toDouble(), const Color(0xFFEF4444)),
                 ],
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
               ),

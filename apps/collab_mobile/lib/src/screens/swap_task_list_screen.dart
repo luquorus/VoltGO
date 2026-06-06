@@ -22,7 +22,7 @@ class _SwapTaskListScreenState extends ConsumerState<SwapTaskListScreen> {
     final theme = Theme.of(context);
 
     return CollabMainScaffold(
-      title: 'Battery swap tasks',
+      title: 'Swap Station Verification Tasks',
       child: Column(
         children: [
           // Filter Section
@@ -125,11 +125,10 @@ class _SwapTaskTab extends ConsumerWidget {
             : tasks;
 
         if (filteredTasks.isEmpty) {
-          return EmptyState(
-            title: 'No battery swap tasks',
-            message: statuses != null && statuses!.isNotEmpty
-                ? 'No tasks match the selected status.'
-                : 'You have no battery swap verification tasks assigned.',
+          return const EmptyState(
+            title: 'No swap station tasks',
+            message:
+                'You have no swap station verification tasks assigned.',
             icon: Icons.battery_charging_full_outlined,
           );
         }
@@ -179,7 +178,7 @@ class _SwapTaskCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          context.push('/battery-swap/${task.id}');
+          context.push('/swap-station/${task.id}');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(

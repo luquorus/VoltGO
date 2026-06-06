@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/station_providers.dart';
+import '../providers/loyalty_providers.dart';
 import '../widgets/main_scaffold.dart';
 import '../models/battery_swap_models.dart';
 import '../services/battery_swap_websocket_service.dart';
@@ -53,6 +54,7 @@ class _BatterySwapReservationScreenState
     });
     _swapCompletedSubscription = ws.onSwapCompleted().listen((_) {
       ref.read(batterySwapProvider.notifier).loadMyReservations();
+      ref.invalidate(loyaltyProfileProvider);
     });
     // Subscribe to all stations that have active reservations
     final state = ref.read(batterySwapProvider);
@@ -367,6 +369,47 @@ class _ReservationCardState extends ConsumerState<_ReservationCard> {
                   isSwapping: isSwapping,
                   isCompleted: isCompleted,
                   arrived: hasArrived),
+
+              // Points earned banner when completed
+              if (isCompleted) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.sackDollar,
+                          color: Colors.green.shade700, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Congratulations!',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            Text(
+                              'You earned +30 loyalty points for this swap',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

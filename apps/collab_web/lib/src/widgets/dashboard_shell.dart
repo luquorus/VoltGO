@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../theme/collab_theme.dart';
+import '../providers/notification_provider.dart';
+import '../routing/app_router.dart';
 import 'sidebar.dart';
 
 /// Dashboard Shell with Sidebar + Topbar + Content area
@@ -113,6 +115,9 @@ class DashboardShell extends ConsumerWidget {
                       // Actions
                       if (actions != null) ...actions!,
 
+                      // Notification Bell
+                      _buildNotificationBell(context, ref),
+
                       // User Avatar
                       _buildUserAvatar(context, ref),
                     ],
@@ -221,6 +226,72 @@ class DashboardShell extends ConsumerWidget {
           _handleLogout(context, ref);
         }
       },
+    );
+  }
+
+  Widget _buildNotificationBell(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadCountNotifierProvider);
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () => context.go(CollabRoutes.notifications),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                unreadCount > 0
+                    ? Icons.notifications_active
+                    : Icons.notifications_outlined,
+                size: 22,
+                color: unreadCount > 0
+                    ? CollabTheme.primaryGreen
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      unreadCount > 99 ? '99+' : unreadCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -28,33 +28,33 @@ class CollabSidebar extends StatelessWidget {
     this.onLogout,
   });
 
-  static const List<SidebarItem> _taskItems = [
+  static const List<SidebarItem> _chargingStationItems = [
     SidebarItem(
-      path: '/tasks',
-      label: 'Tasks',
+      path: '/charging-station',
+      label: 'Charging Station',
       icon: Icons.assignment_outlined,
       activeIcon: Icons.assignment,
     ),
     SidebarItem(
-      path: '/tasks/history',
+      path: '/charging-station/history',
       label: 'History',
       icon: Icons.history_outlined,
       activeIcon: Icons.history,
     ),
     SidebarItem(
-      path: '/tasks/kpi',
+      path: '/charging-station/kpi',
       label: 'KPI',
       icon: Icons.analytics_outlined,
       activeIcon: Icons.analytics,
     ),
     SidebarItem(
-      path: '/battery-swap',
-      label: 'Battery swap',
+      path: '/swap-station',
+      label: 'Swap Station',
       icon: Icons.battery_charging_full_outlined,
       activeIcon: Icons.battery_charging_full,
     ),
     SidebarItem(
-      path: '/battery-swap/kpi',
+      path: '/swap-station/kpi',
       label: 'Swap KPI',
       icon: Icons.analytics_outlined,
       activeIcon: Icons.analytics,
@@ -74,18 +74,27 @@ class CollabSidebar extends StatelessWidget {
       icon: Icons.description_outlined,
       activeIcon: Icons.description,
     ),
+    SidebarItem(
+      path: '/notifications',
+      label: 'Notifications',
+      icon: Icons.notifications_outlined,
+      activeIcon: Icons.notifications,
+    ),
   ];
 
   bool _isActive(String path) {
-    if (path == '/tasks') {
-      return currentPath == '/tasks' || 
-          (currentPath.startsWith('/tasks/') && 
-           currentPath != '/tasks/history' && 
-           currentPath != '/tasks/kpi');
+    if (path == '/charging-station') {
+      return currentPath == '/charging-station' ||
+          (currentPath.startsWith('/charging-station/') &&
+           currentPath != '/charging-station/history' &&
+           currentPath != '/charging-station/kpi');
     }
-    if (path == '/battery-swap') {
-      return currentPath == '/battery-swap' || 
-          currentPath.startsWith('/battery-swap/');
+    if (path == '/swap-station') {
+      return currentPath == '/swap-station' ||
+          currentPath.startsWith('/swap-station/');
+    }
+    if (path == '/notifications') {
+      return currentPath == '/notifications';
     }
     return currentPath == path || currentPath.startsWith('$path/');
   }
@@ -158,8 +167,8 @@ class CollabSidebar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Tasks Section
-                  _buildSectionHeader(context, 'TASKS'),
-                  ..._taskItems.map((item) => _buildNavItem(context, item)),
+                  _buildSectionHeader(context, 'CHARGING STATION'),
+                  ..._chargingStationItems.map((item) => _buildNavItem(context, item)),
                   
                   const SizedBox(height: 20),
                   

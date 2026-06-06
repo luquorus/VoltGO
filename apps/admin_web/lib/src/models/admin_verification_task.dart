@@ -38,6 +38,7 @@ class AdminVerificationTask {
   final String? assignedToEmail;
   final VerificationTaskStatus status;
   final DateTime createdAt;
+  final String? verificationType; // CHARGING_STATION or BATTERY_SWAP
   final CheckinInfo? checkin;
   final List<Evidence> evidences;
   final Review? review;
@@ -58,6 +59,7 @@ class AdminVerificationTask {
     this.assignedToEmail,
     required this.status,
     required this.createdAt,
+    this.verificationType,
     this.checkin,
     this.evidences = const [],
     this.review,
@@ -67,6 +69,9 @@ class AdminVerificationTask {
     this.requiresVerification = false,
     this.requiresAdminReview = false,
   });
+
+  bool get isBatterySwap => verificationType == 'BATTERY_SWAP';
+  bool get isCharging => verificationType == 'CHARGING_STATION';
 
   factory AdminVerificationTask.fromJson(Map<String, dynamic> json) {
     return AdminVerificationTask(
@@ -84,6 +89,7 @@ class AdminVerificationTask {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
+      verificationType: json['verificationType'] as String?,
       checkin: json['checkin'] != null
           ? CheckinInfo.fromJson(json['checkin'] as Map<String, dynamic>)
           : null,
@@ -112,11 +118,18 @@ class AdminVerificationTask {
   }
 
   bool get isBatterySwapStation =>
-      stationServiceTypes.contains('BATTERY_SWAP');
+      isBatterySwap ||
+      (!isCharging && stationServiceTypes.contains('BATTERY_SWAP'));
 
-  bool get isChargingStation => stationServiceTypes.contains('CHARGING');
+  bool get isChargingStation =>
+      isCharging ||
+      (!isBatterySwap && stationServiceTypes.contains('CHARGING'));
 
   String get primaryServiceLabel {
+    if (verificationType != null) {
+      if (verificationType == 'BATTERY_SWAP') return 'Battery swap station';
+      if (verificationType == 'CHARGING_STATION') return 'Charging station';
+    }
     if (isBatterySwapStation && !isChargingStation) {
       return 'Battery swap station';
     }
@@ -131,6 +144,9 @@ class AdminVerificationTask {
 
   bool get canAssign => status == VerificationTaskStatus.open;
   bool get canReview => status == VerificationTaskStatus.submitted;
+  bool get canDelete =>
+      status == VerificationTaskStatus.open ||
+      status == VerificationTaskStatus.assigned;
 }
 
 enum VerificationTaskStatus {

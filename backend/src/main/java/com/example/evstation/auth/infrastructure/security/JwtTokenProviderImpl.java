@@ -2,6 +2,7 @@ package com.example.evstation.auth.infrastructure.security;
 
 import com.example.evstation.auth.application.port.JwtTokenProvider;
 import com.example.evstation.auth.domain.Role;
+import com.example.evstation.auth.domain.UserStatus;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -25,7 +26,7 @@ public class JwtTokenProviderImpl implements JwtTokenProvider {
     }
 
     @Override
-    public String generateToken(UUID userId, String email, Role role) {
+    public String generateToken(UUID userId, String email, Role role, UserStatus status) {
         Instant now = Instant.now();
         Instant expiry = now.plus(EXPIRATION_HOURS, ChronoUnit.HOURS);
 
@@ -33,6 +34,7 @@ public class JwtTokenProviderImpl implements JwtTokenProvider {
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("role", role.name())
+                .claim("status", status.name())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(secretKey)
@@ -52,7 +54,17 @@ public class JwtTokenProviderImpl implements JwtTokenProvider {
             String email = claims.get("email", String.class);
             Role role = Role.valueOf(claims.get("role", String.class));
 
-            return new TokenClaims(userId, email, role);
+            // Handle backward compatibility: old tokens don't have status claim
+            UserStatus status;
+            String statusClaim = claims.get("status", String.class);
+            if (statusClaim != null) {
+                status = UserStatus.valueOf(statusClaim);
+            } else {
+                // Old tokens default to ACTIVE (EV_USER was always ACTIVE, COLLABORATOR was also ACTIVE before this change)
+                status = UserStatus.ACTIVE;
+            }
+
+            return new TokenClaims(userId, email, role, status);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid token", e);
         }

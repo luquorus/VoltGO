@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../providers/notification_provider.dart';
 
 /// Bottom Navigation Bar for Collaborator Mobile App
 /// Uses lighter green color scheme
-class CollabBottomNavBar extends StatelessWidget {
+class CollabBottomNavBar extends ConsumerWidget {
   final String currentLocation;
 
   const CollabBottomNavBar({
@@ -12,10 +14,14 @@ class CollabBottomNavBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isChargingTasks = currentLocation == '/tasks' || currentLocation.startsWith('/tasks/');
-    final isBatterySwap = currentLocation == '/battery-swap' || currentLocation.startsWith('/battery-swap/');
+    final notificationsState = ref.watch(notificationsProvider);
+    final unreadCount = notificationsState.unreadCount;
+
+    final isChargingTasks = currentLocation == '/charging-station' || currentLocation.startsWith('/charging-station/');
+    final isSwapStation = currentLocation == '/swap-station' || currentLocation.startsWith('/swap-station/');
+    final isNotifications = currentLocation == '/notifications';
     final isProfile = currentLocation == '/profile';
 
     return Container(
@@ -29,25 +35,38 @@ class CollabBottomNavBar extends StatelessWidget {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _getCurrentIndex(isChargingTasks, isBatterySwap, isProfile),
+        currentIndex: _getCurrentIndex(isChargingTasks, isSwapStation, isNotifications, isProfile),
         onTap: (index) => _onTap(context, index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: theme.colorScheme.primary,
         unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
-            label: 'Charging',
+            label: 'Charging Station',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.battery_charging_full_outlined),
             activeIcon: Icon(Icons.battery_charging_full),
-            label: 'Swap',
+            label: 'Swap Station',
           ),
           BottomNavigationBarItem(
+            icon: NotificationBadgeIcon(
+              icon: Icons.notifications_outlined,
+              badgeCount: unreadCount,
+              showBadge: unreadCount > 0,
+            ),
+            activeIcon: NotificationBadgeIcon(
+              icon: Icons.notifications,
+              badgeCount: unreadCount,
+              showBadge: unreadCount > 0,
+            ),
+            label: 'Notifications',
+          ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profile',
@@ -57,24 +76,77 @@ class CollabBottomNavBar extends StatelessWidget {
     );
   }
 
-  int _getCurrentIndex(bool isChargingTasks, bool isBatterySwap, bool isProfile) {
-    if (isBatterySwap) return 1;
+  int _getCurrentIndex(bool isChargingTasks, bool isSwapStation, bool isNotifications, bool isProfile) {
+    if (isNotifications) return 2;
+    if (isSwapStation) return 1;
     if (isChargingTasks) return 0;
-    if (isProfile) return 2;
+    if (isProfile) return 3;
     return 0;
   }
 
   void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/tasks');
+        context.go('/charging-station');
         break;
       case 1:
-        context.go('/battery-swap');
+        context.go('/swap-station');
         break;
       case 2:
+        context.go('/notifications');
+        break;
+      case 3:
         context.go('/profile');
         break;
     }
+  }
+}
+
+/// Badge icon widget for notifications
+class NotificationBadgeIcon extends StatelessWidget {
+  final IconData icon;
+  final int badgeCount;
+  final bool showBadge;
+
+  const NotificationBadgeIcon({
+    super.key,
+    required this.icon,
+    required this.badgeCount,
+    required this.showBadge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (showBadge)
+          Positioned(
+            right: -6,
+            top: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : badgeCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

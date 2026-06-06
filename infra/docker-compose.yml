@@ -59,20 +59,19 @@ services:
     container_name: voltgo-backend
     environment:
       SPRING_PROFILES_ACTIVE: docker
-
+      JAVA_TOOL_OPTIONS: "-Dspring.main.banner-mode=log"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-voltgo}
       POSTGRES_USER: ${POSTGRES_USER:-voltgo_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
-
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
-      
-      MINIO_URL: http://minio:9000
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://host.docker.internal:9000}
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-admin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-admin123}
+      MINIO_URL: ${MINIO_URL:-http://minio:9000}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://192.168.0.106:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-voltgo}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -88,71 +87,6 @@ services:
       - voltgo-network
     restart: unless-stopped
 
-  # Frontend: EV User Mobile Web
-  frontend-ev-user:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.flutter-web
-      args:
-        APP_NAME: ev_user_mobile
-    container_name: voltgo-frontend-ev-user
-    ports:
-      - "3001:80"
-    depends_on:
-      - backend
-    networks:
-      - voltgo-network
-    restart: unless-stopped
-
-  # Frontend: Admin Web Portal
-  frontend-admin:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.flutter-web
-      args:
-        APP_NAME: admin_web
-    container_name: voltgo-frontend-admin
-    ports:
-      - "3002:80"
-    depends_on:
-      - backend
-    networks:
-      - voltgo-network
-    restart: unless-stopped
-
-  # Frontend: Collaborator Web
-  frontend-collab-web:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.flutter-web
-      args:
-        APP_NAME: collab_web
-    container_name: voltgo-frontend-collab-web
-    ports:
-      - "3003:80"
-    depends_on:
-      - backend
-    networks:
-      - voltgo-network
-    restart: unless-stopped
-
-  # Frontend: Collaborator Mobile Web
-  frontend-collab-mobile:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.flutter-web
-      args:
-        APP_NAME: collab_mobile
-    container_name: voltgo-frontend-collab-mobile
-    ports:
-      - "3004:80"
-    depends_on:
-      - backend
-    networks:
-      - voltgo-network
-    restart: unless-stopped
-
-
 volumes:
   postgres_data:
     driver: local
@@ -164,4 +98,3 @@ volumes:
 networks:
   voltgo-network:
     driver: bridge
-

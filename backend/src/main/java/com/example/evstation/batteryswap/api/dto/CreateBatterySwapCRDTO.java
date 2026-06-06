@@ -64,6 +64,13 @@ public class CreateBatterySwapCRDTO {
     @Valid
     private List<PileTemplateDTO> pileTemplates;
 
+    /**
+     * When true (admin flow): CR is immediately submitted, approved, and published.
+     * When false (EV user flow): CR is created as DRAFT and goes through the workflow step by step.
+     * Defaults to true when submitted by ADMIN.
+     */
+    private Boolean submitImmediately;
+
     @Data
     public static class PileTemplateDTO {
         @NotNull(message = "pileIndex is required")

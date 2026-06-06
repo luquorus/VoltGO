@@ -1,6 +1,7 @@
 package com.example.evstation.collaborator.api;
 
 import com.example.evstation.collaborator.api.dto.CollaboratorProfileDTO;
+import com.example.evstation.collaborator.api.dto.CreateCollaboratorAccountDTO;
 import com.example.evstation.collaborator.api.dto.CreateCollaboratorDTO;
 import com.example.evstation.collaborator.application.CollaboratorService;
 import com.example.evstation.common.web.PaginationRequest;
@@ -70,12 +71,49 @@ public class AdminCollaboratorManagementController {
     public ResponseEntity<CollaboratorProfileDTO> getCollaborator(
             @Parameter(description = "Collaborator profile ID", required = true)
             @PathVariable UUID id) {
-        
+
         log.info("Admin getting collaborator: id={}", id);
-        
+
         return collaboratorService.getCollaboratorById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
+        summary = "Create collaborator with account",
+        description = "Create a new user account and collaborator profile in one step using email, password, and full name"
+    )
+    @PostMapping("/with-account")
+    public ResponseEntity<CollaboratorProfileDTO> createCollaboratorWithAccount(
+            @Valid @RequestBody CreateCollaboratorAccountDTO request,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        String adminRole = extractRole(authentication);
+
+        log.info("Admin creating collaborator account: email={}", request.getEmail());
+
+        CollaboratorProfileDTO result = collaboratorService.createCollaboratorWithAccount(request, adminId, adminRole);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @Operation(
+        summary = "Delete collaborator",
+        description = "Delete a collaborator profile and their associated user account"
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCollaborator(
+            @Parameter(description = "Collaborator profile ID", required = true)
+            @PathVariable UUID id,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        String adminRole = extractRole(authentication);
+
+        log.info("Admin deleting collaborator: id={}", id);
+
+        collaboratorService.deleteCollaborator(id, adminId, adminRole);
+        return ResponseEntity.noContent().build();
     }
     
     private UUID extractUserId(Authentication authentication) {

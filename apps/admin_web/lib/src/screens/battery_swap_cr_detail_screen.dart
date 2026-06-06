@@ -9,6 +9,7 @@ import '../providers/battery_swap_cr_providers.dart';
 import '../providers/battery_swap_trust_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import 'create_task_modal.dart';
 
 /// Battery Swap Change Request Detail Screen
 class BatterySwapCRDetailScreen extends ConsumerWidget {
@@ -118,7 +119,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   // Actions
-                  if (cr.canApprove || cr.canReject)
+                  if (cr.canApprove || cr.canReject || cr.requiresVerification)
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
@@ -151,6 +152,19 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AdminTheme.primaryTeal,
                               foregroundColor: Colors.white,
+                            ),
+                          ),
+                        if (cr.requiresVerification)
+                          Tooltip(
+                            message: 'Create a verification task for this change request',
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showCreateTaskModal(context, ref, cr),
+                              icon: const Icon(Icons.add_task),
+                              label: const Text('Create Verification Task'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AdminTheme.primaryTeal,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ),
                       ],
@@ -767,6 +781,22 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showCreateTaskModal(BuildContext context, WidgetRef ref, BatterySwapChangeRequest cr) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => CreateTaskModal.withContext(
+        preselectedStationId: cr.stationId,
+        preselectedStationName: cr.stationName,
+        preselectedChangeRequestId: cr.id,
+        preselectedType: TaskCreationType.batterySwap,
+      ),
+    ).then((result) {
+      if (result == true) {
+        ref.invalidate(batterySwapCRProvider(cr.id));
+      }
+    });
   }
 
   Future<void> _handleApprove(BuildContext context, WidgetRef ref,

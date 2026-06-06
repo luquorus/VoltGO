@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_api/shared_api.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../models/battery_swap_station.dart';
 import '../models/pagination_response.dart';
@@ -45,60 +46,96 @@ class _BatterySwapStationsListScreenState extends ConsumerState<BatterySwapStati
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                stationsAsync.when(
-                  data: (response) => Row(
-                    children: [
-                      Text(
-                        'Battery Swap Stations',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AdminTheme.primaryTeal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AdminTheme.primaryTeal.withOpacity(0.3),
-                            width: 1,
+                Expanded(
+                  child: stationsAsync.when(
+                    data: (response) => Row(
+                      children: [
+                        Text(
+                          'Battery Swap Stations',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.battery_charging_full,
-                              size: 18,
-                              color: AdminTheme.primaryTeal,
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AdminTheme.primaryTeal.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AdminTheme.primaryTeal.withOpacity(0.3),
+                              width: 1,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${response.totalElements} stations',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.battery_charging_full,
+                                size: 18,
                                 color: AdminTheme.primaryTeal,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Text(
+                                '${response.totalElements} stations',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AdminTheme.primaryTeal,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                    loading: () => Text(
+                      'Battery Swap Stations',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
-                  loading: () => Text(
-                    'Battery Swap Stations',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    ),
+                    error: (_, __) => Text(
+                      'Battery Swap Stations',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  error: (_, __) => Text(
-                    'Battery Swap Stations',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                ),
+                stationsAsync.when(
+                  data: (response) => response.content.isNotEmpty
+                      ? PopupMenuButton<String>(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          tooltip: 'Delete Station',
+                          onSelected: (stationId) {
+                            final station = response.content.firstWhere(
+                              (s) => s.id == stationId,
+                            );
+                            _showDeleteDialog(context, ref, station);
+                          },
+                          itemBuilder: (context) => response.content.map((station) {
+                            return PopupMenuItem<String>(
+                              value: station.id,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.delete_outline,
+                                      size: 18, color: Colors.red),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      station.name ?? station.id.substring(0, 8),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        )
+                      : const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -256,12 +293,24 @@ class _BatterySwapStationsListScreenState extends ConsumerState<BatterySwapStati
                     DataCell(_buildTrustBadge(theme, station)),
                     DataCell(Text(station.pendingCRs.toString())),
                     DataCell(
-                      IconButton(
-                        icon: const Icon(Icons.visibility, size: 20),
-                        onPressed: () {
-                          context.push('/battery-swap/stations/${station.id}');
-                        },
-                        tooltip: 'View Details',
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.visibility, size: 20),
+                            onPressed: () {
+                              context.push('/battery-swap/stations/${station.id}');
+                            },
+                            tooltip: 'View Details',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                            onPressed: () {
+                              _showDeleteDialog(context, ref, station);
+                            },
+                            tooltip: 'Delete Station',
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -404,5 +453,74 @@ class _BatterySwapStationsListScreenState extends ConsumerState<BatterySwapStati
     if (ratio >= 0.5) return Colors.green;
     if (ratio >= 0.2) return Colors.orange;
     return Colors.red;
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, BatterySwapStation station) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete Station'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${station.name ?? station.id}"?\n\n'
+          'This will permanently remove the station and all related data (change requests, versions, piles, state, trust records). '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _handleDelete(context, ref, station);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDelete(
+    BuildContext context,
+    WidgetRef ref,
+    BatterySwapStation station,
+  ) async {
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+
+      await factory.admin.deleteBatterySwapStation(station.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Station deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(batterySwapStationsProvider((page: 0, size: 20, search: null)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${formatApiError(e)}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

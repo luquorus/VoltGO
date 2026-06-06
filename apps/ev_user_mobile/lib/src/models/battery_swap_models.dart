@@ -166,6 +166,7 @@ class BatterySwapStationDetailModel {
   final String? address;
   final double? lat;
   final double? lng;
+  final String? operatingHours;
   final double avgChargePowerKw;
   final int basePriceVnd;
   final int totalPiles;
@@ -180,6 +181,7 @@ class BatterySwapStationDetailModel {
     this.address,
     this.lat,
     this.lng,
+    this.operatingHours,
     required this.avgChargePowerKw,
     required this.basePriceVnd,
     required this.totalPiles,
@@ -196,6 +198,7 @@ class BatterySwapStationDetailModel {
       address: j['address'] as String?,
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
+      operatingHours: j['operatingHours'] as String?,
       avgChargePowerKw: (j['avgChargePowerKw'] as num?)?.toDouble() ?? 35,
       basePriceVnd: (j['basePriceVnd'] as num?)?.toInt() ?? 5000,
       totalPiles: (j['totalPiles'] as num?)?.toInt() ?? 0,

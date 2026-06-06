@@ -6,6 +6,7 @@ import com.example.evstation.verification.api.dto.*;
 import com.example.evstation.verification.application.CollaboratorCandidateQueryService;
 import com.example.evstation.verification.application.VerificationService;
 import com.example.evstation.verification.domain.VerificationTaskStatus;
+import com.example.evstation.verification.domain.VerificationType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -90,16 +91,16 @@ public class AdminVerificationController {
         }
     }
 
-    @Operation(summary = "Get verification tasks", 
-               description = "Get verification tasks with optional status filter")
+    @Operation(summary = "Get verification tasks",
+               description = "Get verification tasks with optional status and verification type filter")
     @GetMapping
     public ResponseEntity<Page<VerificationTaskDTO>> getTasks(
             @RequestParam(required = false) VerificationTaskStatus status,
+            @RequestParam(required = false) VerificationType verificationType,
             Pageable pageable) {
-        
-        log.info("Admin getting tasks with status: {}", status);
-        
-        Page<VerificationTaskDTO> tasks = verificationService.getTasksByStatus(status, pageable);
+
+        log.info("Admin getting tasks: status={}, verificationType={}", status, verificationType);
+        Page<VerificationTaskDTO> tasks = verificationService.getTasksByStatus(status, verificationType, pageable);
         return ResponseEntity.ok(tasks);
     }
 
@@ -129,6 +130,21 @@ public class AdminVerificationController {
         
         VerificationTaskDTO result = verificationService.reviewTask(id, dto, adminId, role);
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Delete verification task",
+               description = "Delete an OPEN or ASSIGNED verification task (admin only)")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(
+            @PathVariable UUID id,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        String role = extractRole(authentication);
+
+        log.info("Admin {} deleting verification task {}", adminId, id);
+        verificationService.deleteTask(id, adminId, role);
+        return ResponseEntity.noContent().build();
     }
 
     private UUID extractUserId(Authentication authentication) {

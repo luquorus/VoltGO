@@ -20,16 +20,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return CollabMainScaffold(
-      title: 'Verification tasks',
-      actions: [
-        IconButton(
-          tooltip: 'Battery swap reservations',
-          icon: const Icon(Icons.battery_charging_full_rounded),
-          onPressed: () => context.push('/battery-swap'),
-        ),
-      ],
+      title: 'Charging Station Verification Tasks',
       child: Column(
         children: [
           // Filter Section
@@ -103,7 +96,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
           // Task List
           Expanded(
             child: _TaskTab(
-              statuses: _selectedStatus != null ? [_selectedStatus!] : null,
+              statuses: _selectedStatus != null
+                  ? [_selectedStatus!]
+                  : VerificationTaskStatus.values.toList(),
             ),
           ),
         ],
@@ -180,7 +175,7 @@ class _TaskCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          context.push('/tasks/${task.id}');
+          context.push('/charging-station/${task.id}');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(

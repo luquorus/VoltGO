@@ -35,7 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      if (mounted) context.go('/tasks');
+      if (mounted) context.go('/charging-station');
     } on ApiError catch (e) {
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {

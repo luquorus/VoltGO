@@ -53,6 +53,10 @@ final collaboratorProvider = FutureProvider.family<CollaboratorProfile, String>(
   if (factory == null) throw Exception('API client not initialized');
 
   final response = await factory.admin.getCollaborator(id);
+  // If response is null or empty, it means the collaborator was not found (404)
+  if (response == null || response.isEmpty) {
+    throw Exception('Collaborator not found (ID: $id)');
+  }
   return CollaboratorProfile.fromJson(response);
 });
 

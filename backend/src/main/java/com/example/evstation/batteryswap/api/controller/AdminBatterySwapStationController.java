@@ -80,6 +80,23 @@ public class AdminBatterySwapStationController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(
+            summary = "Delete battery swap station",
+            description = "Permanently delete a battery swap station and all its related data (change requests, versions, piles, state, trust). This action cannot be undone."
+    )
+    @DeleteMapping("/{stationId}")
+    public ResponseEntity<Void> deleteStation(
+            @Parameter(description = "Station ID", required = true)
+            @PathVariable UUID stationId,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        log.info("Admin deleting battery swap station: {}, adminId={}", stationId, adminId);
+
+        service.deleteStation(stationId, adminId);
+        return ResponseEntity.noContent().build();
+    }
+
     private UUID extractUserId(Authentication authentication) {
         return UUID.fromString(authentication.getName());
     }

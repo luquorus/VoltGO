@@ -17,7 +17,7 @@ class TaskHistoryScreen extends ConsumerWidget {
     final historyAsync = ref.watch(taskHistoryProvider);
 
     return DashboardShell(
-      title: 'Task History',
+      title: 'Charging Station History',
       searchSlot: SearchField(
         hint: 'Search history...',
         onChanged: (value) {

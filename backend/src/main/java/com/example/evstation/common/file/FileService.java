@@ -18,6 +18,9 @@ public class FileService {
     @Value("${minio.bucket:voltgo}")
     private String bucketName;
 
+    @Value("${minio.url:http://localhost:9000}")
+    private String minioUrl;
+
     @Value("${minio.public-url:}")
     private String publicMinioUrl;
 
@@ -82,11 +85,11 @@ public class FileService {
     }
 
     private MinioClient buildPresignClient() {
-        if (publicMinioUrl == null || publicMinioUrl.isBlank()) {
-            return minioClient;
-        }
+        String endpoint = (publicMinioUrl != null && !publicMinioUrl.isBlank())
+                ? publicMinioUrl
+                : minioUrl;
         return MinioClient.builder()
-                .endpoint(publicMinioUrl)
+                .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
                 .build();
     }

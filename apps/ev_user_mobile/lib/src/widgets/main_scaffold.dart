@@ -6,21 +6,18 @@ import '../widgets/bottom_nav_bar.dart';
 class _CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    // Position at the end (right side)
-    final double endX = scaffoldGeometry.scaffoldSize.width - 
-        scaffoldGeometry.floatingActionButtonSize.width - 
-        16.0; // 16px padding from edge
-    
-    // Position above the bottom navigation bar with extra spacing
-    // Bottom nav bar is typically 56-80px high (use 80px to be safe)
+    final double endX = scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.floatingActionButtonSize.width -
+        16.0;
+
     const double bottomNavHeight = 80.0;
     final double fabHeight = scaffoldGeometry.floatingActionButtonSize.height;
-    const double extraSpacing = 16.0; // Extra space above navigation bar
-    final double bottomY = scaffoldGeometry.scaffoldSize.height - 
-        bottomNavHeight - 
-        fabHeight - 
+    const double extraSpacing = 16.0;
+    final double bottomY = scaffoldGeometry.scaffoldSize.height -
+        bottomNavHeight -
+        fabHeight -
         extraSpacing;
-    
+
     return Offset(endX, bottomY);
   }
 
@@ -54,7 +51,9 @@ class MainScaffold extends StatelessWidget {
       appBar: title != null
           ? AppBar(
               title: Text(title!),
-              actions: actions,
+              actions: [
+                ...?actions,
+              ],
             )
           : null,
       body: child,
@@ -66,4 +65,3 @@ class MainScaffold extends StatelessWidget {
     );
   }
 }
-

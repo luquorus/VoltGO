@@ -9,7 +9,7 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
-  
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -24,7 +24,20 @@ spring:
     enabled: true
     validateMigrationNaming: false
     validate-on-migrate: false
-  
+
+  # Email configuration (SMTP)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   data:
     redis:
       host: redis
@@ -35,4 +48,10 @@ spring:
           max-active: 8
       max-idle: 8
       min-idle: 0
+
+# Application-specific settings
+app:
+  email:
+    enabled: ${EMAIL_ENABLED:true}
+    from-name: VoltGo
 

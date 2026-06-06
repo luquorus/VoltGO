@@ -20,6 +20,7 @@ public class VerificationTaskDTO {
     private String assignedToEmail;
     private VerificationTaskStatus status;
     private Instant createdAt;
+    private String verificationType;
 
     /** Service types on the station version under verification (e.g. CHARGING, BATTERY_SWAP). */
     private List<String> stationServiceTypes;

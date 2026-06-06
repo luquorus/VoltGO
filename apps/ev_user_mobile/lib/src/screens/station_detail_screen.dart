@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/station_providers.dart';
+import '../providers/loyalty_providers.dart';
 import '../widgets/report_issue_bottom_sheet.dart';
 import '../widgets/swap_trust_badge.dart';
 
@@ -128,6 +129,10 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
             const SizedBox(height: 12),
             _buildBatterySwapBookButton(context, theme),
           ],
+
+          // Rating section
+          const SizedBox(height: 12),
+          _buildRatingSection(context, theme),
 
           const SizedBox(height: 12),
 
@@ -375,6 +380,137 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
             '${stationName.isNotEmpty ? '&stationName=${Uri.encodeComponent(stationName)}' : ''}',
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRatingSection(BuildContext context, ThemeData theme) {
+    final summaryAsync = ref.watch(stationRatingSummaryProvider(widget.stationId));
+    final eligibleAsync = ref.watch(eligibleStationsForRatingProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ratings & Reviews',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Rating summary
+          summaryAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (summary) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              summary.averageRating.toStringAsFixed(1),
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber,
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(5, (index) {
+                                final rating = index + 1;
+                                if (summary.averageRating >= rating) {
+                                  return const Icon(Icons.star, size: 16, color: Colors.amber);
+                                } else if (summary.averageRating >= rating - 0.5) {
+                                  return const Icon(Icons.star_half, size: 16, color: Colors.amber);
+                                } else {
+                                  return const Icon(Icons.star_border, size: 16, color: Colors.amber);
+                                }
+                              }),
+                            ),
+                            Text(
+                              '${summary.totalRatings} reviews',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            children: List.generate(5, (index) {
+                              final star = 5 - index;
+                              final percent = summary.getPercentForRating(star);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  children: [
+                                    Text('$star', style: theme.textTheme.bodySmall),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.star, size: 12, color: Colors.amber),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: percent / 100,
+                                          minHeight: 8,
+                                          backgroundColor: Colors.grey.shade200,
+                                          valueColor: const AlwaysStoppedAnimation(Colors.amber),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 30,
+                                      child: Text(
+                                        '${summary.getCountForRating(star)}',
+                                        style: theme.textTheme.bodySmall,
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Rate button
+          eligibleAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (eligible) {
+              final matching = eligible.where((s) => s.stationId == widget.stationId).firstOrNull;
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    context.push(
+                      '/loyalty/rate/${widget.stationId}',
+                      extra: {'eligibilityId': matching?.eligibilityId},
+                    );
+                  },
+                  icon: const FaIcon(FontAwesomeIcons.star),
+                  label: Text(matching != null ? 'Rate this station' : 'View all ratings'),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

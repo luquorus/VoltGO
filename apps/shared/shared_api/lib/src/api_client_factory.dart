@@ -85,6 +85,9 @@ abstract class BaseApiClient {
 
   BaseApiClient(this.dio);
 
+  /// Expose Dio instance for direct access (e.g. DELETE calls not wrapped by typed methods).
+  Dio get client => dio;
+
   /// Handle API response, throw ApiError for non-2xx
   Future<T> _handleResponse<T>(Future<Response> request) async {
     try {
@@ -93,8 +96,6 @@ abstract class BaseApiClient {
       // Handle 204 No Content (common for DELETE requests)
       // When status is 204 or data is null, return null for void types
       if (response.statusCode == 204 || response.data == null) {
-        // For void return type (Future<void>), we can safely return null
-        // This is handled by the type system - void functions can return null
         return null as T;
       }
       
@@ -550,6 +551,140 @@ class EvUserMobileApiClient extends BaseApiClient {
   Future<List<dynamic>> getMyIssues() {
     return get<List<dynamic>>('/api/ev/issues/mine');
   }
+
+  // ============================================
+  // Notification Endpoints
+  // ============================================
+
+  /// GET /api/ev/notifications
+  /// Get paginated list of notifications with optional filters
+  Future<Map<String, dynamic>> getNotifications({
+    String? category,
+    bool? isRead,
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/notifications',
+      queryParameters: {
+        if (category != null && category.isNotEmpty) 'category': category,
+        if (isRead != null) 'isRead': isRead.toString(),
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/ev/notifications/unread-count
+  /// Get count of unread notifications
+  Future<int> getUnreadNotificationCount() async {
+    final response = await dio.get('/api/ev/notifications/unread-count');
+    return response.data as int;
+  }
+
+  /// PATCH /api/ev/notifications/{id}/read
+  /// Mark a notification as read
+  Future<void> markNotificationAsRead(String notificationId) {
+    return patch<void>('/api/ev/notifications/$notificationId/read');
+  }
+
+  /// PATCH /api/ev/notifications/read-all
+  /// Mark all notifications as read
+  Future<void> markAllNotificationsAsRead() {
+    return patch<void>('/api/ev/notifications/read-all');
+  }
+
+  // ============================================
+  // Loyalty Point System Endpoints
+  // ============================================
+
+  /// GET /api/ev/loyalty/me
+  /// Get current user's loyalty profile
+  Future<Map<String, dynamic>> getLoyaltyProfile() {
+    return get<Map<String, dynamic>>('/api/ev/loyalty/me');
+  }
+
+  /// GET /api/ev/loyalty/points/history
+  /// Get paginated point transaction history
+  Future<Map<String, dynamic>> getPointHistory({int page = 0, int size = 20}) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/loyalty/points/history',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/ev/loyalty/ratings/eligible
+  /// Get stations eligible for rating
+  Future<List<dynamic>> getEligibleStationsForRating() {
+    return get<List<dynamic>>('/api/ev/loyalty/ratings/eligible');
+  }
+
+  /// GET /api/ev/loyalty/ratings
+  /// Get current user's ratings
+  Future<List<dynamic>> getMyRatings() {
+    return get<List<dynamic>>('/api/ev/loyalty/ratings');
+  }
+
+  /// POST /api/ev/loyalty/ratings
+  /// Submit a station rating
+  Future<Map<String, dynamic>> submitRating(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/ev/loyalty/ratings', data: data);
+  }
+
+  /// POST /api/ev/loyalty/ratings/{id}/helpful
+  /// Mark a rating as helpful
+  Future<void> markRatingHelpful(String ratingId) {
+    return post<void>('/api/ev/loyalty/ratings/$ratingId/helpful');
+  }
+
+  /// GET /api/ev/loyalty/badges
+  /// Get current user's earned badges
+  Future<List<dynamic>> getMyBadges() {
+    return get<List<dynamic>>('/api/ev/loyalty/badges');
+  }
+
+  /// GET /api/ev/loyalty/badges/available
+  /// Get all badges with progress
+  Future<List<dynamic>> getAvailableBadges() {
+    return get<List<dynamic>>('/api/ev/loyalty/badges/available');
+  }
+
+  /// POST /api/ev/loyalty/referral/generate
+  /// Generate a referral code
+  Future<Map<String, dynamic>> generateReferralCode() {
+    return post<Map<String, dynamic>>('/api/ev/loyalty/referral/generate');
+  }
+
+  // ============================================
+  // Public Loyalty Endpoints
+  // ============================================
+
+  /// GET /api/ev/loyalty/public/stations/{stationId}/ratings
+  /// Get public ratings for a station
+  Future<Map<String, dynamic>> getStationRatings(
+    String stationId, {
+    int page = 0,
+    int size = 10,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/loyalty/public/stations/$stationId/ratings',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/ev/loyalty/public/stations/{stationId}/summary
+  /// Get rating summary for a station
+  Future<Map<String, dynamic>> getStationRatingSummary(String stationId) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/loyalty/public/stations/$stationId/summary',
+    );
+  }
 }
 
 /// Collaborator Mobile API Client
@@ -639,47 +774,113 @@ class CollaboratorMobileApiClient extends BaseApiClient {
   // Battery Swap Verification Endpoints
   // ============================================
 
-  /// POST /api/collab/mobile/tasks/{id}/battery-swap-check-in
+  /// POST /api/mobile/collab/battery-swap/verification/tasks/{id}/checkin
   Future<Map<String, dynamic>> batterySwapCheckIn({
     required String taskId,
     required double lat,
     required double lng,
-    required int batteryInventoryCount,
-    required int pileCount,
-    required int slotCount,
-    required bool isOperatingHoursAccurate,
-    int? parkingFee,
-    String? notes,
+    int? actualTotalBatteries,
+    int? actualAvailableBatteries,
+    double? observedAvgChargePowerKw,
+    String? deviceNote,
   }) {
     return post<Map<String, dynamic>>(
-      '/api/collab/mobile/tasks/$taskId/battery-swap-check-in',
+      '/api/mobile/collab/battery-swap/verification/tasks/$taskId/checkin',
       data: {
         'lat': lat,
         'lng': lng,
-        'batteryInventoryCount': batteryInventoryCount,
-        'pileCount': pileCount,
-        'slotCount': slotCount,
-        'isOperatingHoursAccurate': isOperatingHoursAccurate,
-        if (parkingFee != null) 'parkingFee': parkingFee,
-        if (notes != null) 'notes': notes,
+        if (actualTotalBatteries != null) 'actualTotalBatteries': actualTotalBatteries,
+        if (actualAvailableBatteries != null) 'actualAvailableBatteries': actualAvailableBatteries,
+        if (observedAvgChargePowerKw != null) 'observedAvgChargePowerKw': observedAvgChargePowerKw,
+        if (deviceNote != null) 'deviceNote': deviceNote,
       },
     );
   }
 
-  /// POST /api/collab/mobile/tasks/{id}/battery-swap-submit-evidence
+  /// POST /api/mobile/collab/battery-swap/verification/tasks/{id}/evidence
   Future<Map<String, dynamic>> batterySwapSubmitEvidence({
     required String taskId,
     required String photoObjectKey,
-    String? evidenceType,
     String? note,
   }) {
     return post<Map<String, dynamic>>(
-      '/api/collab/mobile/tasks/$taskId/battery-swap-submit-evidence',
+      '/api/mobile/collab/battery-swap/verification/tasks/$taskId/evidence',
       data: {
         'photoObjectKey': photoObjectKey,
-        if (evidenceType != null) 'evidenceType': evidenceType,
         if (note != null) 'note': note,
       },
+    );
+  }
+
+  // ============================================
+  // Notification Endpoints
+  // ============================================
+
+  /// GET /api/collab/notifications
+  /// Get paginated list of notifications with optional filters
+  Future<Map<String, dynamic>> getNotifications({
+    String? category,
+    bool? isRead,
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/collab/notifications',
+      queryParameters: {
+        if (category != null && category.isNotEmpty) 'category': category,
+        if (isRead != null) 'isRead': isRead.toString(),
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/collab/notifications/unread-count
+  /// Get count of unread notifications
+  Future<int> getUnreadNotificationCount() async {
+    final response = await dio.get('/api/collab/notifications/unread-count');
+    return response.data as int;
+  }
+
+  /// PATCH /api/collab/notifications/{id}/read
+  /// Mark a notification as read
+  Future<void> markNotificationAsRead(String notificationId) {
+    return patch<void>('/api/collab/notifications/$notificationId/read');
+  }
+
+  /// PATCH /api/collab/notifications/read-all
+  /// Mark all notifications as read
+  Future<void> markAllNotificationsAsRead() {
+    return patch<void>('/api/collab/notifications/read-all');
+  }
+
+  /// POST /api/collab/notifications/push-token
+  /// Register FCM push token
+  Future<void> registerPushToken({
+    required String token,
+    required String deviceType,
+  }) {
+    return post<void>(
+      '/api/collab/notifications/push-token',
+      data: {
+        'token': token,
+        'deviceType': deviceType,
+      },
+    );
+  }
+
+  /// GET /api/collab/notifications/preferences
+  /// Get notification preferences
+  Future<Map<String, dynamic>> getNotificationPreferences() {
+    return get<Map<String, dynamic>>('/api/collab/notifications/preferences');
+  }
+
+  /// PUT /api/collab/notifications/preferences
+  /// Save notification preferences
+  Future<void> saveNotificationPreferences(Map<String, dynamic> preferences) {
+    return put<void>(
+      '/api/collab/notifications/preferences',
+      data: preferences,
     );
   }
 }
@@ -821,6 +1022,46 @@ class PublicApiClient extends BaseApiClient {
   Future<Map<String, dynamic>> getActiveSwapCode(String stationId) {
     return get<Map<String, dynamic>>('/api/public/battery-swap/stations/$stationId/active-code');
   }
+
+  // ============================================
+  // Collaborator Registration Endpoints
+  // ============================================
+
+  /// POST /api/public/registration-requests
+  /// Submit a new collaborator registration request.
+  /// Email is sent by the backend from the authenticated JWT token — no need to send it.
+  Future<Map<String, dynamic>> submitRegistrationRequest({
+    required String fullName,
+    required String phone,
+    required String dateOfBirth,
+    required String address,
+    required String idCardNumber,
+    required String bankAccountNumber,
+    required String bankName,
+    String? referralCode,
+    String? contractAgreedAt,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/public/registration-requests',
+      data: {
+        'fullName': fullName,
+        'phone': phone,
+        'dateOfBirth': dateOfBirth,
+        'address': address,
+        'idCardNumber': idCardNumber,
+        'bankAccountNumber': bankAccountNumber,
+        'bankName': bankName,
+        if (referralCode != null) 'referralCode': referralCode,
+        'contractAgreedAt': contractAgreedAt ?? DateTime.now().toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  /// GET /api/public/registration-requests/{id}
+  /// Get registration request status by ID
+  Future<Map<String, dynamic>> getRegistrationRequestStatus(String id) {
+    return get<Map<String, dynamic>>('/api/public/registration-requests/$id');
+  }
 }
 
 /// Admin Web API Client
@@ -941,6 +1182,11 @@ class AdminWebApiClient extends BaseApiClient {
         'size': size,
       },
     );
+  }
+
+  /// DELETE /api/admin/verification-tasks/{id}
+  Future<void> deleteVerificationTask(String id) {
+    return delete<void>('/api/admin/verification-tasks/$id');
   }
 
   /// POST /api/admin/verification-tasks/{id}/review
@@ -1098,6 +1344,29 @@ class AdminWebApiClient extends BaseApiClient {
         if (phone != null) 'phone': phone,
       },
     );
+  }
+
+  /// POST /api/admin/collaborators/with-account
+  /// Create a new user account and collaborator profile in one step
+  Future<Map<String, dynamic>> createCollaboratorWithAccount({
+    required String email,
+    required String password,
+    required String fullName,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/collaborators/with-account',
+      data: {
+        'email': email,
+        'password': password,
+        'fullName': fullName,
+      },
+    );
+  }
+
+  /// DELETE /api/admin/collaborators/{id}
+  /// Delete a collaborator profile and associated user account
+  Future<void> deleteCollaborator(String id) {
+    return delete<void>('/api/admin/collaborators/$id');
   }
 
   /// GET /api/admin/collaborators
@@ -1310,6 +1579,12 @@ class AdminWebApiClient extends BaseApiClient {
     );
   }
 
+  /// DELETE /api/admin/battery-swap/stations/{stationId}
+  /// Permanently delete a battery swap station
+  Future<void> deleteBatterySwapStation(String stationId) {
+    return delete<void>('/api/admin/battery-swap/stations/$stationId');
+  }
+
   /// POST /api/admin/battery-swap/change-requests
   Future<Map<String, dynamic>> createBatterySwapChangeRequest(Map<String, dynamic> data) {
     return post<Map<String, dynamic>>(
@@ -1396,6 +1671,122 @@ class AdminWebApiClient extends BaseApiClient {
   /// GET /api/admin/collaborators/{id}/performance
   Future<Map<String, dynamic>> getCollaboratorPerformanceDetail(String collaboratorId) {
     return get<Map<String, dynamic>>('/api/admin/collaborators/$collaboratorId/performance');
+  }
+
+  // ============================================
+  // Collaborator Registration Request Management
+  // ============================================
+
+  /// GET /api/admin/registration-requests
+  /// Get paginated list of registration requests with optional status filter
+  Future<Map<String, dynamic>> getRegistrationRequests({
+    int page = 0,
+    int size = 20,
+    String? status,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/registration-requests',
+      queryParameters: {
+        'page': page.toString(),
+        'size': size.toString(),
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+  }
+
+  /// GET /api/admin/registration-requests/{id}
+  /// Get a single registration request by ID
+  Future<Map<String, dynamic>> getRegistrationRequest(String id) {
+    return get<Map<String, dynamic>>('/api/admin/registration-requests/$id');
+  }
+
+  /// POST /api/admin/registration-requests/{id}/approve
+  /// Approve a registration request
+  Future<Map<String, dynamic>> approveRegistrationRequest(String id, {
+    required String region,
+    String? note,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/registration-requests/$id/approve',
+      data: {
+        'region': region,
+        if (note != null) 'note': note,
+      },
+    );
+  }
+
+  /// POST /api/admin/registration-requests/{id}/reject
+  /// Reject a registration request
+  Future<Map<String, dynamic>> rejectRegistrationRequest(String id, {
+    required String reason,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/admin/registration-requests/$id/reject',
+      data: {
+        'reason': reason,
+      },
+    );
+  }
+
+  /// GET /api/admin/registration-requests/pending-count
+  /// Get count of pending registration requests
+  Future<int> getRegistrationRequestsPendingCount() async {
+    final response = await dio.get('/api/admin/registration-requests/pending-count');
+    return response.data as int;
+  }
+
+  // ============================================
+  // Loyalty Point System Admin Endpoints
+  // ============================================
+
+  /// GET /api/admin/loyalty/users/{userId}
+  /// Get a user's loyalty profile
+  Future<Map<String, dynamic>> getUserLoyaltyProfile(String userId) {
+    return get<Map<String, dynamic>>('/api/admin/loyalty/users/$userId');
+  }
+
+  /// GET /api/admin/loyalty/users/{userId}/history
+  /// Get a user's point transaction history
+  Future<Map<String, dynamic>> getUserPointHistory(
+    String userId, {
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/loyalty/users/$userId/history',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// POST /api/admin/loyalty/users/{userId}/adjust
+  /// Adjust a user's points manually
+  Future<void> adjustUserPoints(
+    String userId, {
+    required int delta,
+    required String reason,
+  }) {
+    return post<void>(
+      '/api/admin/loyalty/users/$userId/adjust',
+      data: {
+        'delta': delta,
+        'reason': reason,
+      },
+    );
+  }
+
+  /// PUT /api/admin/loyalty/ratings/{id}/hide
+  /// Hide a rating
+  Future<void> hideRating(String ratingId) {
+    return put<void>('/api/admin/loyalty/ratings/$ratingId/hide');
+  }
+
+  /// GET /api/admin/loyalty/badges
+  /// Get all badges with progress info
+  Future<List<dynamic>> getAllBadges() {
+    return get<List<dynamic>>('/api/admin/loyalty/badges');
   }
 }
 

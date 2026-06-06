@@ -8,6 +8,7 @@ import 'package:shared_api/shared_api.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/change_request_providers.dart';
 import '../providers/battery_swap_change_request_providers.dart';
+import '../providers/loyalty_providers.dart';
 import '../repositories/change_request_repository.dart';
 import '../repositories/battery_swap_change_request_repository.dart';
 import '../widgets/main_scaffold.dart';
@@ -1069,8 +1070,9 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       }
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Station proposal created successfully');
+        AppToast.showSuccess(context, 'Station proposal created successfully! You earned +10 points');
         ref.invalidate(changeRequestListProvider);
+        ref.invalidate(loyaltyProfileProvider);
         context.pop();
       }
     } catch (e) {
@@ -1207,16 +1209,16 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         if (lat != null) _latController.text = lat.toStringAsFixed(6);
         if (lng != null) _lngController.text = lng.toStringAsFixed(6);
 
+        _operatingHoursController.text = stationData['operatingHours'] as String? ?? '';
         final avgPowerKw = stationData['avgChargePowerKw'];
         if (avgPowerKw != null) {
           _avgChargePowerKwController.text = (avgPowerKw as num).toDouble().toStringAsFixed(1);
         }
 
-        setState(() {
-          _isLoadingStation = false;
-        });
-
         if (mounted) {
+          setState(() {
+            _isLoadingStation = false;
+          });
           AppToast.showSuccess(context, 'Station data loaded successfully');
         }
       }

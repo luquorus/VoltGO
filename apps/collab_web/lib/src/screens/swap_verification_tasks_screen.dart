@@ -25,7 +25,7 @@ class _SwapVerificationTasksScreenState
     final theme = Theme.of(context);
 
     return DashboardShell(
-      title: 'Battery Swap Tasks',
+      title: 'Swap Station',
       filterSlot: _buildFilterPanel(theme),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -244,10 +244,10 @@ class _SwapVerificationTasksScreenState
         if (filteredTasks.isEmpty) {
           return EmptyState(
             icon: Icons.battery_charging_full_outlined,
-            title: 'No battery swap tasks',
+            title: 'No swap station tasks',
             message: _selectedStatus != null
                 ? 'No tasks match the selected status.'
-                : 'You have no battery swap verification tasks assigned.',
+                : 'You have no swap station verification tasks assigned.',
             action: OutlinedButton.icon(
               onPressed: () {
                 ref.invalidate(swapTasksProvider);

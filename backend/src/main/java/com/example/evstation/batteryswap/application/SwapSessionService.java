@@ -7,6 +7,12 @@ import com.example.evstation.batteryswap.domain.*;
 import com.example.evstation.batteryswap.infrastructure.jpa.*;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.loyalty.application.BadgeService;
+import com.example.evstation.loyalty.application.LoyaltyPointService;
+import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.domain.BadgeCriteriaType;
+import com.example.evstation.loyalty.domain.EligibilityType;
+import com.example.evstation.loyalty.domain.PointSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +41,9 @@ public class SwapSessionService {
     private final Clock clock;
     private final BatteryEventService batteryEventService;
     private final BatterySwapBroadcastService broadcastService;
+    private final LoyaltyPointService loyaltyPointService;
+    private final RatingEligibilityService ratingEligibilityService;
+    private final BadgeService badgeService;
 
     @Value("${voltgo.battery-swap.charge-duration-minutes:60}")
     private int chargeDurationMinutes;
@@ -137,6 +146,19 @@ public class SwapSessionService {
         broadcastService.broadcastSlotUpdate(reservation.getStationId(), slot);
 
         batterySwapServiceSyncAvailable(reservation.getStationId());
+
+        // Loyalty: award points for completed battery swap
+        loyaltyPointService.earnPoints(reservation.getUserId(), PointSource.BATTERY_SWAP, reservation.getId(),
+                String.format("Completed battery swap at station %s", reservation.getStationId()));
+        loyaltyPointService.incrementSwapCount(reservation.getUserId());
+        badgeService.checkAndAwardBadges(reservation.getUserId(), BadgeCriteriaType.FIRST_SWAP, 1);
+        var profile = loyaltyPointService.getProfile(reservation.getUserId());
+        profile.ifPresent(p -> badgeService.checkAndAwardBadges(reservation.getUserId(), BadgeCriteriaType.SWAP_COUNT, p.getTotalSwaps()));
+
+        // Loyalty: mark station as eligible for rating
+        ratingEligibilityService.markEligible(
+                reservation.getUserId(), reservation.getStationId(), reservation.getId(),
+                EligibilityType.SWAP_USAGE, Instant.now(clock));
 
         log.info("[SwapSession] Swap completed for reservation={}, slot={}, newChargingPercent={}%",
                 reservation.getId(), slot.getId(), userBatteryPercent);

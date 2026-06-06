@@ -27,7 +27,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final tasksAsync = ref.watch(tasksProvider);
 
     return DashboardShell(
-      title: 'Tasks',
+      title: 'Charging Station',
       filterSlot: _buildFilterPanel(theme, filters),
       child: Padding(
         padding: const EdgeInsets.all(24),

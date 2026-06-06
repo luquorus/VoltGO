@@ -8,6 +8,8 @@ import com.example.evstation.batteryswap.api.dto.CreateBatterySwapCRDTO;
 import com.example.evstation.batteryswap.api.dto.UpdateBatterySwapCRDTO;
 import com.example.evstation.batteryswap.application.BatterySwapChangeRequestService;
 import com.example.evstation.batteryswap.domain.ChangeRequestStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +37,7 @@ public class AdminBatterySwapChangeRequestController {
 
     @Operation(
             summary = "Create a new battery swap change request",
-            description = "Create a new DRAFT change request. Use /submit to move it to PENDING."
+            description = "Create a new change request. Admin: submitted with submitImmediately=true (bypasses workflow, immediately published). EV user: submitted with submitImmediately=false (created as DRAFT)."
     )
     @PostMapping
     public ResponseEntity<BatterySwapCRDTO> createChangeRequest(
@@ -43,9 +45,14 @@ public class AdminBatterySwapChangeRequestController {
             Authentication authentication) {
 
         UUID adminId = extractUserId(authentication);
-        log.info("Admin creating battery swap CR: type={}, adminId={}", request.getType(), adminId);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ADMIN"));
+        boolean submitImmediately = Boolean.TRUE.equals(request.getSubmitImmediately()) || isAdmin;
+        log.info("Creating battery swap CR: type={}, adminId={}, submitImmediately={}",
+                request.getType(), adminId, submitImmediately);
 
-        BatterySwapCRDTO result = service.createChangeRequest(request, adminId);
+        BatterySwapCRDTO result = service.createChangeRequest(request, adminId, submitImmediately);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 

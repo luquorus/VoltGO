@@ -1,0 +1,32 @@
+package com.example.evstation.notification.domain;
+
+/**
+ * Type of notifications sent to collaborators.
+ */
+public enum NotificationType {
+    // TASK
+    TASK_ASSIGNED,
+    TASK_CHECKED_IN,
+    TASK_SUBMITTED,
+    TASK_REVIEWED_PASS,
+    TASK_REVIEWED_FAIL,
+    TASK_SLA_APPROACHING,
+    TASK_SLA_OVERDUE,
+
+    // CONTRACT
+    CONTRACT_APPROVED,
+    CONTRACT_CREATED,
+    CONTRACT_UPDATED,
+    CONTRACT_TERMINATED,
+    CONTRACT_EXPIRING,
+    CONTRACT_EXPIRED,
+
+    // STATION
+    STATION_ISSUE_REPORTED,
+    STATION_ISSUE_RESOLVED,
+    STATION_CHANGE_REQUEST_SUBMITTED,
+    STATION_CHANGE_REQUEST_PUBLISHED,
+
+    // SYSTEM
+    SYSTEM_ANNOUNCEMENT,
+}

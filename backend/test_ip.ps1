@@ -1,0 +1,1 @@
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "192.168.*" -or $_.IPAddress -like "172.*" -or $_.IPAddress -like "10.*" } | Select-Object -First 5 | Format-Table IPAddress, InterfaceAlias -AutoSize

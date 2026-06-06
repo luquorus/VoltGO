@@ -21,15 +21,15 @@ services:
   frontend-admin:
     build:
       context: ..
-      dockerfile: infra/Dockerfile.flutter-web-dev
+      dockerfile: infra/Dockerfile.flutter-web
       args:
         APP_NAME: admin_web
-    volumes:
-      - ../apps:/app/apps:ro
-      - ../shared:/app/shared:ro
-    command: flutter run -d web-server --web-port=80 --web-hostname=0.0.0.0
-    environment:
-      - FLUTTER_WEB_USE_SKIA=true
+    ports:
+      - "3002:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - voltgo-network
 
   frontend-collab-web:
     build:

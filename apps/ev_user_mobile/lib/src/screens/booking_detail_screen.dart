@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/booking_providers.dart';
 import '../providers/station_providers.dart';
+import '../providers/loyalty_providers.dart';
 
 /// Booking Detail Screen
 class BookingDetailScreen extends ConsumerStatefulWidget {
@@ -511,8 +512,9 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
         // Update local state with updated payment intent
         ref.read(paymentIntentProvider(widget.bookingId).notifier).state = updatedIntent;
         
-        AppToast.showSuccess(context, 'Payment succeeded!');
+        AppToast.showSuccess(context, 'Payment succeeded! You earned +30 points');
         ref.invalidate(bookingDetailProvider(widget.bookingId));
+        ref.invalidate(loyaltyProfileProvider);
         _startCountdown(); // Restart countdown check
       }
     } catch (e) {

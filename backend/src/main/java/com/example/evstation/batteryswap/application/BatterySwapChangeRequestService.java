@@ -10,6 +10,10 @@ import com.example.evstation.batteryswap.infrastructure.jpa.*;
 import com.example.evstation.batteryswap.infrastructure.mapper.BatterySwapVersionMapper;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.loyalty.application.BadgeService;
+import com.example.evstation.loyalty.application.LoyaltyPointService;
+import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.risk.application.BatterySwapRiskAssessmentResult;
 import com.example.evstation.risk.application.RiskEngineService;
 import com.example.evstation.trust.application.TrustScoringService;
@@ -58,16 +62,22 @@ public class BatterySwapChangeRequestService {
     private final BatterySwapTrustScoringService batterySwapTrustScoringService;
     private final VerificationTaskJpaRepository verificationTaskRepository;
     private final BatterySwapVersionMapper mapper;
+    private final LoyaltyPointService loyaltyPointService;
+    private final RatingEligibilityService ratingEligibilityService;
+    private final BadgeService badgeService;
 
     // ========== EV User Operations ==========
 
     /**
      * Create a new battery swap change request (DRAFT).
      * Creates: BatterySwapStationVersion (DRAFT) + PileTemplate + SlotTemplate + BatterySwapChangeRequest (DRAFT)
+     *
+     * @param submitImmediately if true (admin): immediately submit + approve + publish (bypass workflow).
+     *                          if false (EV user): create as DRAFT, require manual workflow steps.
      */
     @Transactional
-    public BatterySwapCRDTO createChangeRequest(CreateBatterySwapCRDTO dto, UUID userId) {
-        log.info("Creating battery swap CR: type={}, userId={}", dto.getType(), userId);
+    public BatterySwapCRDTO createChangeRequest(CreateBatterySwapCRDTO dto, UUID userId, boolean submitImmediately) {
+        log.info("Creating battery swap CR: type={}, userId={}, submitImmediately={}", dto.getType(), userId, submitImmediately);
 
         validateCreateRequest(dto);
 
@@ -93,11 +103,12 @@ public class BatterySwapChangeRequestService {
             versionNo = latestPublished.map(v -> v.getVersionNo() + 1).orElse(1);
         }
 
+        WorkflowStatus workflowStatus = submitImmediately ? WorkflowStatus.PUBLISHED : WorkflowStatus.DRAFT;
         BatterySwapStationVersionEntity version = BatterySwapStationVersionEntity.builder()
                 .id(UUID.randomUUID())
                 .stationId(stationId)
                 .versionNo(versionNo)
-                .workflowStatus(WorkflowStatus.DRAFT)
+                .workflowStatus(workflowStatus)
                 .totalBatteries(dto.getTotalBatteries())
                 .avgChargePowerKw(dto.getAvgChargePowerKw())
                 .operatingHours(dto.getOperatingHours())
@@ -105,9 +116,10 @@ public class BatterySwapChangeRequestService {
                 .note(dto.getNote())
                 .createdBy(userId)
                 .createdAt(Instant.now())
+                .publishedAt(submitImmediately ? Instant.now() : null)
                 .build();
         versionRepository.save(version);
-        log.info("Created station version: {}", version.getId());
+        log.info("Created station version: {}, status={}", version.getId(), workflowStatus);
 
         List<BatterySwapPileTemplateEntity> pileTemplates = buildPileTemplates(dto, version);
         version.setPileTemplates(pileTemplates);
@@ -117,27 +129,59 @@ public class BatterySwapChangeRequestService {
         }
         log.info("Created {} pile templates for version {}", pileTemplates.size(), version.getId());
 
+        ChangeRequestStatus crStatus = submitImmediately ? ChangeRequestStatus.PUBLISHED : ChangeRequestStatus.DRAFT;
         BatterySwapChangeRequestEntity cr = BatterySwapChangeRequestEntity.builder()
                 .id(UUID.randomUUID())
                 .type(dto.getType())
-                .status(ChangeRequestStatus.DRAFT)
+                .status(crStatus)
                 .stationId(dto.getType() == ChangeRequestType.UPDATE_BATTERY_SWAP_STATION ? stationId : null)
                 .proposedVersionId(version.getId())
                 .submittedBy(userId)
                 .riskScore(0)
                 .riskReasons("[]")
                 .createdAt(Instant.now())
+                .decidedAt(submitImmediately ? Instant.now() : null)
                 .build();
         crRepository.save(cr);
         log.info("Created battery swap CR: {}", cr.getId());
 
-        writeAuditLog(userId, "EV_USER", "CREATE_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", cr.getId(),
+        String actorRole = submitImmediately ? "ADMIN" : "EV_USER";
+        writeAuditLog(userId, actorRole, "CREATE_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", cr.getId(),
                 Map.of(
                         "type", dto.getType().name(),
                         "stationId", stationId.toString(),
                         "versionId", version.getId().toString(),
-                        "totalBatteries", dto.getTotalBatteries()
+                        "totalBatteries", dto.getTotalBatteries(),
+                        "submitImmediately", submitImmediately
                 ));
+
+        if (submitImmediately) {
+            StationEntity station = stationRepository.findById(stationId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Station not found"));
+            try {
+                swapStationStateApplyService.applyForSwapVersion(version);
+            } catch (Exception e) {
+                log.error("Error applying swap version to operational state: {}", e.getMessage(), e);
+            }
+            try {
+                initializeSwapTrustIfNeeded(stationId);
+            } catch (Exception e) {
+                log.warn("SwapTrustScoringService error: {}", e.getMessage());
+            }
+            try {
+                trustScoringService.recalculate(stationId);
+            } catch (Exception e) {
+                log.warn("TrustScoringService.recalculate failed: {}", e.getMessage());
+            }
+            writeAuditLog(userId, "ADMIN", "PUBLISH_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", cr.getId(),
+                    Map.of(
+                            "type", cr.getType().name(),
+                            "versionId", version.getId().toString(),
+                            "stationId", stationId.toString(),
+                            "riskScore", cr.getRiskScore(),
+                            "bypass", true
+                    ));
+        }
 
         version.setPileTemplates(pileTemplates);
         return mapper.toDTO(cr, version);
@@ -194,6 +238,13 @@ public class BatterySwapChangeRequestService {
                         "riskScore", cr.getRiskScore(),
                         "riskReasons", cr.getRiskReasons() != null ? cr.getRiskReasons() : "[]"
                 ));
+
+        // Loyalty: award +10 points for submitting CR
+        loyaltyPointService.earnPoints(userId, PointSource.CR_SUBMIT, cr.getId(),
+                String.format("Submitted station update proposal for station %s", version.getStationId()));
+        loyaltyPointService.incrementContributionCount(userId);
+        badgeService.checkAndAwardBadges(userId, com.example.evstation.loyalty.domain.BadgeCriteriaType.CR_COUNT,
+                loyaltyPointService.getProfile(userId).orElseThrow().getTotalContributions());
 
         Hibernate.initialize(version.getPileTemplates());
         return mapper.toDTO(cr, version);
@@ -451,6 +502,14 @@ public class BatterySwapChangeRequestService {
         cr.setStatus(ChangeRequestStatus.PUBLISHED);
         cr.setDecidedAt(Instant.now());
         crRepository.save(cr);
+
+        // Loyalty: award +40 points when CR is published
+        UUID submittedBy = cr.getSubmittedBy();
+        if (submittedBy != null) {
+            loyaltyPointService.earnPoints(submittedBy, PointSource.CR_PUBLISH, cr.getId(),
+                    String.format("Proposal approved and published: station %s", version.getStationId()));
+            ratingEligibilityService.markEligibleFromCR(submittedBy, version.getStationId(), cr.getId(), Instant.now());
+        }
 
         try {
             swapStationStateApplyService.applyForSwapVersion(version);

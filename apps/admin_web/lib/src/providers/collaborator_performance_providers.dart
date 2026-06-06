@@ -52,7 +52,7 @@ final collaboratorPerformanceDetailProvider = FutureProvider.family<Collaborator
   if (factory == null) {
     throw Exception('API client not initialized');
   }
-  
+
   final response = await factory.admin.getCollaboratorPerformanceDetail(collaboratorId);
   return CollaboratorPerformanceDetail.fromJson(response);
 });

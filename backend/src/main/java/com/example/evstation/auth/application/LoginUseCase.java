@@ -3,6 +3,7 @@ package com.example.evstation.auth.application;
 import com.example.evstation.auth.application.port.JwtTokenProvider;
 import com.example.evstation.auth.application.port.PasswordEncoder;
 import com.example.evstation.auth.application.port.UserAccountRepository;
+import com.example.evstation.auth.domain.UserStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +18,13 @@ public class LoginUseCase {
 
     public Optional<String> execute(String email, String password) {
         return repository.findByEmail(email)
-                .filter(account -> account.isActive())
+                .filter(account -> account.isActive() || account.getStatus() == UserStatus.PENDING_COLLABORATOR)
                 .filter(account -> passwordEncoder.matches(password, account.getPasswordHash()))
                 .map(account -> jwtTokenProvider.generateToken(
                         account.getId(),
                         account.getEmail(),
-                        account.getRole()
-                ));
+                        account.getRole(),
+                        account.getStatus()));
     }
 }
 

@@ -5,34 +5,37 @@ import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/forbidden_screen.dart';
-import '../screens/change_requests_screen.dart';
+import '../screens/unified_change_requests_screen.dart';
 import '../screens/change_request_detail_screen.dart';
 import '../screens/verification_tasks_list_screen.dart';
 import '../screens/verification_task_detail_screen.dart';
 import '../screens/issues_list_screen.dart';
 import '../screens/issue_detail_screen.dart';
-import '../screens/station_trust_screen.dart';
+import '../screens/unified_trust_dashboard_screen.dart';
 import '../screens/audit_query_screen.dart';
 import '../screens/station_audit_screen.dart';
 import '../screens/change_request_audit_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/edit_profile_screen.dart';
-import '../screens/collaborators_list_screen.dart';
+import '../screens/collaborator_management_screen.dart';
 import '../screens/collaborator_detail_screen.dart';
 import '../screens/contract_detail_screen.dart';
-import '../screens/stations_list_screen.dart';
+import '../screens/unified_stations_list_screen.dart';
 import '../screens/station_detail_screen.dart';
 import '../screens/create_station_screen.dart';
 import '../screens/csv_import_screen.dart';
-import '../screens/battery_swap_cr_list_screen.dart';
 import '../screens/battery_swap_cr_detail_screen.dart';
-import '../screens/battery_swap_stations_list_screen.dart';
 import '../screens/battery_swap_station_detail_screen.dart';
-import '../screens/swap_trust_dashboard_screen.dart';
 import '../screens/analytics_dashboard_screen.dart';
 import '../screens/collaborator_performance_screen.dart';
 import '../screens/collaborator_performance_detail_screen.dart';
+import '../screens/registration_requests_list_screen.dart';
+import '../screens/registration_request_detail_screen.dart';
 import '../models/admin_station.dart';
+import '../screens/loyalty/loyalty_dashboard_screen.dart';
+import '../screens/loyalty/rating_moderation_screen.dart';
+import '../screens/loyalty/user_loyalty_list_screen.dart';
+import '../screens/loyalty/user_loyalty_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -66,7 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/forbidden', builder: (_, __) => const ForbiddenScreen()),
       GoRoute(
         path: '/change-requests',
-        builder: (_, __) => const ChangeRequestsScreen(),
+        builder: (_, __) => const UnifiedChangeRequestsScreen(),
       ),
       GoRoute(
         path: '/change-requests/:id',
@@ -98,15 +101,33 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/stations/:id/trust',
-        builder: (context, state) {
-          final stationId = state.pathParameters['id']!;
-          return StationTrustScreen(stationId: stationId);
-        },
+        path: '/stations',
+        builder: (_, __) => const UnifiedStationsListScreen(),
       ),
       GoRoute(
         path: '/stations/trust',
-        builder: (context, state) => const StationTrustScreen(),
+        builder: (context, state) {
+          final stationId = state.uri.queryParameters['stationId'];
+          return UnifiedTrustDashboardScreen(stationId: stationId);
+        },
+      ),
+      GoRoute(
+        path: '/stations/create',
+        builder: (context, state) {
+          final station = state.extra as AdminStation?;
+          return CreateStationScreen(station: station);
+        },
+      ),
+      GoRoute(
+        path: '/stations/import-csv',
+        builder: (_, __) => const CsvImportScreen(),
+      ),
+      GoRoute(
+        path: '/stations/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return StationDetailScreen(id: id);
+        },
       ),
       GoRoute(
         path: '/audit',
@@ -130,7 +151,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/collaborators',
-        builder: (_, __) => const CollaboratorsListScreen(),
+        builder: (_, __) => const CollaboratorManagementScreen(),
+      ),
+      // Collaborator Performance - NOTE: must come BEFORE /collaborators/:id to avoid matching "performance" as :id
+      GoRoute(
+        path: '/collaborators/performance',
+        builder: (_, __) => const CollaboratorPerformanceScreen(),
       ),
       GoRoute(
         path: '/collaborators/:id',
@@ -140,50 +166,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/collaborators/:id/performance',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CollaboratorPerformanceDetailScreen(collaboratorId: id);
+        },
+      ),
+      GoRoute(
         path: '/contracts/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return ContractDetailScreen(id: id);
         },
       ),
-      GoRoute(
-        path: '/stations',
-        builder: (_, __) => const StationsListScreen(),
-      ),
-      GoRoute(
-        path: '/stations/create',
-        builder: (context, state) {
-          final station = state.extra as AdminStation?;
-          return CreateStationScreen(station: station);
-        },
-      ),
-      GoRoute(
-        path: '/stations/import-csv',
-        builder: (_, __) => const CsvImportScreen(),
-      ),
-      GoRoute(
-        path: '/stations/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return StationDetailScreen(id: id);
-        },
-      ),
-      // Battery Swap Change Requests
-      GoRoute(
-        path: '/battery-swap/change-requests',
-        builder: (_, __) => const BatterySwapCRListScreen(),
-      ),
+      // Battery Swap routes (detail screens remain, list is under unified screens)
       GoRoute(
         path: '/battery-swap/change-requests/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return BatterySwapCRDetailScreen(id: id);
         },
-      ),
-      // Battery Swap Stations
-      GoRoute(
-        path: '/battery-swap/stations',
-        builder: (_, __) => const BatterySwapStationsListScreen(),
       ),
       GoRoute(
         path: '/battery-swap/stations/:id',
@@ -192,16 +194,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           return BatterySwapStationDetailScreen(id: id);
         },
       ),
-      // Battery Swap Trust
+      // Battery Swap Trust (individual station via query param)
       GoRoute(
         path: '/battery-swap/trust',
-        builder: (_, __) => const SwapTrustDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/battery-swap/trust/:stationId',
         builder: (context, state) {
-          final stationId = state.pathParameters['stationId']!;
-          return SwapTrustDashboardScreen(stationId: stationId);
+          final stationId = state.uri.queryParameters['stationId'];
+          return UnifiedTrustDashboardScreen(batterySwapStationId: stationId);
         },
       ),
       // Analytics Dashboard
@@ -209,16 +207,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/dashboard',
         builder: (_, __) => const AnalyticsDashboardScreen(),
       ),
-      // Collaborator Performance
+      // Registration Requests
       GoRoute(
-        path: '/collaborators/performance',
-        builder: (_, __) => const CollaboratorPerformanceScreen(),
+        path: '/registration-requests',
+        builder: (_, __) => const RegistrationRequestsListScreen(),
       ),
       GoRoute(
-        path: '/collaborators/:id/performance',
+        path: '/registration-requests/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return CollaboratorPerformanceDetailScreen(collaboratorId: id);
+          return RegistrationRequestDetailScreen(id: id);
+        },
+      ),
+      // Loyalty routes
+      GoRoute(
+        path: '/loyalty',
+        builder: (_, __) => const LoyaltyDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/ratings',
+        builder: (_, __) => const RatingModerationScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/users',
+        builder: (_, __) => const UserLoyaltyListScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/users/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return UserLoyaltyDetailScreen(userId: id);
         },
       ),
     ],

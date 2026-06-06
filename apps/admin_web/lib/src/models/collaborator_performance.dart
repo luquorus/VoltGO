@@ -21,7 +21,10 @@ class CollaboratorPerformance {
     required this.slaComplianceRate,
   });
 
-  factory CollaboratorPerformance.fromJson(Map<String, dynamic> json) {
+  factory CollaboratorPerformance.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      throw Exception('Performance data is null');
+    }
     return CollaboratorPerformance(
       collaboratorId: (json['collaboratorId'] as String?) ?? '',
       fullName: (json['fullName'] as String?) ?? '',
@@ -60,7 +63,10 @@ class CollaboratorPerformanceDetail extends CollaboratorPerformance {
     required this.monthlyBreakdown,
   });
 
-  factory CollaboratorPerformanceDetail.fromJson(Map<String, dynamic> json) {
+  factory CollaboratorPerformanceDetail.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      throw Exception('Performance detail data is null');
+    }
     final monthlyJson = json['monthlyBreakdown'] as List<dynamic>? ?? [];
     final monthly = monthlyJson
         .map((e) => MonthlyBreakdown.fromJson(e as Map<String, dynamic>))
@@ -89,19 +95,24 @@ class CollaboratorPerformanceDetail extends CollaboratorPerformance {
 
 class MonthlyBreakdown {
   final String month; // Format: YYYY-MM
-  final int tasksCompleted;
+  final int passedTasks;
+  final int failedTasks;
   final double passRate;
 
   MonthlyBreakdown({
     required this.month,
-    required this.tasksCompleted,
+    required this.passedTasks,
+    required this.failedTasks,
     required this.passRate,
   });
+
+  int get totalTasks => passedTasks + failedTasks;
 
   factory MonthlyBreakdown.fromJson(Map<String, dynamic> json) {
     return MonthlyBreakdown(
       month: (json['month'] as String?) ?? '',
-      tasksCompleted: json['tasksCompleted'] as int? ?? 0,
+      passedTasks: json['passedTasks'] as int? ?? 0,
+      failedTasks: json['failedTasks'] as int? ?? 0,
       passRate: (json['passRate'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -109,7 +120,8 @@ class MonthlyBreakdown {
   Map<String, dynamic> toJson() {
     return {
       'month': month,
-      'tasksCompleted': tasksCompleted,
+      'passedTasks': passedTasks,
+      'failedTasks': failedTasks,
       'passRate': passRate,
     };
   }

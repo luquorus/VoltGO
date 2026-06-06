@@ -22,6 +22,12 @@ public enum ErrorCode {
     INVALID_TIME_RANGE("EVS-0011", "Invalid time range"),
     SERVICE_UNAVAILABLE("EVS-0012", "Service temporarily unavailable"),
     ROUTE_NOT_FOUND("EVS-0013", "No route found between origin and destination"),
+
+    // Loyalty errors
+    RATING_LIMIT_EXCEEDED("EVS-0101", "Daily rating limit exceeded"),
+    STATION_NOT_FOUND("EVS-0102", "Station not found"),
+    ELIGIBILITY_NOT_FOUND("EVS-0103", "Rating eligibility not found"),
+    USER_NOT_FOUND("EVS-0104", "User not found"),
     ;
 
     private final String code;

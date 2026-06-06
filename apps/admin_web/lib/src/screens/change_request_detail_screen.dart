@@ -8,6 +8,7 @@ import '../models/admin_change_request.dart';
 import '../providers/change_request_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import 'create_task_modal.dart';
 
 /// Change Request Detail Screen
 class ChangeRequestDetailScreen extends ConsumerWidget {
@@ -98,7 +99,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   // Actions
-                  if (cr.canApprove || cr.canReject || cr.canPublish)
+                  if (cr.canApprove || cr.canReject || cr.canPublish || (cr.stationId != null && cr.hasVerificationTask != true))
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
@@ -140,6 +141,19 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
+                        if (cr.stationId != null && cr.hasVerificationTask != true)
+                          Tooltip(
+                            message: 'Create a verification task for this change request',
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showCreateTaskModal(context, ref, cr),
+                              icon: const Icon(Icons.add_task),
+                              label: const Text('Create Verification Task'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AdminTheme.primaryTeal,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                 ],
@@ -150,7 +164,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
 
           // High Risk Warning Banner
           if (cr.isHighRisk && !cr.canPublish) ...[
-            _buildHighRiskWarningBanner(context, theme, cr),
+            _buildHighRiskWarningBanner(context, theme, ref, cr),
             const SizedBox(height: 24),
           ],
 
@@ -179,7 +193,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHighRiskWarningBanner(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
+  Widget _buildHighRiskWarningBanner(BuildContext context, ThemeData theme, WidgetRef ref, AdminChangeRequest cr) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -226,6 +240,18 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (cr.hasVerificationTask != true && cr.stationId != null) ...[
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateTaskModal(context, ref, cr),
+              icon: const Icon(Icons.add_task, size: 18),
+              label: const Text('Create Task'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primaryTeal,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -668,6 +694,21 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showCreateTaskModal(BuildContext context, WidgetRef ref, AdminChangeRequest cr) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => CreateTaskModal.withContext(
+        preselectedStationId: cr.stationId!,
+        preselectedChangeRequestId: cr.id,
+        preselectedType: TaskCreationType.chargingStation,
+      ),
+    ).then((result) {
+      if (result == true) {
+        ref.invalidate(changeRequestProvider(cr.id));
+      }
+    });
   }
 
   void _showRejectDialog(

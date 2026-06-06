@@ -8,6 +8,7 @@ import '../models/admin_issue.dart';
 import '../providers/issue_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import 'create_task_modal.dart';
 
 /// Issue Detail Screen
 class IssueDetailScreen extends ConsumerWidget {
@@ -125,6 +126,18 @@ class IssueDetailScreen extends ConsumerWidget {
                             foregroundColor: Colors.white,
                           ),
                         ),
+                      Tooltip(
+                        message: 'Create a verification task for this station',
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showCreateTaskModal(context, ref, issue),
+                          icon: const Icon(Icons.add_task),
+                          label: const Text('Create Verification Task'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AdminTheme.primaryTeal,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -566,6 +579,21 @@ class IssueDetailScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  void _showCreateTaskModal(BuildContext context, WidgetRef ref, AdminIssue issue) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => CreateTaskModal.withContext(
+        preselectedStationId: issue.stationId,
+        preselectedStationName: issue.stationName,
+        preselectedType: TaskCreationType.chargingStation,
+      ),
+    ).then((result) {
+      if (result == true) {
+        ref.invalidate(issueProvider(issue.id));
+      }
+    });
   }
 
   Future<void> _handleAcknowledge(BuildContext context, WidgetRef ref, AdminIssue issue) async {

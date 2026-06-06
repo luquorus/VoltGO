@@ -54,6 +54,7 @@ public class VerificationService {
     private final TrustScoringService trustScoringService;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final com.example.evstation.notification.application.NotificationService notificationService;
 
     // ========== Admin Operations ==========
 
@@ -68,13 +69,26 @@ public class VerificationService {
         if (!stationRepository.existsById(dto.getStationId())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Station not found");
         }
-        
+
+        // Parse verification type (default to CHARGING_STATION)
+        VerificationType vType = VerificationType.CHARGING_STATION;
+        if (dto.getVerificationType() != null) {
+            try {
+                vType = VerificationType.valueOf(dto.getVerificationType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Invalid verification type: " + dto.getVerificationType() +
+                        ". Must be CHARGING or BATTERY_SWAP");
+            }
+        }
+
         VerificationTaskEntity task = VerificationTaskEntity.builder()
                 .stationId(dto.getStationId())
                 .changeRequestId(dto.getChangeRequestId())
                 .priority(dto.getPriority() != null ? dto.getPriority() : 3)
                 .slaDueAt(dto.getSlaDueAt())
                 .status(VerificationTaskStatus.OPEN)
+                .verificationType(vType)
                 .createdAt(Instant.now(clock))
                 .build();
         
@@ -159,8 +173,33 @@ public class VerificationService {
         }
         
         writeAuditLog(adminId, adminRole, "ASSIGN_VERIFICATION_TASK", "VERIFICATION_TASK", taskId, metadata);
-        
+
         log.info("Task assigned: taskId={}, assignedTo={} ({})", taskId, user.getId(), user.getEmail());
+
+        // Send notification to collaborator
+        try {
+            String stationName = getStationName(task.getStationId());
+            notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                    .recipientId(user.getId())
+                    .type(com.example.evstation.notification.domain.NotificationType.TASK_ASSIGNED)
+                    .category(com.example.evstation.notification.domain.NotificationCategory.TASK)
+                    .title("New Verification Task Assigned")
+                    .body("Station '" + stationName + "' needs verification. Priority: " + task.getPriority() + ". Due: " + (task.getSlaDueAt() != null ? task.getSlaDueAt().toString() : "No deadline"))
+                    .data(java.util.Map.of(
+                            "taskId", task.getId().toString(),
+                            "stationId", task.getStationId().toString(),
+                            "stationName", stationName,
+                            "verificationType", task.getVerificationType().name(),
+                            "priority", task.getPriority(),
+                            "slaDueAt", task.getSlaDueAt() != null ? task.getSlaDueAt().toString() : ""
+                    ))
+                    .referenceId(task.getId())
+                    .referenceType("VERIFICATION_TASK")
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to send task assignment notification: {}", e.getMessage());
+        }
+
         return buildTaskDTO(task);
     }
 
@@ -206,13 +245,17 @@ public class VerificationService {
     }
 
     /**
-     * Get tasks by status (Admin)
+     * Get tasks by status and/or verification type (Admin)
      */
     @Transactional(readOnly = true)
-    public Page<VerificationTaskDTO> getTasksByStatus(VerificationTaskStatus status, Pageable pageable) {
+    public Page<VerificationTaskDTO> getTasksByStatus(VerificationTaskStatus status, VerificationType verificationType, Pageable pageable) {
         Page<VerificationTaskEntity> page;
-        if (status != null) {
+        if (status != null && verificationType != null) {
+            page = taskRepository.findByVerificationTypeAndStatusOrderByCreatedAtDesc(verificationType, status, pageable);
+        } else if (status != null) {
             page = taskRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
+        } else if (verificationType != null) {
+            page = taskRepository.findByVerificationTypeOrderByCreatedAtDesc(verificationType, pageable);
         } else {
             page = taskRepository.findAllByOrderByCreatedAtDesc(pageable);
         }
@@ -264,9 +307,72 @@ public class VerificationService {
                 Map.of("result", dto.getResult().name(),
                        "adminNote", dto.getAdminNote() != null ? dto.getAdminNote() : "",
                        "stationId", task.getStationId().toString()));
-        
+
         log.info("Task reviewed: taskId={}, result={}", taskId, dto.getResult());
+
+        // Send notification to collaborator about review result
+        try {
+            String stationName = getStationName(task.getStationId());
+            var notifType = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? com.example.evstation.notification.domain.NotificationType.TASK_REVIEWED_PASS
+                    : com.example.evstation.notification.domain.NotificationType.TASK_REVIEWED_FAIL;
+            String title = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? "Task Approved!"
+                    : "Task Needs Revision";
+            String body = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? "Your verification of '" + stationName + "' has been approved."
+                    : "Your verification of '" + stationName + "' was not approved. Reason: " + (dto.getAdminNote() != null ? dto.getAdminNote() : "No reason provided");
+
+            notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                    .recipientId(task.getAssignedTo())
+                    .type(notifType)
+                    .category(com.example.evstation.notification.domain.NotificationCategory.TASK)
+                    .title(title)
+                    .body(body)
+                    .data(java.util.Map.of(
+                            "taskId", task.getId().toString(),
+                            "stationId", task.getStationId().toString(),
+                            "stationName", stationName,
+                            "result", dto.getResult().name(),
+                            "adminNote", dto.getAdminNote() != null ? dto.getAdminNote() : ""
+                    ))
+                    .referenceId(task.getId())
+                    .referenceType("VERIFICATION_TASK")
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to send task review notification: {}", e.getMessage());
+        }
+
         return buildTaskDTO(task);
+    }
+
+    /**
+     * Delete a verification task (Admin only).
+     * Only OPEN or ASSIGNED tasks can be deleted.
+     */
+    @Transactional
+    public void deleteTask(UUID taskId, UUID adminId, String adminRole) {
+        log.info("Deleting verification task: taskId={}", taskId);
+
+        VerificationTaskEntity task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
+
+        if (task.getStatus() == VerificationTaskStatus.CHECKED_IN ||
+            task.getStatus() == VerificationTaskStatus.SUBMITTED ||
+            task.getStatus() == VerificationTaskStatus.REVIEWED) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Cannot delete task with status: " + task.getStatus() +
+                    ". Only OPEN or ASSIGNED tasks can be deleted.");
+        }
+
+        taskRepository.delete(task);
+
+        writeAuditLog(adminId, adminRole, "DELETE_VERIFICATION_TASK", "VERIFICATION_TASK", taskId,
+                Map.of("stationId", task.getStationId().toString(),
+                       "status", task.getStatus().name(),
+                       "priority", String.valueOf(task.getPriority())));
+
+        log.info("Verification task deleted: taskId={}", taskId);
     }
 
     // ========== Collaborator Mobile Operations ==========
@@ -559,6 +665,30 @@ public class VerificationService {
                 Map.of("assignedTo", user.getId().toString(),
                        "assignedToEmail", user.getEmail()));
 
+        // Send notification to collaborator (triggers push + email)
+        try {
+            String stationName = getStationName(task.getStationId());
+            notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                    .recipientId(user.getId())
+                    .type(com.example.evstation.notification.domain.NotificationType.TASK_ASSIGNED)
+                    .category(com.example.evstation.notification.domain.NotificationCategory.TASK)
+                    .title("New Battery Swap Task Assigned")
+                    .body("Battery swap station '" + stationName + "' needs verification. Priority: " + task.getPriority() + ". Due: " + (task.getSlaDueAt() != null ? task.getSlaDueAt().toString() : "No deadline"))
+                    .data(java.util.Map.of(
+                            "taskId", task.getId().toString(),
+                            "stationId", task.getStationId().toString(),
+                            "stationName", stationName,
+                            "verificationType", task.getVerificationType().name(),
+                            "priority", task.getPriority(),
+                            "slaDueAt", task.getSlaDueAt() != null ? task.getSlaDueAt().toString() : ""
+                    ))
+                    .referenceId(task.getId())
+                    .referenceType("VERIFICATION_TASK")
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to send battery swap task assignment notification: {}", e.getMessage());
+        }
+
         log.info("Battery swap task assigned: taskId={}, assignedTo={}", taskId, user.getId());
         return buildBatterySwapTaskDTO(task);
     }
@@ -625,6 +755,39 @@ public class VerificationService {
                 Map.of("result", dto.getResult().name(),
                        "adminNote", dto.getAdminNote() != null ? dto.getAdminNote() : "",
                        "stationId", task.getStationId().toString()));
+
+        // Send notification to collaborator about review result
+        try {
+            String stationName = getStationName(task.getStationId());
+            var notifType = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? com.example.evstation.notification.domain.NotificationType.TASK_REVIEWED_PASS
+                    : com.example.evstation.notification.domain.NotificationType.TASK_REVIEWED_FAIL;
+            String title = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? "Battery Swap Task Approved!"
+                    : "Battery Swap Task Needs Revision";
+            String body = dto.getResult() == com.example.evstation.verification.domain.VerificationResult.PASS
+                    ? "Your battery swap verification of '" + stationName + "' has been approved."
+                    : "Your battery swap verification of '" + stationName + "' was not approved. Reason: " + (dto.getAdminNote() != null ? dto.getAdminNote() : "No reason provided");
+
+            notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                    .recipientId(task.getAssignedTo())
+                    .type(notifType)
+                    .category(com.example.evstation.notification.domain.NotificationCategory.TASK)
+                    .title(title)
+                    .body(body)
+                    .data(java.util.Map.of(
+                            "taskId", task.getId().toString(),
+                            "stationId", task.getStationId().toString(),
+                            "stationName", stationName,
+                            "result", dto.getResult().name(),
+                            "adminNote", dto.getAdminNote() != null ? dto.getAdminNote() : ""
+                    ))
+                    .referenceId(task.getId())
+                    .referenceType("VERIFICATION_TASK")
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to send battery swap task review notification: {}", e.getMessage());
+        }
 
         log.info("Battery swap task reviewed: taskId={}, result={}", taskId, dto.getResult());
         return buildBatterySwapTaskDTO(task);
@@ -855,6 +1018,7 @@ public class VerificationService {
                 .assignedTo(task.getAssignedTo() != null ? task.getAssignedTo().toString() : null)
                 .assignedToEmail(assignedToEmail)
                 .status(task.getStatus())
+                .verificationType(task.getVerificationType().name())
                 .createdAt(task.getCreatedAt())
                 .stationServiceTypes(resolveStationServiceTypes(task))
                 .checkin(checkinDTO)
@@ -999,6 +1163,16 @@ public class VerificationService {
             log.warn("Failed to parse battery swap station snapshot: {}", e.getMessage());
         }
         return result;
+    }
+
+    private String getStationName(UUID stationId) {
+        try {
+            return stationVersionRepository.findPublishedByStationId(stationId)
+                    .map(sv -> sv.getName())
+                    .orElse("Station " + stationId.toString().substring(0, 8));
+        } catch (Exception e) {
+            return "Station " + stationId.toString().substring(0, 8);
+        }
     }
 }
 

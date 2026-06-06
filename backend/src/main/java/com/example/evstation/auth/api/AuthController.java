@@ -36,21 +36,22 @@ public class AuthController {
         }
 
         UserAccount account = registerUseCase.execute(
-                request.getEmail(), 
-                request.getName(), 
-                request.getPassword(), 
+                request.getEmail(),
+                request.getName(),
+                request.getPassword(),
                 role);
-        
-        // Generate token for registered user
+
+        // Generate token for registered user (includes status in JWT)
         String token = loginUseCase.execute(request.getEmail(), request.getPassword())
                 .orElse(null);
-        
+
         AuthResponse response = AuthResponse.builder()
                 .token(token)
                 .userId(account.getId())
                 .email(account.getEmail())
                 .name(account.getName())
                 .role(account.getRole().name())
+                .status(account.getStatus().name())
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -63,13 +64,14 @@ public class AuthController {
                 .map(token -> {
                     UserAccount account = userAccountRepository.findByEmail(request.getEmail())
                             .orElseThrow();
-                    
+
                     return ResponseEntity.ok(AuthResponse.builder()
                             .token(token)
                             .userId(account.getId())
                             .email(account.getEmail())
                             .name(account.getName())
                             .role(account.getRole().name())
+                            .status(account.getStatus().name())
                             .build());
                 })
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());

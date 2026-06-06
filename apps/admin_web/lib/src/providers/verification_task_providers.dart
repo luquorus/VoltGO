@@ -13,7 +13,7 @@ enum VerificationTypeFilter {
       case VerificationTypeFilter.all:
         return null;
       case VerificationTypeFilter.chargingStation:
-        return 'CHARGING';
+        return 'CHARGING_STATION';
       case VerificationTypeFilter.batterySwap:
         return 'BATTERY_SWAP';
     }

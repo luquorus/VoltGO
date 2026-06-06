@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -40,13 +41,14 @@ public class BatterySwapVersionMapper {
                 ? userRepository.findById(cr.getSubmittedBy()).map(user -> user.getEmail()).orElse(null)
                 : null;
 
-        String stationName = resolveStationName(cr.getStationId());
+        UUID resolvedStationId = cr.getStationId() != null ? cr.getStationId() : (version != null ? version.getStationId() : null);
+        String stationName = resolveStationName(resolvedStationId);
 
         return BatterySwapCRDTO.builder()
                 .id(cr.getId())
                 .type(cr.getType())
                 .status(cr.getStatus())
-                .stationId(cr.getStationId())
+                .stationId(resolvedStationId)
                 .stationName(stationName)
                 .submittedBy(cr.getSubmittedBy())
                 .submittedByEmail(submittedByEmail)

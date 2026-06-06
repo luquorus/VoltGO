@@ -16,7 +16,7 @@ class TaskKPIScreen extends ConsumerWidget {
     final kpiAsync = ref.watch(kpiProvider);
 
     return DashboardShell(
-      title: 'KPI Dashboard',
+      title: 'Charging Station KPIs',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -37,7 +37,7 @@ class TaskKPIScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'KPI metrics for current month',
+                        'Charging Station verification KPI metrics for current month',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),

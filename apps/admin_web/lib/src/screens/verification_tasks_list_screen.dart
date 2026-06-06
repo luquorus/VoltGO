@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_api/shared_api.dart' hide RegistrationRequest, RegistrationRequestStatus;
 import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_verification_task.dart';
 import '../providers/verification_task_providers.dart';
@@ -207,17 +208,10 @@ class _VerificationTasksListScreenState
     int assigned = 0;
     int submitted = 0;
     int reviewed = 0;
-    int chargingCount = 0;
-    int batterySwapCount = 0;
 
     tasksPageAsync.whenData((page) {
       total = page.totalElements;
       for (final task in page.content) {
-        if (task.isBatterySwapStation) {
-          batterySwapCount++;
-        } else if (task.isChargingStation) {
-          chargingCount++;
-        }
         switch (task.status) {
           case VerificationTaskStatus.open:
             open++;
@@ -247,10 +241,6 @@ class _VerificationTasksListScreenState
         _buildStatCard(theme, icon: Icons.pending, label: 'Submitted', value: submitted.toString(), color: Colors.purple),
         const SizedBox(width: 16),
         _buildStatCard(theme, icon: Icons.check_circle, label: 'Reviewed', value: reviewed.toString(), color: Colors.green),
-        const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.ev_station, label: 'Charging', value: chargingCount.toString(), color: Colors.teal),
-        const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.battery_charging_full, label: 'Battery Swap', value: batterySwapCount.toString(), color: Colors.amber),
       ],
     );
   }
@@ -529,6 +519,13 @@ class _VerificationTasksListScreenState
                 style: theme.textTheme.bodySmall,
               ),
             ),
+            if (task.canDelete)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _showDeleteDialog(context, ref, task),
+                tooltip: 'Delete task',
+                color: theme.colorScheme.error,
+              ),
             if (task.canAssign)
               IconButton(
                 icon: const Icon(Icons.person_add),
@@ -651,6 +648,55 @@ class _VerificationTasksListScreenState
       return 'Due in ${difference.inMinutes}m';
     }
     return 'Due soon';
+  }
+
+  Future<void> _showDeleteDialog(
+      BuildContext context, WidgetRef ref, AdminVerificationTask task) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Verification Task'),
+        content: Text(
+          'Are you sure you want to delete this verification task?\n\n'
+          'Station: ${task.stationName ?? "N/A"}\n'
+          'Status: ${task.status.displayName}\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+      await factory.admin.deleteVerificationTask(task.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task deleted successfully')),
+        );
+      }
+      ref.invalidate(verificationTasksPageProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete task: $e')),
+        );
+      }
+    }
   }
 }
 

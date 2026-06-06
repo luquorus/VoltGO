@@ -5,6 +5,12 @@ import com.example.evstation.booking.infrastructure.jpa.BookingEntity;
 import com.example.evstation.booking.infrastructure.jpa.BookingJpaRepository;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.loyalty.application.BadgeService;
+import com.example.evstation.loyalty.application.LoyaltyPointService;
+import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.domain.BadgeCriteriaType;
+import com.example.evstation.loyalty.domain.EligibilityType;
+import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.payment.domain.PaymentIntentStatus;
 import com.example.evstation.payment.infrastructure.jpa.PaymentIntentEntity;
 import com.example.evstation.payment.infrastructure.jpa.PaymentIntentJpaRepository;
@@ -28,6 +34,9 @@ public class PaymentService {
     private final PaymentIntentJpaRepository paymentIntentRepository;
     private final BookingJpaRepository bookingRepository;
     private final AuditLogJpaRepository auditLogRepository;
+    private final LoyaltyPointService loyaltyPointService;
+    private final RatingEligibilityService ratingEligibilityService;
+    private final BadgeService badgeService;
     private final Clock clock;
     
     // Fallback amount if price snapshot is missing or invalid
@@ -178,7 +187,21 @@ public class PaymentService {
         // Transition booking HOLD -> CONFIRMED
         booking.setStatus(BookingStatus.CONFIRMED);
         booking = bookingRepository.save(booking);
-        
+
+        // Loyalty: award points for completed charging session
+        UUID loyaltyUserId = booking.getUserId();
+        loyaltyPointService.earnPoints(loyaltyUserId, PointSource.BOOKING, booking.getId(),
+                String.format("Completed charging session at station %s", booking.getStationId()));
+        loyaltyPointService.incrementBookingCount(loyaltyUserId);
+        badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.FIRST_BOOKING, 1);
+        var profileOpt = loyaltyPointService.getProfile(loyaltyUserId);
+        profileOpt.ifPresent(p -> badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.BOOKING_COUNT, p.getTotalBookings()));
+
+        // Loyalty: mark station as eligible for rating
+        ratingEligibilityService.markEligible(
+                loyaltyUserId, booking.getStationId(), booking.getId(),
+                EligibilityType.BOOKING_USAGE, Instant.now(clock));
+
         log.info("Payment succeeded and booking confirmed: intentId={}, bookingId={}", 
                 intentId, booking.getId());
         

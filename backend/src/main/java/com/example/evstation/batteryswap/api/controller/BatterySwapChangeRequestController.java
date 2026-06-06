@@ -41,7 +41,7 @@ public class BatterySwapChangeRequestController {
         UUID userId = extractUserId(authentication);
         log.info("Creating battery swap CR: type={}, userId={}", request.getType(), userId);
 
-        BatterySwapCRDTO response = service.createChangeRequest(request, userId);
+        BatterySwapCRDTO response = service.createChangeRequest(request, userId, false);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

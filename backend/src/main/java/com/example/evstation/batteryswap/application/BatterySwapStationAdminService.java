@@ -456,4 +456,65 @@ public class BatterySwapStationAdminService {
         }
         return piles;
     }
+
+    /**
+     * Permanently delete a battery swap station and all its related data.
+     * Deletes in order: change requests, pile templates, BS versions, station versions, state, trust, piles, then station.
+     * Cascade constraints handle most relationships; explicit deletions handle the rest.
+     */
+    @Transactional
+    public void deleteStation(UUID stationId, UUID adminId) {
+        log.info("Admin deleting battery swap station: {}, adminId={}", stationId, adminId);
+
+        if (!stationRepository.existsById(stationId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND,
+                    "Station not found: " + stationId);
+        }
+
+        // Delete change requests
+        var crs = crRepository.findByStationIdOrderByCreatedAtDesc(stationId);
+        if (!crs.isEmpty()) {
+            crRepository.deleteAll(crs);
+            log.info("Deleted {} change requests for station {}", crs.size(), stationId);
+        }
+
+        // Delete all BS versions (cascade deletes pile templates and slot templates)
+        var bsVersions = bsVersionRepository.findByStationIdOrderByVersionNoDesc(stationId);
+        if (!bsVersions.isEmpty()) {
+            bsVersionRepository.deleteAll(bsVersions);
+            log.info("Deleted {} BS versions for station {}", bsVersions.size(), stationId);
+        }
+
+        // Delete all station versions
+        var stationVersions = stationVersionRepository.findAll().stream()
+                .filter(sv -> sv.getStationId().equals(stationId))
+                .toList();
+        if (!stationVersions.isEmpty()) {
+            stationVersionRepository.deleteAll(stationVersions);
+            log.info("Deleted {} station versions for station {}", stationVersions.size(), stationId);
+        }
+
+        // Delete state
+        stateRepository.findById(stationId).ifPresent(state -> {
+            stateRepository.delete(state);
+            log.info("Deleted state for station {}", stationId);
+        });
+
+        // Delete trust record
+        trustRepository.findByStationId(stationId).ifPresent(trust -> {
+            trustRepository.delete(trust);
+            log.info("Deleted trust record for station {}", stationId);
+        });
+
+        // Delete piles
+        var piles = pileRepository.findByStationIdOrderByPileIndexAsc(stationId);
+        if (!piles.isEmpty()) {
+            pileRepository.deleteAll(piles);
+            log.info("Deleted {} piles for station {}", piles.size(), stationId);
+        }
+
+        // Finally delete the station itself
+        stationRepository.deleteById(stationId);
+        log.info("Battery swap station deleted: stationId={}", stationId);
+    }
 }

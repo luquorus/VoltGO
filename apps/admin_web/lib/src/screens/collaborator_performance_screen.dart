@@ -236,7 +236,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${(collab.passRate * 100).toStringAsFixed(0)}% pass',
+              '${collab.passRate.toStringAsFixed(0)}% pass',
               style: TextStyle(
                 color: AdminTheme.primaryTeal,
                 fontWeight: FontWeight.w600,
@@ -270,7 +270,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
               _buildStatCard(
                 width: cardWidth,
                 icon: Icons.check_circle,
-                value: '${(stats.avgPassRate * 100).toStringAsFixed(1)}%',
+                value: '${stats.avgPassRate.toStringAsFixed(1)}%',
                 label: 'Avg Pass Rate',
                 color: const Color(0xFF22C55E),
               ),
@@ -284,7 +284,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
               _buildStatCard(
                 width: cardWidth,
                 icon: Icons.speed,
-                value: '${(stats.slaComplianceRate * 100).toStringAsFixed(1)}%',
+                value: '${stats.slaComplianceRate.toStringAsFixed(1)}%',
                 label: 'SLA Compliance',
                 color: const Color(0xFF8B5CF6),
               ),
@@ -692,11 +692,11 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
   }
 
   Widget _buildPassRateCell(double passRate) {
-    final percentage = (passRate * 100).toStringAsFixed(0);
+    final percentage = passRate.toStringAsFixed(0);
     Color color;
-    if (passRate >= 0.8) {
+    if (passRate >= 80) {
       color = const Color(0xFF22C55E);
-    } else if (passRate >= 0.5) {
+    } else if (passRate >= 50) {
       color = const Color(0xFFF97316);
     } else {
       color = const Color(0xFFEF4444);
@@ -710,7 +710,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: passRate,
+              value: passRate / 100,
               backgroundColor: AdminTheme.outlineLight,
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 6,
@@ -731,11 +731,11 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
   }
 
   Widget _buildSlaComplianceBadge(double slaRate) {
-    final percentage = (slaRate * 100).toStringAsFixed(0);
+    final percentage = slaRate.toStringAsFixed(0);
     Color color;
-    if (slaRate >= 0.9) {
+    if (slaRate >= 90) {
       color = const Color(0xFF22C55E);
-    } else if (slaRate >= 0.7) {
+    } else if (slaRate >= 70) {
       color = const Color(0xFFF97316);
     } else {
       color = const Color(0xFFEF4444);

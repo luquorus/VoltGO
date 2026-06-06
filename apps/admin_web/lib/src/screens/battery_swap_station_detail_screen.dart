@@ -596,12 +596,92 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
                     foregroundColor: Colors.orange,
                   ),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    _showDeleteDialog(context, ref, station);
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete Station'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, BatterySwapStationDetail station) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete Station'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${station.name ?? station.id}"?\n\n'
+          'This will permanently remove the station and all related data (change requests, versions, piles, state, trust records). '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _handleDelete(context, ref, station);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDelete(
+    BuildContext context,
+    WidgetRef ref,
+    BatterySwapStationDetail station,
+  ) async {
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+
+      await factory.admin.deleteBatterySwapStation(station.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Station deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(batterySwapStationsProvider((page: 0, size: 20, search: null)));
+        context.go('/battery-swap/stations');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${formatApiError(e)}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildInfoRow(ThemeData theme, String label, String value) {

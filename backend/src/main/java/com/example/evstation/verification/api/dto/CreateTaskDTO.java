@@ -12,13 +12,15 @@ import java.util.UUID;
 public class CreateTaskDTO {
     @NotNull(message = "Station ID is required")
     private UUID stationId;
-    
+
     private UUID changeRequestId;
-    
+
     @Min(value = 1, message = "Priority must be between 1 and 5")
     @Max(value = 5, message = "Priority must be between 1 and 5")
     private Integer priority = 3;
-    
+
     private Instant slaDueAt;
+
+    private String verificationType; // CHARGING or BATTERY_SWAP
 }
 

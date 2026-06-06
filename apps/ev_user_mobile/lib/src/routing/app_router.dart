@@ -20,6 +20,12 @@ import '../screens/my_issues_screen.dart';
 import '../screens/recommendation_screen.dart';
 import '../screens/battery_swap_screen.dart';
 import '../screens/battery_swap_reservation_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../screens/loyalty_home_screen.dart';
+import '../screens/rate_station_screen.dart';
+import '../screens/point_history_screen.dart';
+import '../screens/badge_collection_screen.dart';
+import '../screens/referral_screen.dart';
 
 /// Router provider
 final routerProvider = Provider<GoRouter>((ref) {
@@ -149,6 +155,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final reservationId = state.uri.queryParameters['reservationId'];
           return BatterySwapReservationScreen(reservationId: reservationId);
+        },
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      // Loyalty routes
+      GoRoute(
+        path: '/loyalty',
+        builder: (context, state) => const LoyaltyHomeScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/points',
+        builder: (context, state) => const PointHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/badges',
+        builder: (context, state) => const BadgeCollectionScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/referral',
+        builder: (context, state) => const ReferralScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/rate/:stationId',
+        builder: (context, state) {
+          final stationId = state.pathParameters['stationId'] ?? '';
+          final extra = state.extra as Map<String, dynamic>?;
+          return RateStationScreen(
+            stationId: stationId,
+            eligibilityId: extra?['eligibilityId'],
+          );
         },
       ),
     ],

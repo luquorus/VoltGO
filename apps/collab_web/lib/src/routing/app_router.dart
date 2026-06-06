@@ -12,6 +12,7 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/contracts_screen.dart';
 import '../screens/swap_verification_tasks_screen.dart';
 import '../screens/swap_kpi_screen.dart';
+import '../screens/notifications_screen.dart';
 
 /// Route paths for Collaborator Web
 class CollabRoutes {
@@ -19,18 +20,19 @@ class CollabRoutes {
   static const String login = '/login';
   static const String forbidden = '/forbidden';
   
-  // Task routes
-  static const String tasks = '/tasks';
-  static const String taskHistory = '/tasks/history';
-  static const String taskKpi = '/tasks/kpi';
+  // Charging Station routes
+  static const String chargingStation = '/charging-station';
+  static const String chargingStationHistory = '/charging-station/history';
+  static const String chargingStationKpi = '/charging-station/kpi';
 
-  // Battery swap task routes
-  static const String batterySwapTasks = '/battery-swap';
-  static const String batterySwapKpi = '/battery-swap/kpi';
+  // Swap Station routes
+  static const String swapStation = '/swap-station';
+  static const String swapStationKpi = '/swap-station/kpi';
 
   // Profile/Account routes
   static const String profile = '/me/profile';
   static const String contracts = '/me/contracts';
+  static const String notifications = '/notifications';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -58,9 +60,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return CollabRoutes.forbidden;
       }
       
-      // Redirect root and /home to /tasks
+      // Redirect root and /home to /charging-station
       if (location == '/' || location == '/home') {
-        return CollabRoutes.tasks;
+        return CollabRoutes.chargingStation;
       }
       
       return null;
@@ -80,26 +82,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const ForbiddenScreen(),
       ),
       
-      // Task routes
+      // Charging Station routes
       GoRoute(
-        path: CollabRoutes.tasks,
+        path: CollabRoutes.chargingStation,
         builder: (_, __) => const TasksScreen(),
       ),
       GoRoute(
-        path: CollabRoutes.taskHistory,
+        path: CollabRoutes.chargingStationHistory,
         builder: (_, __) => const TaskHistoryScreen(),
       ),
       GoRoute(
-        path: CollabRoutes.taskKpi,
+        path: CollabRoutes.chargingStationKpi,
         builder: (_, __) => const TaskKPIScreen(),
       ),
-      // Battery swap task routes
+      // Swap Station routes
       GoRoute(
-        path: CollabRoutes.batterySwapTasks,
+        path: CollabRoutes.swapStation,
         builder: (_, __) => const SwapVerificationTasksScreen(),
       ),
       GoRoute(
-        path: CollabRoutes.batterySwapKpi,
+        path: CollabRoutes.swapStationKpi,
         builder: (_, __) => const SwapKPIScreen(),
       ),
       // Profile/Account routes
@@ -114,6 +116,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: CollabRoutes.contracts,
         builder: (_, __) => const ContractsScreen(),
+      ),
+      // Notifications route
+      GoRoute(
+        path: CollabRoutes.notifications,
+        builder: (_, __) => const NotificationsScreen(),
       ),
     ],
   );

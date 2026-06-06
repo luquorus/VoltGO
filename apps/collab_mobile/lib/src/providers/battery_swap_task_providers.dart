@@ -174,16 +174,14 @@ class BatterySwapTaskRepository {
     String? notes,
   }) async {
     try {
+      // Map pileCount to actualTotalBatteries as fallback for backend compatibility
+      // The backend only accepts: lat, lng, deviceNote, actualTotalBatteries, actualAvailableBatteries, observedAvgChargePowerKw
       final response = await apiClient.batterySwapCheckIn(
         taskId: taskId,
         lat: lat,
         lng: lng,
-        batteryInventoryCount: batteryInventoryCount,
-        pileCount: pileCount,
-        slotCount: slotCount,
-        isOperatingHoursAccurate: isOperatingHoursAccurate,
-        parkingFee: parkingFee,
-        notes: notes,
+        actualTotalBatteries: batteryInventoryCount,
+        deviceNote: notes,
       );
 
       return BatterySwapVerificationTask.fromJson(response);
@@ -230,7 +228,6 @@ class BatterySwapTaskRepository {
       final response = await apiClient.batterySwapSubmitEvidence(
         taskId: taskId,
         photoObjectKey: objectKey,
-        evidenceType: evidenceType ?? 'STATION_PHOTO',
         note: trimmedNote == null || trimmedNote.isEmpty ? null : trimmedNote,
       );
 
