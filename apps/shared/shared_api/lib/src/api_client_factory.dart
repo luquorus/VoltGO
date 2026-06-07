@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_network/shared_network.dart';
@@ -131,6 +132,16 @@ abstract class BaseApiClient {
 
   Future<T> delete<T>(String path, {Map<String, dynamic>? queryParameters}) {
     return _handleResponse<T>(dio.delete(path, queryParameters: queryParameters));
+  }
+
+  /// Download binary data (e.g., images) via GET request.
+  Future<Uint8List> getBytes(String path, {Map<String, dynamic>? queryParameters}) async {
+    final response = await dio.get<List<int>>(
+      path,
+      queryParameters: queryParameters,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? []);
   }
 }
 
@@ -687,6 +698,59 @@ class EvUserMobileApiClient extends BaseApiClient {
       '/api/ev/loyalty/public/stations/$stationId/summary',
     );
   }
+
+  // ============================================
+  // Voucher Redemption Endpoints
+  // ============================================
+
+  /// GET /api/ev/loyalty/vouchers
+  /// Get available vouchers to redeem
+  Future<List<dynamic>> getAvailableVouchers() {
+    return get<List<dynamic>>('/api/ev/loyalty/vouchers');
+  }
+
+  /// GET /api/ev/loyalty/vouchers/mine?status=&page=&size=
+  /// Get user's redeemed vouchers (backend returns Spring Page object)
+  Future<Map<String, dynamic>> getMyVouchers({String? status, int page = 0, int size = 20}) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/loyalty/vouchers/mine',
+      queryParameters: {
+        if (status != null) 'status': status,
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// POST /api/ev/loyalty/vouchers/{definitionId}/redeem
+  /// Redeem a voucher definition
+  Future<Map<String, dynamic>> redeemVoucher(String definitionId) {
+    return post<Map<String, dynamic>>('/api/ev/loyalty/vouchers/$definitionId/redeem');
+  }
+
+  /// GET /api/ev/loyalty/vouchers/redemptions/{redemptionId}
+  /// Get voucher redemption detail
+  Future<Map<String, dynamic>> getVoucherRedemptionDetail(String redemptionId) {
+    return get<Map<String, dynamic>>('/api/ev/loyalty/vouchers/redemptions/$redemptionId');
+  }
+
+  /// POST /api/ev/loyalty/vouchers/redemptions/{redemptionId}/apply-to-booking
+  /// Apply voucher to a booking
+  Future<Map<String, dynamic>> applyVoucherToBooking(String redemptionId, String bookingId) {
+    return post<Map<String, dynamic>>(
+      '/api/ev/loyalty/vouchers/redemptions/$redemptionId/apply-to-booking',
+      data: {'bookingId': bookingId},
+    );
+  }
+
+  /// POST /api/ev/loyalty/vouchers/redemptions/{redemptionId}/apply-to-swap
+  /// Apply voucher to a battery swap reservation
+  Future<Map<String, dynamic>> applyVoucherToSwap(String redemptionId, String reservationId) {
+    return post<Map<String, dynamic>>(
+      '/api/ev/loyalty/vouchers/redemptions/$redemptionId/apply-to-swap',
+      data: {'bookingId': reservationId},
+    );
+  }
 }
 
 /// Collaborator Mobile API Client
@@ -708,6 +772,7 @@ class CollaboratorMobileApiClient extends BaseApiClient {
     required double lat,
     required double lng,
     String? deviceNote,
+    List<Map<String, dynamic>>? checklistAnswers,
   }) {
     return post<Map<String, dynamic>>(
       '/api/collab/mobile/tasks/$taskId/check-in',
@@ -715,6 +780,7 @@ class CollaboratorMobileApiClient extends BaseApiClient {
         'lat': lat,
         'lng': lng,
         if (deviceNote != null) 'deviceNote': deviceNote,
+        if (checklistAnswers != null) 'checklistAnswers': checklistAnswers,
       },
     );
   }
@@ -729,6 +795,28 @@ class CollaboratorMobileApiClient extends BaseApiClient {
     );
   }
 
+  /// POST /api/collab/mobile/files/upload
+  /// Proxy upload — backend receives file and forwards to MinIO.
+  /// Use this instead of presigned URL when client cannot reach MinIO directly.
+  Future<Map<String, dynamic>> proxyUpload({
+    required List<int> fileBytes,
+    required String fileName,
+    required String contentType,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        fileBytes,
+        filename: fileName,
+        contentType: DioMediaType.parse(contentType),
+      ),
+      'contentType': contentType,
+    });
+    return post<Map<String, dynamic>>(
+      '/api/collab/mobile/files/upload',
+      data: formData,
+    );
+  }
+
   /// GET /api/collab/mobile/files/presign-view
   Future<Map<String, dynamic>> presignView({
     required String objectKey,
@@ -738,6 +826,16 @@ class CollaboratorMobileApiClient extends BaseApiClient {
       queryParameters: {
         'objectKey': objectKey,
       },
+    );
+  }
+
+  /// GET /api/collab/mobile/files/view?objectKey=...
+  /// Proxy view — backend streams file from MinIO to client.
+  /// Returns raw bytes; use Image.memory(bytes) to display.
+  Future<Uint8List> proxyViewBytes({required String objectKey}) {
+    return getBytes(
+      '/api/collab/mobile/files/view',
+      queryParameters: {'objectKey': objectKey},
     );
   }
 
@@ -785,6 +883,7 @@ class CollaboratorMobileApiClient extends BaseApiClient {
     int? actualAvailableBatteries,
     double? observedAvgChargePowerKw,
     String? deviceNote,
+    List<Map<String, dynamic>>? checklistAnswers,
   }) {
     return post<Map<String, dynamic>>(
       '/api/mobile/collab/battery-swap/verification/tasks/$taskId/checkin',
@@ -795,6 +894,7 @@ class CollaboratorMobileApiClient extends BaseApiClient {
         if (actualAvailableBatteries != null) 'actualAvailableBatteries': actualAvailableBatteries,
         if (observedAvgChargePowerKw != null) 'observedAvgChargePowerKw': observedAvgChargePowerKw,
         if (deviceNote != null) 'deviceNote': deviceNote,
+        if (checklistAnswers != null) 'checklistAnswers': checklistAnswers,
       },
     );
   }
@@ -1125,6 +1225,7 @@ class AdminWebApiClient extends BaseApiClient {
     int? priority,
     String? slaDueAt, // ISO 8601 string
     String? verificationType, // CHARGING or BATTERY_SWAP
+    List<Map<String, dynamic>>? checklist,
   }) {
     return post<Map<String, dynamic>>(
       '/api/admin/verification-tasks',
@@ -1134,6 +1235,7 @@ class AdminWebApiClient extends BaseApiClient {
         if (priority != null) 'priority': priority,
         if (slaDueAt != null) 'slaDueAt': slaDueAt,
         if (verificationType != null) 'verificationType': verificationType,
+        if (checklist != null) 'checklist': checklist,
       },
     );
   }
@@ -1581,6 +1683,12 @@ class AdminWebApiClient extends BaseApiClient {
     return get<Map<String, dynamic>>('/api/admin/battery-swap/stations/$stationId');
   }
 
+  /// POST /api/admin/battery-swap/stations
+  /// Create a new battery swap station
+  Future<Map<String, dynamic>> createBatterySwapStation(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/admin/battery-swap/stations', data: data);
+  }
+
   /// PUT /api/admin/battery-swap/stations/{stationId}
   /// Update a battery swap station directly (admin edit)
   Future<Map<String, dynamic>> updateBatterySwapStation(String stationId, Map<String, dynamic> data) {
@@ -1798,6 +1906,110 @@ class AdminWebApiClient extends BaseApiClient {
   /// Get all badges with progress info
   Future<List<dynamic>> getAllBadges() {
     return get<List<dynamic>>('/api/admin/loyalty/badges');
+  }
+
+  // ============================================
+  // Loyalty Dashboard & User/Rating Endpoints
+  // ============================================
+
+  /// GET /api/admin/loyalty/dashboard
+  /// Get loyalty dashboard stats (total points, active users, total ratings)
+  Future<Map<String, dynamic>> getLoyaltyDashboard() {
+    return get<Map<String, dynamic>>('/api/admin/loyalty/dashboard');
+  }
+
+  /// GET /api/admin/loyalty/users
+  /// Get paginated list of all users with loyalty profiles
+  Future<Map<String, dynamic>> getLoyaltyUsers({
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/loyalty/users',
+      queryParameters: {
+        'page': page,
+        'size': size,
+      },
+    );
+  }
+
+  /// GET /api/admin/loyalty/ratings
+  /// Get paginated list of all ratings with optional filters
+  Future<Map<String, dynamic>> getLoyaltyRatings({
+    String? stationId,
+    String? status,
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/loyalty/ratings',
+      queryParameters: {
+        'page': page,
+        'size': size,
+        if (stationId != null && stationId.isNotEmpty) 'stationId': stationId,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+  }
+
+  /// GET /api/admin/loyalty/vouchers/{id}/stats
+  /// Get voucher redemption stats
+  Future<Map<String, dynamic>> getVoucherStats(String voucherId) {
+    return get<Map<String, dynamic>>('/api/admin/loyalty/vouchers/$voucherId/stats');
+  }
+
+  // ============================================
+  // Voucher Management Admin Endpoints
+  // ============================================
+
+  /// GET /api/admin/loyalty/vouchers
+  /// Get all voucher definitions
+  Future<List<dynamic>> getVouchers() {
+    return get<List<dynamic>>('/api/admin/loyalty/vouchers');
+  }
+
+  /// POST /api/admin/loyalty/vouchers
+  /// Create a new voucher definition
+  Future<Map<String, dynamic>> createVoucher(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>('/api/admin/loyalty/vouchers', data: data);
+  }
+
+  /// PATCH /api/admin/loyalty/vouchers/{id}/status
+  /// Update voucher status (ACTIVE/INACTIVE/ARCHIVED)
+  Future<void> updateVoucherStatus(String id, String status) {
+    return patch<void>(
+      '/api/admin/loyalty/vouchers/$id/status',
+      data: {'status': status},
+    );
+  }
+
+  /// GET /api/admin/loyalty/vouchers/{id}
+  /// Get voucher definition by ID
+  Future<Map<String, dynamic>> getVoucher(String id) {
+    return get<Map<String, dynamic>>('/api/admin/loyalty/vouchers/$id');
+  }
+
+  /// DELETE /api/admin/loyalty/vouchers/{id}
+  /// Delete a voucher definition
+  Future<void> deleteVoucher(String id) {
+    return delete<void>('/api/admin/loyalty/vouchers/$id');
+  }
+
+  /// GET /api/admin/loyalty/redemptions
+  /// Get paginated list of all voucher redemptions
+  Future<Map<String, dynamic>> getVoucherRedemptions({
+    String? status,
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/admin/loyalty/redemptions',
+      queryParameters: {
+        'page': page.toString(),
+        'size': size.toString(),
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
   }
 }
 

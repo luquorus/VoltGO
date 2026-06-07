@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
+import 'package:shared_api/shared_api.dart';
 import '../providers/booking_providers.dart';
 import '../providers/station_providers.dart';
 import '../providers/loyalty_providers.dart';
@@ -293,7 +294,8 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     ThemeData theme,
   ) {
     final status = booking['status'] as String? ?? '';
-    // Get payment intent from local state (if created) or from booking response (if backend includes it)
+    final priceSnapshot = booking['priceSnapshot'] as Map<String, dynamic>?;
+    final voucherRedemptionId = booking['voucherRedemptionId'] as String?;
     final localPaymentIntent = ref.read(paymentIntentProvider(widget.bookingId));
     final bookingPaymentIntent = booking['paymentIntent'] as Map<String, dynamic>?;
     final paymentIntent = localPaymentIntent ?? bookingPaymentIntent;
@@ -301,6 +303,8 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     if (status != 'HOLD') {
       return const SizedBox.shrink();
     }
+
+    final originalAmount = priceSnapshot?['amount'] as int? ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,6 +314,23 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
           style: theme.textTheme.titleLarge,
         ),
         const SizedBox(height: 12),
+
+        // Price breakdown card
+        _buildPriceBreakdownCard(context, booking, paymentIntent, theme),
+
+        const SizedBox(height: 12),
+
+        // Voucher section
+        _buildVoucherSection(
+          context,
+          booking,
+          voucherRedemptionId,
+          originalAmount,
+          theme,
+        ),
+
+        const SizedBox(height: 16),
+
         if (paymentIntent == null) ...[
           PrimaryButton(
             label: 'Create Payment Intent',
@@ -340,6 +361,330 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     );
   }
 
+  Widget _buildPriceBreakdownCard(
+    BuildContext context,
+    Map<String, dynamic> booking,
+    Map<String, dynamic>? paymentIntent,
+    ThemeData theme,
+  ) {
+    final priceSnapshot = booking['priceSnapshot'] as Map<String, dynamic>?;
+    final voucherRedemptionId = booking['voucherRedemptionId'] as String?;
+    final discountAmount = paymentIntent?['discountAmount'] as int? ?? 0;
+    final finalAmount = paymentIntent?['amount'] as int? ??
+        (priceSnapshot?['amount'] as int? ?? 0);
+
+    final hasDiscount = voucherRedemptionId != null && discountAmount > 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Price Breakdown',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow(
+              theme,
+              FontAwesomeIcons.bolt,
+              'Unit',
+              priceSnapshot?['unitLabel'] as String? ?? '-',
+            ),
+            _buildInfoRow(
+              theme,
+              FontAwesomeIcons.chargingStation,
+              'Power',
+              '${priceSnapshot?['powerKw'] ?? 0} kW ${priceSnapshot?['powerType'] ?? ''}',
+            ),
+            _buildInfoRow(
+              theme,
+              FontAwesomeIcons.clock,
+              'Duration',
+              '${priceSnapshot?['durationMinutes'] ?? 0} min (${priceSnapshot?['slotCount'] ?? 0} slots)',
+            ),
+            const Divider(),
+            _buildInfoRow(
+              theme,
+              FontAwesomeIcons.tag,
+              'Original Price',
+              '${_formatAmount(priceSnapshot?['amount'] as int? ?? 0)} VND',
+            ),
+            if (hasDiscount) ...[
+              _buildInfoRow(
+                theme,
+                FontAwesomeIcons.tag,
+                'Voucher Discount',
+                '-${_formatAmount(discountAmount)} VND',
+                valueColor: Colors.green,
+              ),
+              const Divider(),
+              _buildInfoRow(
+                theme,
+                FontAwesomeIcons.solidMoneyBill1,
+                'Final Amount',
+                '${_formatAmount(finalAmount)} VND',
+                valueColor: theme.colorScheme.primary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoucherSection(
+    BuildContext context,
+    Map<String, dynamic> booking,
+    String? voucherRedemptionId,
+    int originalAmount,
+    ThemeData theme,
+  ) {
+    final vouchersAsync = ref.watch(myVouchersProvider('REDEEMED'));
+    final applyState = ref.watch(applyVoucherProvider);
+    final hasAppliedVoucher = voucherRedemptionId != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                FaIcon(
+                  FontAwesomeIcons.ticketSimple,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Voucher',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (hasAppliedVoucher) ...[
+              vouchersAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (vouchers) {
+                  final applied = vouchers.where((v) => v.id == voucherRedemptionId).toList();
+                  if (applied.isEmpty) {
+                    return Text(
+                      'Voucher applied',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green),
+                    );
+                  }
+                  final v = applied.first;
+                  final def = v.definition;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  def?.name ?? 'Voucher',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'Code: ${v.voucherCode}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const FaIcon(FontAwesomeIcons.check, color: Colors.green, size: 12),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Applied',
+                                  style: TextStyle(color: Colors.green[700], fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: applyState.isLoading
+                            ? null
+                            : () => _showRemoveVoucherConfirm(context, voucherRedemptionId),
+                        child: Text(
+                          'Remove Voucher',
+                          style: TextStyle(color: Colors.red[400], fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ] else ...[
+              vouchersAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text(
+                  'Could not load vouchers',
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+                ),
+                data: (vouchers) {
+                  final available = vouchers.where((v) {
+                    final def = v.definition;
+                    // Show PERCENT_DISCOUNT vouchers and FREE_SERVICE/CHARGING vouchers
+                    if (def?.voucherType == 'PERCENT_DISCOUNT') return true;
+                    if (def?.voucherType == 'FREE_SERVICE' &&
+                        (def?.serviceType == 'CHARGING' || def?.serviceType == null)) return true;
+                    return false;
+                  }).toList();
+
+                  if (available.isEmpty) {
+                    return Text(
+                      'No available vouchers. Visit Loyalty page to earn some!',
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${available.length} voucher(s) available',
+                        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: applyState.isLoading
+                              ? null
+                              : () => _showVoucherSelector(context, available, originalAmount),
+                          icon: applyState.isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const FaIcon(FontAwesomeIcons.plus, size: 14),
+                          label: const Text('Apply Voucher'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showVoucherSelector(
+    BuildContext context,
+    List<VoucherRedemption> vouchers,
+    int originalAmount,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, controller) => _VoucherSelectorSheet(
+          vouchers: vouchers,
+          originalAmount: originalAmount,
+          onApply: (voucher) async {
+            Navigator.pop(ctx);
+            await _applyVoucher(context, voucher.id);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showRemoveVoucherConfirm(BuildContext context, String voucherRedemptionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Voucher'),
+        content: const Text('Are you sure you want to remove this voucher from this booking?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // NOTE: Backend does not have a remove-voucher endpoint yet.
+    // The best approach is to cancel this booking and re-create without voucher.
+    // For now, show a message.
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please cancel this booking and create a new one without the voucher.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<void> _applyVoucher(BuildContext context, String redemptionId) async {
+    try {
+      await ref.read(applyVoucherProvider.notifier).applyToBooking(redemptionId, widget.bookingId);
+      ref.invalidate(bookingDetailProvider(widget.bookingId));
+      ref.invalidate(paymentIntentProvider(widget.bookingId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voucher applied successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to apply voucher: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildPaymentIntentInfo(
     BuildContext context,
     Map<String, dynamic> paymentIntent,
@@ -348,6 +693,8 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     final amount = paymentIntent['amount'] as int? ?? 0;
     final currency = paymentIntent['currency'] as String? ?? 'VND';
     final paymentStatus = paymentIntent['status'] as String? ?? '';
+    final discountAmount = paymentIntent['discountAmount'] as int?;
+    final hasDiscount = discountAmount != null && discountAmount > 0;
 
     return Card(
       child: Padding(
@@ -360,11 +707,29 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
+            if (hasDiscount) ...[
+              _buildInfoRow(
+                theme,
+                FontAwesomeIcons.tag,
+                'Original Amount',
+                '${_formatAmount(amount + discountAmount)} $currency',
+                valueColor: Colors.grey,
+              ),
+              _buildInfoRow(
+                theme,
+                FontAwesomeIcons.tag,
+                'Discount',
+                '-${_formatAmount(discountAmount)} $currency',
+                valueColor: Colors.green,
+              ),
+              const Divider(),
+            ],
             _buildInfoRow(
               theme,
               FontAwesomeIcons.moneyBill,
-              'Amount',
+              'Final Amount',
               '${_formatAmount(amount)} $currency',
+              valueColor: hasDiscount ? theme.colorScheme.primary : null,
             ),
             const SizedBox(height: 8),
             _buildInfoRow(
@@ -451,7 +816,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(ThemeData theme, IconData icon, String label, String value) {
+  Widget _buildInfoRow(ThemeData theme, IconData icon, String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -467,6 +832,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
               value,
               style: theme.textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w500,
+                color: valueColor,
               ),
             ),
           ),
@@ -597,6 +963,165 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
   }
 
   String _formatAmount(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
+}
+
+class _VoucherSelectorSheet extends StatelessWidget {
+  final List<VoucherRedemption> vouchers;
+  final int originalAmount;
+  final void Function(VoucherRedemption) onApply;
+
+  const _VoucherSelectorSheet({
+    required this.vouchers,
+    required this.originalAmount,
+    required this.onApply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Select Voucher',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: vouchers.length,
+              itemBuilder: (context, index) {
+                final voucher = vouchers[index];
+                final def = voucher.definition;
+                final isPercent = def?.voucherType == 'PERCENT_DISCOUNT';
+                final isFreeService = def?.voucherType == 'FREE_SERVICE';
+                final discountPct = def?.discountPercent ?? 0;
+                final maxVal = def?.maxValueVnd ?? 0;
+                final int maxCap = maxVal > 0 ? maxVal : originalAmount;
+                final estimatedDiscount = ((originalAmount * discountPct) / 100).round().clamp(0, maxCap);
+                final finalAmount = originalAmount - estimatedDiscount;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => onApply(voucher),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isFreeService ? Icons.battery_charging_full : Icons.discount,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  def?.name ?? 'Voucher',
+                                  style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  def?.description ?? '',
+                                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                if (isPercent) ...[
+                                  Text(
+                                    'Save ~${_formatAmt(estimatedDiscount)} VND (-$discountPct%)',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.green[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ] else if (isFreeService) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'FREE Charging',
+                                      style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                isPercent
+                                    ? 'Final: ${_formatAmt(finalAmount)}'
+                                    : 'FREE',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isPercent
+                                      ? theme.colorScheme.primary
+                                      : Colors.green[700],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              FaIcon(
+                                FontAwesomeIcons.chevronRight,
+                                size: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAmt(int amount) {
     return amount.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',

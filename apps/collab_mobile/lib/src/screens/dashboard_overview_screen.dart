@@ -6,6 +6,7 @@ import '../providers/dashboard_provider.dart';
 import '../providers/task_providers.dart';
 import '../providers/battery_swap_task_providers.dart';
 import '../models/verification_task.dart';
+import '../models/battery_swap_verification_task.dart' show BatterySwapVerificationTask;
 import '../widgets/main_scaffold.dart';
 
 /// Dashboard Overview Screen - shows KPI summary and recent activity
@@ -30,7 +31,6 @@ class _DashboardOverviewScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final kpiState = ref.watch(dashboardKpiProvider);
 
     return CollabMainScaffold(
       title: 'Dashboard',
@@ -55,7 +55,7 @@ class _DashboardOverviewScreenState
               ),
             ),
             const SizedBox(height: 12),
-            _KpiSection(state: kpiState),
+            const _KpiSection(),
             const SizedBox(height: 24),
 
             // Quick Actions
@@ -77,10 +77,7 @@ class _DashboardOverviewScreenState
               ),
             ),
             const SizedBox(height: 12),
-            _RecentTasksSection(
-              taskType: TaskType.charging,
-              statuses: [VerificationTaskStatus.assigned, VerificationTaskStatus.checkedIn],
-            ),
+            _RecentTasksSection(taskType: TaskType.charging),
             const SizedBox(height: 24),
 
             // Recent Swap Tasks
@@ -91,10 +88,7 @@ class _DashboardOverviewScreenState
               ),
             ),
             const SizedBox(height: 12),
-            _RecentTasksSection(
-              taskType: TaskType.swap,
-              statuses: ['ASSIGNED', 'CHECKED_IN'],
-            ),
+            _RecentTasksSection(taskType: TaskType.swap),
             const SizedBox(height: 32),
           ],
         ),
@@ -161,39 +155,46 @@ class _WelcomeCard extends ConsumerWidget {
   }
 }
 
-class _KpiSection extends StatelessWidget {
-  final DashboardKpiState state;
-
-  const _KpiSection({required this.state});
+class _KpiSection extends ConsumerWidget {
+  const _KpiSection();
 
   @override
-  Widget build(BuildContext context) {
-    if (state.isLoading) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kpiState = ref.watch(dashboardKpiProvider);
+    final assignedCountAsync = ref.watch(assignedTasksCountProvider);
+
+    if (kpiState.isLoading) {
       return const SkeletonList(count: 4);
     }
 
-    if (state.error != null) {
+    if (kpiState.error != null) {
       return _ErrorCard(
         message: 'Could not load KPI data.',
         onRetry: () {},
       );
     }
 
+    final assignedCount = assignedCountAsync.when(
+      data: (count) => count,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
+
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _KpiCard(label: 'Reviewed', value: state.totalReviewed.toString(), icon: Icons.check_circle_outline, color: Colors.blue)),
+            Expanded(child: _KpiCard(label: 'Assigned', value: assignedCount.toString(), icon: Icons.assignment_ind_outlined, color: Colors.blue)),
             const SizedBox(width: 8),
-            Expanded(child: _KpiCard(label: 'Passed', value: state.totalPassed.toString(), icon: Icons.check_circle, color: Colors.green)),
+            Expanded(child: _KpiCard(label: 'Passed', value: kpiState.passCount.toString(), icon: Icons.check_circle, color: Colors.green)),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _KpiCard(label: 'Failed', value: state.totalFailed.toString(), icon: Icons.cancel_outlined, color: Colors.red)),
+            Expanded(child: _KpiCard(label: 'Failed', value: kpiState.failCount.toString(), icon: Icons.cancel_outlined, color: Colors.red)),
             const SizedBox(width: 8),
-            Expanded(child: _KpiCard(label: 'Pass Rate', value: '${state.passRate.toStringAsFixed(0)}%', icon: Icons.trending_up, color: Colors.orange)),
+            Expanded(child: _KpiCard(label: 'Pass Rate', value: '${kpiState.passRate.toStringAsFixed(0)}%', icon: Icons.trending_up, color: Colors.orange)),
           ],
         ),
       ],
@@ -334,30 +335,35 @@ class _QuickActionCard extends StatelessWidget {
 
 class _RecentTasksSection extends ConsumerWidget {
   final TaskType taskType;
-  final List<dynamic> statuses;
 
-  const _RecentTasksSection({
-    required this.taskType,
-    required this.statuses,
-  });
+  const _RecentTasksSection({required this.taskType});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     if (taskType == TaskType.charging) {
-      final tasksAsync = ref.watch(tasksByStatusProvider(statuses.cast()));
+      final tasksAsync = ref.watch(tasksByStatusProvider(null));
 
       return tasksAsync.when(
         data: (tasks) {
-          if (tasks.isEmpty) {
+          final incomplete = tasks
+              .where((t) =>
+                  t.status == VerificationTaskStatus.assigned ||
+                  t.status == VerificationTaskStatus.checkedIn)
+              .toList()
+            ..sort((a, b) {
+              if (a.slaDueAt == null && b.slaDueAt == null) return 0;
+              if (a.slaDueAt == null) return 1;
+              if (b.slaDueAt == null) return -1;
+              return a.slaDueAt!.compareTo(b.slaDueAt!);
+            });
+          if (incomplete.isEmpty) {
             return _EmptyTasksCard(
               message: 'No active charging tasks.',
               onViewAll: () => context.go('/charging-station'),
             );
           }
           return _TasksList(
-            tasks: tasks.take(3).toList(),
+            tasks: incomplete.take(2).toList(),
             onViewAll: () => context.go('/charging-station'),
             basePath: '/charging-station',
           );
@@ -365,7 +371,7 @@ class _RecentTasksSection extends ConsumerWidget {
         loading: () => const SkeletonList(count: 2),
         error: (e, _) => _ErrorCard(
           message: 'Could not load tasks.',
-          onRetry: () => ref.invalidate(tasksByStatusProvider(statuses.cast())),
+          onRetry: () => ref.invalidate(tasksByStatusProvider(null)),
         ),
       );
     } else {
@@ -373,17 +379,25 @@ class _RecentTasksSection extends ConsumerWidget {
 
       return tasksAsync.when(
         data: (tasks) {
-          final filtered = tasks
-              .where((t) => statuses.contains(t.status))
-              .toList();
-          if (filtered.isEmpty) {
+          final incomplete = tasks
+              .where((t) =>
+                  t.status.toString() == 'ASSIGNED' ||
+                  t.status.toString() == 'CHECKED_IN')
+              .toList()
+            ..sort((a, b) {
+              if (a.slaDueAt == null && b.slaDueAt == null) return 0;
+              if (a.slaDueAt == null) return 1;
+              if (b.slaDueAt == null) return -1;
+              return a.slaDueAt!.compareTo(b.slaDueAt!);
+            });
+          if (incomplete.isEmpty) {
             return _EmptyTasksCard(
               message: 'No active swap tasks.',
               onViewAll: () => context.go('/swap-station'),
             );
           }
           return _SwapTasksList(
-            tasks: filtered.take(3).toList(),
+            tasks: incomplete.take(2).toList(),
             onViewAll: () => context.go('/swap-station'),
           );
         },
@@ -408,6 +422,23 @@ class _TasksList extends StatelessWidget {
     required this.basePath,
   });
 
+  String _formatDeadline(DateTime? deadline) {
+    if (deadline == null) return 'No deadline';
+    final now = DateTime.now();
+    final diff = deadline.difference(now);
+    if (diff.isNegative) {
+      return 'Overdue';
+    } else if (diff.inDays == 0) {
+      return 'Due today';
+    } else if (diff.inDays == 1) {
+      return 'Due tomorrow';
+    } else if (diff.inDays < 7) {
+      return 'Due in ${diff.inDays} days';
+    } else {
+      return 'Due ${deadline.day}/${deadline.month}/${deadline.year}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -426,9 +457,22 @@ class _TasksList extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: Text(
-                  task.status.displayName,
-                  style: theme.textTheme.bodySmall,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.status.displayName,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Text(
+                      _formatDeadline(task.slaDueAt),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _isOverdue(task.slaDueAt)
+                            ? Colors.red
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('$basePath/${task.id}'),
@@ -442,16 +486,59 @@ class _TasksList extends StatelessWidget {
       ),
     );
   }
+
+  bool _isOverdue(DateTime? deadline) {
+    if (deadline == null) return false;
+    return deadline.isBefore(DateTime.now());
+  }
 }
 
 class _SwapTasksList extends StatelessWidget {
-  final List<dynamic> tasks;
+  final List<BatterySwapVerificationTask> tasks;
   final VoidCallback onViewAll;
 
   const _SwapTasksList({
     required this.tasks,
     required this.onViewAll,
   });
+
+  String _formatDeadline(DateTime? deadline) {
+    if (deadline == null) return 'No deadline';
+    final now = DateTime.now();
+    final diff = deadline.difference(now);
+    if (diff.isNegative) {
+      return 'Overdue';
+    } else if (diff.inDays == 0) {
+      return 'Due today';
+    } else if (diff.inDays == 1) {
+      return 'Due tomorrow';
+    } else if (diff.inDays < 7) {
+      return 'Due in ${diff.inDays} days';
+    } else {
+      return 'Due ${deadline.day}/${deadline.month}/${deadline.year}';
+    }
+  }
+
+  bool _isOverdue(DateTime? deadline) {
+    if (deadline == null) return false;
+    return deadline.isBefore(DateTime.now());
+  }
+
+  String _statusDisplayName(BatterySwapVerificationTask task) {
+    final s = task.status.toString();
+    switch (s) {
+      case 'ASSIGNED':
+        return 'Assigned';
+      case 'CHECKED_IN':
+        return 'Checked in';
+      case 'SUBMITTED':
+        return 'Submitted';
+      case 'REVIEWED':
+        return 'Reviewed';
+      default:
+        return s;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -471,9 +558,22 @@ class _SwapTasksList extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: Text(
-                  task.status,
-                  style: theme.textTheme.bodySmall,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _statusDisplayName(task),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Text(
+                      _formatDeadline(task.slaDueAt),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _isOverdue(task.slaDueAt)
+                            ? Colors.red
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/swap-station/${task.id}'),

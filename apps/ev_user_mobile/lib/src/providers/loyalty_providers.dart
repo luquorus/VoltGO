@@ -381,3 +381,192 @@ final referralCodeProvider =
     StateNotifierProvider<ReferralCodeNotifier, ReferralCodeState>((ref) {
   return ReferralCodeNotifier(ref);
 });
+
+// ===== VOUCHER PROVIDERS =====
+
+/// Provider for available vouchers to redeem
+final availableVouchersProvider = FutureProvider<List<VoucherDefinition>>((ref) async {
+  final factory = ref.watch(apiClientFactoryProvider);
+  if (factory == null) {
+    throw Exception('ApiClientFactory not initialized');
+  }
+  final data = await factory.ev.getAvailableVouchers();
+  if (data is List) {
+    return data.map((e) => VoucherDefinition.fromJson(e as Map<String, dynamic>)).toList();
+  }
+  return [];
+});
+
+/// Provider for user's redeemed vouchers (backend returns Page, so parse content array)
+final myVouchersProvider = FutureProvider.family<List<VoucherRedemption>, String?>((ref, status) async {
+  final factory = ref.watch(apiClientFactoryProvider);
+  if (factory == null) {
+    throw Exception('ApiClientFactory not initialized');
+  }
+  final data = await factory.ev.getMyVouchers(status: status);
+  // Backend returns Page object with 'content' array
+  if (data is Map) {
+    final content = data['content'];
+    if (content is List) {
+      return content.map((e) => VoucherRedemption.fromJson(e as Map<String, dynamic>)).toList();
+    }
+  }
+  return [];
+});
+
+/// Redeem voucher state
+class RedeemVoucherState {
+  final bool isLoading;
+  final VoucherRedemption? redemption;
+  final String? error;
+
+  RedeemVoucherState({
+    this.isLoading = false,
+    this.redemption,
+    this.error,
+  });
+
+  RedeemVoucherState copyWith({
+    bool? isLoading,
+    VoucherRedemption? redemption,
+    String? error,
+  }) {
+    return RedeemVoucherState(
+      isLoading: isLoading ?? this.isLoading,
+      redemption: redemption ?? this.redemption,
+      error: error,
+    );
+  }
+}
+
+/// Redeem voucher notifier
+class RedeemVoucherNotifier extends StateNotifier<RedeemVoucherState> {
+  final Ref _ref;
+
+  RedeemVoucherNotifier(this._ref) : super(RedeemVoucherState());
+
+  Future<VoucherRedemption?> redeem(String definitionId) async {
+    state = RedeemVoucherState(isLoading: true);
+    try {
+      final factory = _ref.read(apiClientFactoryProvider);
+      if (factory == null) {
+        throw Exception('ApiClientFactory not initialized');
+      }
+      final data = await factory.ev.redeemVoucher(definitionId);
+      final redemption = VoucherRedemption.fromJson(data);
+      state = RedeemVoucherState(redemption: redemption);
+      // Invalidate related providers
+      _ref.invalidate(availableVouchersProvider);
+      _ref.invalidate(myVouchersProvider(null));
+      _ref.invalidate(myVouchersProvider('REDEEMED'));
+      _ref.invalidate(myVouchersProvider('USED'));
+      _ref.invalidate(myVouchersProvider('EXPIRED'));
+      _ref.invalidate(loyaltyProfileProvider);
+      return redemption;
+    } catch (e) {
+      state = RedeemVoucherState(error: e.toString());
+      rethrow;
+    }
+  }
+
+  void reset() => state = RedeemVoucherState();
+}
+
+/// Provider for redeem voucher
+final redeemVoucherProvider =
+    StateNotifierProvider<RedeemVoucherNotifier, RedeemVoucherState>((ref) {
+  return RedeemVoucherNotifier(ref);
+});
+
+/// Apply voucher to booking state
+class ApplyVoucherState {
+  final bool isLoading;
+  final VoucherRedemption? redemption;
+  final String? error;
+
+  ApplyVoucherState({
+    this.isLoading = false,
+    this.redemption,
+    this.error,
+  });
+
+  ApplyVoucherState copyWith({
+    bool? isLoading,
+    VoucherRedemption? redemption,
+    String? error,
+  }) {
+    return ApplyVoucherState(
+      isLoading: isLoading ?? this.isLoading,
+      redemption: redemption ?? this.redemption,
+      error: error,
+    );
+  }
+}
+
+/// Apply voucher notifier
+class ApplyVoucherNotifier extends StateNotifier<ApplyVoucherState> {
+  final Ref _ref;
+
+  ApplyVoucherNotifier(this._ref) : super(ApplyVoucherState());
+
+  Future<VoucherRedemption?> applyToBooking(String redemptionId, String bookingId) async {
+    state = ApplyVoucherState(isLoading: true);
+    try {
+      final factory = _ref.read(apiClientFactoryProvider);
+      if (factory == null) {
+        throw Exception('ApiClientFactory not initialized');
+      }
+      final data = await factory.ev.applyVoucherToBooking(redemptionId, bookingId);
+      final redemption = VoucherRedemption.fromJson(data);
+      state = ApplyVoucherState(redemption: redemption);
+      _ref.invalidate(myVouchersProvider(null));
+      _ref.invalidate(myVouchersProvider('REDEEMED'));
+      _ref.invalidate(myVouchersProvider('USED'));
+      _ref.invalidate(myVouchersProvider('EXPIRED'));
+      return redemption;
+    } catch (e) {
+      state = ApplyVoucherState(error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<VoucherRedemption?> applyToSwap(String redemptionId, String reservationId) async {
+    state = ApplyVoucherState(isLoading: true);
+    try {
+      final factory = _ref.read(apiClientFactoryProvider);
+      if (factory == null) {
+        throw Exception('ApiClientFactory not initialized');
+      }
+      final data = await factory.ev.applyVoucherToSwap(redemptionId, reservationId);
+      final redemption = VoucherRedemption.fromJson(data);
+      state = ApplyVoucherState(redemption: redemption);
+      _ref.invalidate(myVouchersProvider(null));
+      _ref.invalidate(myVouchersProvider('REDEEMED'));
+      _ref.invalidate(myVouchersProvider('USED'));
+      _ref.invalidate(myVouchersProvider('EXPIRED'));
+      return redemption;
+    } catch (e) {
+      state = ApplyVoucherState(error: e.toString());
+      rethrow;
+    }
+  }
+
+  void reset() => state = ApplyVoucherState();
+}
+
+/// Provider for apply voucher
+final applyVoucherProvider =
+    StateNotifierProvider<ApplyVoucherNotifier, ApplyVoucherState>((ref) {
+  return ApplyVoucherNotifier(ref);
+});
+
+/// Provider for voucher redemption detail
+final voucherRedemptionDetailProvider =
+    FutureProvider.family<VoucherRedemption, String>((ref, redemptionId) async {
+  final factory = ref.watch(apiClientFactoryProvider);
+  if (factory == null) {
+    throw Exception('ApiClientFactory not initialized');
+  }
+  final data = await factory.ev.getVoucherRedemptionDetail(redemptionId);
+  return VoucherRedemption.fromJson(data);
+});

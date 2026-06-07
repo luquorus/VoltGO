@@ -654,3 +654,275 @@ class AdminRating {
     return '${name.substring(0, 2)}***@${parts[1]}';
   }
 }
+
+// ===== ADMIN LOYALTY MODELS =====
+
+/// Admin loyalty dashboard summary
+class AdminLoyaltyDashboard {
+  final int totalPointsIssued;
+  final int activeUsers;
+  final int totalRatings;
+
+  AdminLoyaltyDashboard({
+    required this.totalPointsIssued,
+    required this.activeUsers,
+    required this.totalRatings,
+  });
+
+  factory AdminLoyaltyDashboard.fromJson(Map<String, dynamic> json) {
+    return AdminLoyaltyDashboard(
+      totalPointsIssued: json['totalPointsIssued'] as int? ?? 0,
+      activeUsers: json['activeUsers'] as int? ?? 0,
+      totalRatings: json['totalRatings'] as int? ?? 0,
+    );
+  }
+}
+
+/// Admin loyalty user profile (paginated list item)
+class AdminLoyaltyUser {
+  final String userId;
+  final int currentPoints;
+  final int lifetimePoints;
+  final int totalRatings;
+  final int totalBookings;
+  final int totalSwaps;
+  final int totalContributions;
+  final int level;
+  final String levelName;
+  final int pointsToNextLevel;
+  final int pointsNeededForNextLevel;
+
+  AdminLoyaltyUser({
+    required this.userId,
+    required this.currentPoints,
+    required this.lifetimePoints,
+    required this.totalRatings,
+    required this.totalBookings,
+    required this.totalSwaps,
+    required this.totalContributions,
+    required this.level,
+    required this.levelName,
+    required this.pointsToNextLevel,
+    required this.pointsNeededForNextLevel,
+  });
+
+  factory AdminLoyaltyUser.fromJson(Map<String, dynamic> json) {
+    return AdminLoyaltyUser(
+      userId: json['userId'] as String? ?? '',
+      currentPoints: json['currentPoints'] as int? ?? 0,
+      lifetimePoints: json['lifetimePoints'] as int? ?? 0,
+      totalRatings: json['totalRatings'] as int? ?? 0,
+      totalBookings: json['totalBookings'] as int? ?? 0,
+      totalSwaps: json['totalSwaps'] as int? ?? 0,
+      totalContributions: json['totalContributions'] as int? ?? 0,
+      level: json['level'] as int? ?? 1,
+      levelName: json['levelName'] as String? ?? 'Member',
+      pointsToNextLevel: json['pointsToNextLevel'] as int? ?? 0,
+      pointsNeededForNextLevel: json['pointsNeededForNextLevel'] as int? ?? 0,
+    );
+  }
+}
+
+/// Admin station rating (paginated list item)
+class AdminStationRating {
+  final String id;
+  final String stationId;
+  final String stationName;
+  final int rating;
+  final String? comment;
+  final bool isVerified;
+  final int helpfulCount;
+  final DateTime createdAt;
+
+  AdminStationRating({
+    required this.id,
+    required this.stationId,
+    required this.stationName,
+    required this.rating,
+    this.comment,
+    required this.isVerified,
+    required this.helpfulCount,
+    required this.createdAt,
+  });
+
+  factory AdminStationRating.fromJson(Map<String, dynamic> json) {
+    DateTime createdAt;
+    final createdAtRaw = json['createdAt'];
+    if (createdAtRaw is DateTime) {
+      createdAt = createdAtRaw;
+    } else if (createdAtRaw is String) {
+      createdAt = DateTime.parse(createdAtRaw);
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    return AdminStationRating(
+      id: json['id'] as String? ?? '',
+      stationId: json['stationId'] as String? ?? '',
+      stationName: json['stationName'] as String? ?? 'Unknown Station',
+      rating: json['rating'] as int? ?? 0,
+      comment: json['comment'] as String?,
+      isVerified: json['isVerified'] as bool? ?? false,
+      helpfulCount: json['helpfulCount'] as int? ?? 0,
+      createdAt: createdAt,
+    );
+  }
+}
+
+// ===== VOUCHER MODELS =====
+
+class VoucherDefinition {
+  final String id;
+  final String code;
+  final String name;
+  final String description;
+  final String voucherType; // PERCENT_DISCOUNT or FREE_SERVICE
+  final int pointCost;
+  final int? discountPercent;
+  final int? maxValueVnd;
+  final String? serviceType; // CHARGING or BATTERY_SWAP (for FREE_SERVICE)
+  final String status;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final int validityDays;
+  final int? redemptionCount;
+  final DateTime? createdAt;
+
+  VoucherDefinition({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.description,
+    required this.voucherType,
+    required this.pointCost,
+    this.discountPercent,
+    this.maxValueVnd,
+    this.serviceType,
+    required this.status,
+    this.startDate,
+    this.endDate,
+    required this.validityDays,
+    this.redemptionCount,
+    this.createdAt,
+  });
+
+  factory VoucherDefinition.fromJson(Map<String, dynamic> json) {
+    return VoucherDefinition(
+      id: json['id'] as String,
+      code: json['code'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      voucherType: json['voucherType'] as String? ?? '',
+      pointCost: json['pointCost'] as int? ?? 0,
+      discountPercent: json['discountPercent'] as int?,
+      maxValueVnd: json['maxValueVnd'] as int?,
+      serviceType: json['serviceType'] as String?,
+      status: json['status'] as String? ?? 'ACTIVE',
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : null,
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
+      validityDays: json['validityDays'] as int? ?? 30,
+      redemptionCount: json['redemptionCount'] as int?,
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+    );
+  }
+
+  String get typeLabel {
+    if (voucherType == 'PERCENT_DISCOUNT') {
+      return 'Save $discountPercent%';
+    } else if (voucherType == 'FREE_SERVICE') {
+      return serviceType == 'CHARGING' ? 'Free Charging' : 'Free Battery Swap';
+    }
+    return voucherType;
+  }
+
+  String get iconLabel {
+    if (voucherType == 'PERCENT_DISCOUNT') {
+      return 'discount';
+    } else if (voucherType == 'FREE_SERVICE') {
+      return serviceType == 'CHARGING' ? 'ev_station' : 'battery_charging_full';
+    }
+    return 'card_giftcard';
+  }
+
+  String get serviceTypeLabel {
+    if (voucherType == 'FREE_SERVICE') {
+      return serviceType == 'CHARGING' ? 'Charging' : 'Battery Swap';
+    }
+    return 'All Services';
+  }
+}
+
+class VoucherRedemption {
+  final String id;
+  final String userId;
+  final String voucherDefinitionId;
+  final VoucherDefinition? definition;
+  final String voucherCode;
+  final String status; // REDEEMED, USED, EXPIRED
+  final int pointsSpent;
+  final DateTime redeemedAt;
+  final DateTime expiresAt;
+  final DateTime? usedAt;
+  final String? bookingId;
+  final String? serviceType;
+  final Map<String, dynamic>? metadata;
+
+  VoucherRedemption({
+    required this.id,
+    required this.userId,
+    required this.voucherDefinitionId,
+    this.definition,
+    required this.voucherCode,
+    required this.status,
+    required this.pointsSpent,
+    required this.redeemedAt,
+    required this.expiresAt,
+    this.usedAt,
+    this.bookingId,
+    this.serviceType,
+    this.metadata,
+  });
+
+  factory VoucherRedemption.fromJson(Map<String, dynamic> json) {
+    return VoucherRedemption(
+      id: json['id'] as String,
+      userId: json['userId'] as String? ?? '',
+      voucherDefinitionId: json['voucherDefinitionId'] as String? ?? '',
+      definition: json['definition'] != null ? VoucherDefinition.fromJson(json['definition'] as Map<String, dynamic>) : null,
+      voucherCode: json['voucherCode'] as String? ?? '',
+      status: json['status'] as String? ?? 'REDEEMED',
+      pointsSpent: json['pointsSpent'] as int? ?? 0,
+      redeemedAt: json['redeemedAt'] != null ? DateTime.parse(json['redeemedAt'] as String) : DateTime.now(),
+      expiresAt: json['expiresAt'] != null ? DateTime.parse(json['expiresAt'] as String) : DateTime.now(),
+      usedAt: json['usedAt'] != null ? DateTime.parse(json['usedAt'] as String) : null,
+      bookingId: json['bookingId'] as String?,
+      serviceType: json['serviceType'] as String?,
+      metadata: json['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  String get statusLabel {
+    switch (status) {
+      case 'REDEEMED':
+        return 'Unused';
+      case 'USED':
+        return 'Used';
+      case 'EXPIRED':
+        return 'Expired';
+      default:
+        return status;
+    }
+  }
+
+  bool get isActive => status == 'REDEEMED';
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool get isUsed => status == 'USED';
+}
+
+class ApplyVoucherRequest {
+  final String bookingId;
+
+  ApplyVoucherRequest({required this.bookingId});
+
+  Map<String, dynamic> toJson() => {'bookingId': bookingId};
+}

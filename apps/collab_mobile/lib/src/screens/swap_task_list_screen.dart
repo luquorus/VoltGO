@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/battery_swap_task_providers.dart';
+import '../models/verification_task.dart' show VerificationTaskStatus;
 import '../models/battery_swap_verification_task.dart';
 import '../widgets/main_scaffold.dart';
 

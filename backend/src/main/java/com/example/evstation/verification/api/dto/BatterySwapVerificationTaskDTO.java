@@ -38,6 +38,9 @@ public class BatterySwapVerificationTaskDTO {
     // Station service types
     private List<String> stationServiceTypes;
 
+    /** Immutable checklist definition snapshot at task creation time. */
+    private List<ChecklistItem> checklist;
+
     // Nested details
     private CheckinDTO checkin;
     private List<EvidenceDTO> evidences;
@@ -55,6 +58,7 @@ public class BatterySwapVerificationTaskDTO {
         private Integer actualTotalBatteries;
         private Integer actualAvailableBatteries;
         private Double observedAvgChargePowerKw;
+        private List<ChecklistAnswer> checklistAnswers;
     }
 
     @Data

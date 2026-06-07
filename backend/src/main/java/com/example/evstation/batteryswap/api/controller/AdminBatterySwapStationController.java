@@ -1,9 +1,12 @@
 package com.example.evstation.batteryswap.api.controller;
 
 import com.example.evstation.common.web.PaginationResponse;
+import com.example.evstation.batteryswap.api.dto.BatterySwapCsvImportResponseDTO;
 import com.example.evstation.batteryswap.api.dto.BatterySwapStationDetailDTO;
 import com.example.evstation.batteryswap.api.dto.BatterySwapStationListDTO;
+import com.example.evstation.batteryswap.api.dto.CreateBatterySwapStationDTO;
 import com.example.evstation.batteryswap.api.dto.UpdateBatterySwapStationDTO;
+import com.example.evstation.batteryswap.application.BatterySwapCsvImportService;
 import com.example.evstation.batteryswap.application.BatterySwapStationAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,11 +14,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -27,6 +33,7 @@ import java.util.UUID;
 public class AdminBatterySwapStationController {
 
     private final BatterySwapStationAdminService service;
+    private final BatterySwapCsvImportService csvImportService;
 
     @Operation(
             summary = "List all battery swap stations",
@@ -59,6 +66,71 @@ public class AdminBatterySwapStationController {
         return service.getStation(stationId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
+            summary = "Create battery swap station",
+            description = "Create a new battery swap station directly (admin bypass). Publishes immediately by default."
+    )
+    @PostMapping
+    public ResponseEntity<BatterySwapStationDetailDTO> createStation(
+            @Valid @RequestBody CreateBatterySwapStationDTO request,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        log.info("Admin creating battery swap station: name={}, publishImmediately={}",
+                request.getStationData().getName(), request.getPublishImmediately());
+
+        BatterySwapStationDetailDTO result = service.createStation(request, adminId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @Operation(
+            summary = "Import battery swap stations from CSV",
+            description = "Import multiple battery swap stations from CSV file. Format: name,address,latitude,longitude,totalBatteries,avgChargePowerKw,operatingHours,parkingFee,note. parkingFee and note are optional."
+    )
+    @PostMapping(value = "/import-csv", consumes = "multipart/form-data")
+    public ResponseEntity<BatterySwapCsvImportResponseDTO> importStationsFromCsv(
+            @Parameter(description = "CSV file", required = true)
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+
+        UUID adminId = extractUserId(authentication);
+        log.info("Admin importing battery swap stations from CSV: {}, adminId={}", file.getOriginalFilename(), adminId);
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    BatterySwapCsvImportResponseDTO.builder()
+                            .totalRows(0)
+                            .successCount(0)
+                            .failureCount(0)
+                            .results(List.of())
+                            .build());
+        }
+
+        if (!file.getOriginalFilename().endsWith(".csv")) {
+            return ResponseEntity.badRequest().body(
+                    BatterySwapCsvImportResponseDTO.builder()
+                            .totalRows(0)
+                            .successCount(0)
+                            .failureCount(0)
+                            .results(List.of())
+                            .build());
+        }
+
+        try {
+            BatterySwapCsvImportResponseDTO response = csvImportService.importStations(file, adminId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("CSV parsing error during import: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    BatterySwapCsvImportResponseDTO.builder()
+                            .totalRows(0)
+                            .successCount(0)
+                            .failureCount(0)
+                            .results(List.of())
+                            .build());
+        }
     }
 
     @Operation(

@@ -6,6 +6,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/battery_swap_task_providers.dart';
+import '../models/verification_task.dart'
+    show VerificationTaskStatus, ChecklistAnswer, ChecklistAnswerValue,
+    ChecklistItem;
 import '../models/battery_swap_verification_task.dart';
 import '../widgets/main_scaffold.dart';
 
@@ -65,6 +68,10 @@ class _SwapVerificationTaskDetailScreenState
   final List<EvidencePhotoType> _evidencePhotoTypes = [];
   final _evidenceNoteController = TextEditingController();
 
+  // Checklist answers: map from itemId to answer value and optional note
+  final Map<String, ChecklistAnswerValue> _checklistAnswers = {};
+  final Map<String, TextEditingController> _checklistNoteControllers = {};
+
   @override
   void dispose() {
     _batteryCountController.dispose();
@@ -73,6 +80,9 @@ class _SwapVerificationTaskDetailScreenState
     _parkingFeeController.dispose();
     _notesController.dispose();
     _evidenceNoteController.dispose();
+    for (final controller in _checklistNoteControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -214,6 +224,12 @@ class _SwapVerificationTaskDetailScreenState
               ),
             ),
           ),
+
+          // Checklist Card
+          if (task.checklist != null && task.checklist!.isNotEmpty && canCheckIn) ...[
+            const SizedBox(height: 16),
+            _buildChecklistCard(context, task),
+          ],
 
           // Check-in Card with battery swap form
           if (canCheckIn) ...[
@@ -645,7 +661,7 @@ class _SwapVerificationTaskDetailScreenState
   Widget _buildEvidenceViewSection(
       BuildContext context, BatterySwapEvidence evidence) {
     final theme = Theme.of(context);
-    final imageUrlAsync = ref.watch(evidenceViewUrlProvider(evidence.photoObjectKey));
+    final imageBytesAsync = ref.watch(evidenceViewBytesProvider(evidence.photoObjectKey));
 
     return Card(
       child: Padding(
@@ -664,11 +680,11 @@ class _SwapVerificationTaskDetailScreenState
               ],
             ),
             const SizedBox(height: 16),
-            imageUrlAsync.when(
-              data: (url) => ClipRRect(
+            imageBytesAsync.when(
+              data: (bytes) => ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  url,
+                child: Image.memory(
+                  bytes,
                   height: 220,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -714,6 +730,133 @@ class _SwapVerificationTaskDetailScreenState
       child: Text(
         'Could not load evidence image',
         style: theme.textTheme.bodyMedium,
+      ),
+    );
+  }
+
+  Widget _buildChecklistCard(
+      BuildContext context, BatterySwapVerificationTask task) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.checklist, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Verification Checklist',
+                  style: theme.textTheme.titleLarge,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please answer all questions based on your observations at the station.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...task.checklist!.map((item) {
+              if (!_checklistNoteControllers.containsKey(item.id)) {
+                _checklistNoteControllers[item.id] = TextEditingController();
+              }
+              return _buildChecklistItem(context, item);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistItem(BuildContext context, ChecklistItem item) {
+    final theme = Theme.of(context);
+    final selectedAnswer = _checklistAnswers[item.id];
+    final requiresNote = selectedAnswer == ChecklistAnswerValue.no ||
+        selectedAnswer == ChecklistAnswerValue.unableToVerify;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.question,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (item.sourceCode == 'CHANGE_REQUEST') ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'From change request',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SegmentedButton<ChecklistAnswerValue>(
+            segments: const [
+              ButtonSegment<ChecklistAnswerValue>(
+                value: ChecklistAnswerValue.yes,
+                label: Text('Yes'),
+                icon: Icon(Icons.check_circle_outline, size: 18),
+              ),
+              ButtonSegment<ChecklistAnswerValue>(
+                value: ChecklistAnswerValue.no,
+                label: Text('No'),
+                icon: Icon(Icons.cancel_outlined, size: 18),
+              ),
+              ButtonSegment<ChecklistAnswerValue>(
+                value: ChecklistAnswerValue.unableToVerify,
+                label: Text('Unable'),
+                icon: Icon(Icons.help_outline, size: 18),
+              ),
+            ],
+            selected: selectedAnswer != null ? {selectedAnswer} : {},
+            onSelectionChanged: (selection) {
+              if (selection.isEmpty) return;
+              setState(() {
+                _checklistAnswers[item.id] = selection.first;
+              });
+            },
+            emptySelectionAllowed: true,
+            showSelectedIcon: false,
+          ),
+          if (requiresNote) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _checklistNoteControllers[item.id],
+              maxLines: 2,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: 'Supplementary note (required)',
+                hintText: 'Please explain why...',
+                border: const OutlineInputBorder(),
+                counterText: '',
+                isDense: true,
+                fillColor: theme.colorScheme.errorContainer.withOpacity(0.1),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -833,6 +976,28 @@ class _SwapVerificationTaskDetailScreenState
       return;
     }
 
+    // Validate checklist if present
+    if (task.checklist != null && task.checklist!.isNotEmpty) {
+      for (final item in task.checklist!) {
+        final answer = _checklistAnswers[item.id];
+        if (answer == null) {
+          AppToast.showError(context, 'Please answer all checklist questions.');
+          return;
+        }
+        if (answer == ChecklistAnswerValue.no ||
+            answer == ChecklistAnswerValue.unableToVerify) {
+          final note = _checklistNoteControllers[item.id]?.text.trim() ?? '';
+          if (note.isEmpty) {
+            AppToast.showError(
+              context,
+              'Supplementary note is required when answer is "No" or "Unable to verify".',
+            );
+            return;
+          }
+        }
+      }
+    }
+
     setState(() {
       _isCheckingIn = true;
     });
@@ -875,6 +1040,21 @@ class _SwapVerificationTaskDetailScreenState
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      // Build checklist answers
+      List<ChecklistAnswer>? checklistAnswerList;
+      if (task.checklist != null && task.checklist!.isNotEmpty) {
+        checklistAnswerList = task.checklist!.map((item) {
+          final answerValue = _checklistAnswers[item.id]!;
+          return ChecklistAnswer(
+            itemId: item.id,
+            question: item.question,
+            type: item.type,
+            sourceCode: item.sourceCode,
+            answer: answerValue,
+          );
+        }).toList();
+      }
+
       final checkInParams = BatterySwapCheckInParams(
         taskId: task.id,
         lat: position.latitude,
@@ -885,6 +1065,7 @@ class _SwapVerificationTaskDetailScreenState
         isOperatingHoursAccurate: _isOperatingHoursAccurate,
         parkingFee: int.tryParse(_parkingFeeController.text),
         notes: _notesController.text.isEmpty ? null : _notesController.text,
+        checklistAnswers: checklistAnswerList,
       );
 
       await ref.read(batterySwapCheckInProvider(checkInParams));

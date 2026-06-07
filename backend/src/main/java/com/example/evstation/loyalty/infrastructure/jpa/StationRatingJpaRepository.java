@@ -21,6 +21,15 @@ public interface StationRatingJpaRepository extends JpaRepository<StationRatingE
 
     List<StationRatingEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
+    Page<StationRatingEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<StationRatingEntity> findByStatusOrderByCreatedAtDesc(RatingStatus status, Pageable pageable);
+
+    long countByStatus(RatingStatus status);
+
+    @Query("SELECT COUNT(r) FROM StationRatingEntity r")
+    long countAll();
+
     @Query("SELECT COUNT(r) FROM StationRatingEntity r WHERE r.userId = :userId AND r.createdAt > :since")
     long countTodayByUserId(@Param("userId") UUID userId, @Param("since") Instant since);
 

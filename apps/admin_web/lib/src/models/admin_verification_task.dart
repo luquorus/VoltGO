@@ -24,6 +24,119 @@ class BatterySwapStationSnapshot {
   }
 }
 
+/// Checklist answer value enum
+enum ChecklistAnswerValue {
+  yes,
+  no,
+  unableToVerify;
+
+  static ChecklistAnswerValue fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'YES':
+        return ChecklistAnswerValue.yes;
+      case 'NO':
+        return ChecklistAnswerValue.no;
+      case 'UNABLE_TO_VERIFY':
+        return ChecklistAnswerValue.unableToVerify;
+      default:
+        return ChecklistAnswerValue.yes;
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case ChecklistAnswerValue.yes:
+        return 'YES';
+      case ChecklistAnswerValue.no:
+        return 'NO';
+      case ChecklistAnswerValue.unableToVerify:
+        return 'UNABLE_TO_VERIFY';
+    }
+  }
+}
+
+/// Checklist item definition
+class ChecklistItem {
+  final String id;
+  final String question;
+  final String type;
+  final String sourceCode;
+
+  ChecklistItem({
+    required this.id,
+    required this.question,
+    required this.type,
+    required this.sourceCode,
+  });
+
+  factory ChecklistItem.fromJson(Map<String, dynamic> json) {
+    return ChecklistItem(
+      id: json['id'] as String,
+      question: json['question'] as String,
+      type: json['type'] as String,
+      sourceCode: json['sourceCode'] as String,
+    );
+  }
+}
+
+/// Checklist answer submitted by collaborator
+class ChecklistAnswer {
+  final String itemId;
+  final String question;
+  final String type;
+  final String sourceCode;
+  final ChecklistAnswerValue answer;
+
+  ChecklistAnswer({
+    required this.itemId,
+    required this.question,
+    required this.type,
+    required this.sourceCode,
+    required this.answer,
+  });
+
+  factory ChecklistAnswer.fromJson(Map<String, dynamic> json) {
+    return ChecklistAnswer(
+      itemId: json['itemId'] as String,
+      question: json['question'] as String,
+      type: json['type'] as String,
+      sourceCode: json['sourceCode'] as String,
+      answer: ChecklistAnswerValue.fromString(json['answer'] as String),
+    );
+  }
+}
+
+/// Admin station snapshot DTO
+class AdminStationSnapshotDTO {
+  final int? totalBatteries;
+  final double? avgChargePowerKw;
+  final int? pileCount;
+  final int? slotCount;
+  final String? operatingHours;
+  final double? parkingFee;
+
+  AdminStationSnapshotDTO({
+    this.totalBatteries,
+    this.avgChargePowerKw,
+    this.pileCount,
+    this.slotCount,
+    this.operatingHours,
+    this.parkingFee,
+  });
+
+  factory AdminStationSnapshotDTO.fromJson(Map<String, dynamic> json) {
+    return AdminStationSnapshotDTO(
+      totalBatteries: (json['totalBatteries'] as num?)?.toInt(),
+      avgChargePowerKw: (json['avgChargePowerKw'] as num?)?.toDouble(),
+      pileCount: (json['pileCount'] as num?)?.toInt(),
+      slotCount: (json['slotCount'] as num?)?.toInt(),
+      operatingHours: json['operatingHours'] as String?,
+      parkingFee: (json['parkingFee'] as num?)?.toDouble(),
+    );
+  }
+}
+
 /// Admin Verification Task Model
 ///
 /// Represents a verification task with all admin-specific fields
@@ -47,6 +160,8 @@ class AdminVerificationTask {
   final List<String> riskReasons;
   final bool requiresVerification;
   final bool requiresAdminReview;
+  final List<ChecklistItem>? checklist;
+  final AdminStationSnapshotDTO? stationSnapshot;
 
   AdminVerificationTask({
     required this.id,
@@ -68,6 +183,8 @@ class AdminVerificationTask {
     this.riskReasons = const [],
     this.requiresVerification = false,
     this.requiresAdminReview = false,
+    this.checklist,
+    this.stationSnapshot,
   });
 
   bool get isBatterySwap => verificationType == 'BATTERY_SWAP';
@@ -114,6 +231,13 @@ class AdminVerificationTask {
           const [],
       requiresVerification: json['requiresVerification'] as bool? ?? false,
       requiresAdminReview: json['requiresAdminReview'] as bool? ?? false,
+      checklist: (json['checklist'] as List<dynamic>?)
+          ?.map((e) => ChecklistItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      stationSnapshot: json['stationSnapshot'] != null
+          ? AdminStationSnapshotDTO.fromJson(
+              json['stationSnapshot'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -198,6 +322,7 @@ class CheckinInfo {
   final int? actualTotalBatteries;
   final int? actualAvailableBatteries;
   final double? observedAvgChargePowerKw;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   CheckinInfo({
     required this.lat,
@@ -208,6 +333,7 @@ class CheckinInfo {
     this.actualTotalBatteries,
     this.actualAvailableBatteries,
     this.observedAvgChargePowerKw,
+    this.checklistAnswers,
   });
 
   factory CheckinInfo.fromJson(Map<String, dynamic> json) {
@@ -222,6 +348,9 @@ class CheckinInfo {
       actualTotalBatteries: (json['actualTotalBatteries'] as num?)?.toInt(),
       actualAvailableBatteries: (json['actualAvailableBatteries'] as num?)?.toInt(),
       observedAvgChargePowerKw: (json['observedAvgChargePowerKw'] as num?)?.toDouble(),
+      checklistAnswers: (json['checklistAnswers'] as List<dynamic>?)
+          ?.map((e) => ChecklistAnswer.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

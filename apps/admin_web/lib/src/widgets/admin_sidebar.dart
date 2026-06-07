@@ -173,6 +173,22 @@ class AdminSidebar extends ConsumerWidget {
                   route: '/loyalty',
                   isActive: currentRoute.startsWith('/loyalty'),
                 ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.local_offer,
+                  label: 'Quản lý Voucher',
+                  route: '/loyalty/vouchers',
+                  isActive: currentRoute == '/loyalty/vouchers',
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.receipt_long,
+                  label: 'Redemptions',
+                  route: '/loyalty/vouchers/redemptions',
+                  isActive: currentRoute == '/loyalty/vouchers/redemptions',
+                ),
                 const Divider(height: 32, indent: 16, endIndent: 16),
                 _buildNavItem(
                   context,

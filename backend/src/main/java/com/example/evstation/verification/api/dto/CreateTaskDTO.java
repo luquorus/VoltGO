@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -22,5 +23,8 @@ public class CreateTaskDTO {
     private Instant slaDueAt;
 
     private String verificationType; // CHARGING or BATTERY_SWAP
+
+    /** Optional checklist items to include in the verification task. If null, auto-generated. */
+    private List<ChecklistItem> checklist;
 }
 

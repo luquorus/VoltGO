@@ -3,6 +3,7 @@ package com.example.evstation.verification.application;
 import com.example.evstation.auth.domain.Role;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationVersionJpaRepository;
 import com.example.evstation.collaborator.application.ContractPolicyService;
 import com.example.evstation.collaborator.infrastructure.jpa.CollaboratorProfileJpaRepository;
 import com.example.evstation.common.error.BusinessException;
@@ -51,9 +52,11 @@ public class VerificationService {
     private final CollaboratorProfileJpaRepository collaboratorRepository;
     private final AuditLogJpaRepository auditLogRepository;
     private final ContractPolicyService contractPolicyService;
+    private final BatterySwapStationVersionJpaRepository batterySwapVersionRepository;
     private final TrustScoringService trustScoringService;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final ObjectMapper objectMapper;
     private final com.example.evstation.notification.application.NotificationService notificationService;
 
     // ========== Admin Operations ==========
@@ -64,7 +67,7 @@ public class VerificationService {
     @Transactional
     public VerificationTaskDTO createTask(CreateTaskDTO dto, UUID adminId, String adminRole) {
         log.info("Creating verification task: stationId={}", dto.getStationId());
-        
+
         // Verify station exists
         if (!stationRepository.existsById(dto.getStationId())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Station not found");
@@ -82,6 +85,23 @@ public class VerificationService {
             }
         }
 
+        // Build station snapshot from the published version
+        String stationSnapshotJson = buildStationSnapshotJson(dto.getStationId(), vType);
+
+        // Build checklist: use provided or auto-generate from risk reasons
+        List<ChecklistItem> checklist = dto.getChecklist();
+        if (checklist == null || checklist.isEmpty()) {
+            checklist = generateChecklistFromChangeRequest(dto.getStationId(), dto.getChangeRequestId(), vType);
+        }
+        // Ensure all items have an ID
+        checklist = checklist.stream().peek(item -> {
+            if (item.getId() == null || item.getId().isBlank()) {
+                item.setId(UUID.randomUUID().toString());
+            }
+        }).collect(Collectors.toList());
+
+        String checklistJson = serializeChecklist(checklist);
+
         VerificationTaskEntity task = VerificationTaskEntity.builder()
                 .stationId(dto.getStationId())
                 .changeRequestId(dto.getChangeRequestId())
@@ -89,17 +109,216 @@ public class VerificationService {
                 .slaDueAt(dto.getSlaDueAt())
                 .status(VerificationTaskStatus.OPEN)
                 .verificationType(vType)
+                .checklistJson(checklistJson)
+                .stationSnapshotJson(stationSnapshotJson)
                 .createdAt(Instant.now(clock))
                 .build();
-        
+
         taskRepository.save(task);
-        
+
         writeAuditLog(adminId, adminRole, "CREATE_VERIFICATION_TASK", "VERIFICATION_TASK", task.getId(),
                 Map.of("stationId", dto.getStationId().toString(),
-                       "priority", task.getPriority()));
-        
-        log.info("Verification task created: id={}", task.getId());
+                       "priority", task.getPriority(),
+                       "checklistSize", checklist.size()));
+
+        log.info("Verification task created: id={}, checklistSize={}", task.getId(), checklist.size());
         return buildTaskDTO(task);
+    }
+
+    /**
+     * Build a JSON snapshot of station data at task creation time.
+     * Uses the existing battery_swap_station_snapshot from the task entity
+     * (which is populated separately for BATTERY_SWAP type).
+     */
+    private String buildStationSnapshotJson(UUID stationId, VerificationType vType) {
+        if (vType == VerificationType.BATTERY_SWAP) {
+            try {
+                var version = batterySwapVersionRepository.findFirstByStationIdOrderByVersionNoDesc(stationId).orElse(null);
+                if (version != null) {
+                    StationSnapshotDTO dto = StationSnapshotDTO.builder()
+                            .totalBatteries(version.getTotalBatteries())
+                            .avgChargePowerKw(version.getAvgChargePowerKw() != null ? version.getAvgChargePowerKw().doubleValue() : null)
+                            .pileCount(version.getPileCount())
+                            .slotCount(version.getTotalSlotCount())
+                            .operatingHours(version.getOperatingHours())
+                            .parkingFee(version.getParkingFee() != null ? version.getParkingFee().doubleValue() : null)
+                            .build();
+                    return objectMapper.writeValueAsString(dto);
+                }
+            } catch (Exception e) {
+                log.warn("Could not build battery swap station snapshot for stationId={}: {}", stationId, e.getMessage());
+            }
+        }
+        return "{}";
+    }
+
+    /**
+     * Generate checklist items from change request risk reasons.
+     * Falls back to default checklist if no CR or no risk reasons.
+     */
+    private List<ChecklistItem> generateChecklistFromChangeRequest(UUID stationId, UUID changeRequestId, VerificationType vType) {
+        List<String> riskReasons = new ArrayList<>();
+        if (changeRequestId != null) {
+            try {
+                var cr = changeRequestRepository.findById(changeRequestId).orElse(null);
+                if (cr != null && cr.getRiskReasons() != null && !cr.getRiskReasons().isEmpty()) {
+                    riskReasons = cr.getRiskReasons();
+                }
+            } catch (Exception e) {
+                log.warn("Could not parse risk reasons from CR {}: {}", changeRequestId, e.getMessage());
+            }
+        }
+        return generateChecklistItems(riskReasons, vType);
+    }
+
+    private static final Map<String, String> RISK_REASON_QUESTION_MAP = Map.ofEntries(
+            Map.entry("GPS_CHANGED_100M", "Has the station's GPS location changed from the current data?"),
+            Map.entry("PORTS_CHANGED", "Are the number and configuration of charging ports correct?"),
+            Map.entry("PRICE_CHANGED", "Is the displayed fare correct according to the proposed information?"),
+            Map.entry("OPERATING_HOURS_CHANGED", "Are the operating hours correct according to the proposed information?"),
+            Map.entry("NEW_STATION", "Is the new station operating normally at the correct address?"),
+            Map.entry("BATTERY_INVENTORY_LOW", "Does the battery inventory in stock match the current data?"),
+            Map.entry("BATTERY_SWAP_STATION_REPORTED", "Is the battery swap station operating normally?"),
+            Map.entry("TRUST_SCORE_DROPPED", "Is the station's trust score stable?")
+    );
+
+    private static final List<String> DEFAULT_QUESTIONS = List.of(
+            "Is the station operating normally?",
+            "Is the station location accurate with the current data?",
+            "Is the station information (name, address) correct?"
+    );
+
+    /**
+     * Generate checklist items from a list of risk reason codes.
+     */
+    private List<ChecklistItem> generateChecklistItems(List<String> riskReasons, VerificationType vType) {
+        List<ChecklistItem> items = new ArrayList<>();
+
+        if (riskReasons == null || riskReasons.isEmpty()) {
+            // Fallback to default questions
+            for (String question : DEFAULT_QUESTIONS) {
+                items.add(ChecklistItem.builder()
+                        .id(UUID.randomUUID().toString())
+                        .question(question)
+                        .type("AUTO_GENERATED")
+                        .sourceCode("DEFAULT")
+                        .build());
+            }
+            return items;
+        }
+
+        for (String reason : riskReasons) {
+            String question = RISK_REASON_QUESTION_MAP.get(reason);
+            if (question == null) {
+                question = "Xác minh thông tin liên quan đến: " + reason;
+            }
+            items.add(ChecklistItem.builder()
+                    .id(UUID.randomUUID().toString())
+                    .question(question)
+                    .type("AUTO_GENERATED")
+                    .sourceCode(reason)
+                    .build());
+        }
+        return items;
+    }
+
+    private String serializeChecklist(List<ChecklistItem> checklist) {
+        try {
+            return objectMapper.writeValueAsString(checklist);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize checklist: {}", e.getMessage());
+            return "[]";
+        }
+    }
+
+    private List<ChecklistItem> parseChecklist(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, ChecklistItem.class));
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse checklist JSON: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Validate that all checklist items have been answered.
+     */
+    private void validateCheckinAnswers(List<ChecklistItem> checklist, List<ChecklistAnswer> answers) {
+        if (checklist == null || checklist.isEmpty()) {
+            return; // No checklist, no validation needed
+        }
+        if (answers == null || answers.size() != checklist.size()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "All checklist questions must be answered. Expected " + checklist.size() + ", got " +
+                    (answers == null ? 0 : answers.size()));
+        }
+        for (ChecklistItem item : checklist) {
+            ChecklistAnswer found = answers.stream().filter(a -> a.getItemId() != null && a.getItemId().equals(item.getId())).findFirst().orElse(null);
+            if (found == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Missing answer for: " + item.getQuestion());
+            }
+            // Supplementary note is required for NO or UNABLE_TO_VERIFY answers
+            if ((found.getAnswer() == ChecklistAnswerValue.NO || found.getAnswer() == ChecklistAnswerValue.UNABLE_TO_VERIFY)
+                    && (found.getSupplementaryNote() == null || found.getSupplementaryNote().isBlank())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Supplementary note is required for answer: " + item.getQuestion());
+            }
+        }
+    }
+
+    /**
+     * Build answers with question snapshot from checklist items.
+     */
+    private List<ChecklistAnswer> buildAnswersSnapshot(List<ChecklistItem> checklist, List<ChecklistAnswer> answers) {
+        if (answers == null) return null;
+        return answers.stream().map(answer -> {
+            // Find matching checklist item for question snapshot
+            String question = answer.getQuestion();
+            String type = answer.getType();
+            String sourceCode = answer.getSourceCode();
+            if (answer.getItemId() != null) {
+                for (ChecklistItem item : checklist) {
+                    if (item.getId() != null && item.getId().equals(answer.getItemId())) {
+                        question = item.getQuestion();
+                        type = item.getType();
+                        sourceCode = item.getSourceCode();
+                        break;
+                    }
+                }
+            }
+            return ChecklistAnswer.builder()
+                    .itemId(answer.getItemId())
+                    .question(question)
+                    .type(type)
+                    .sourceCode(sourceCode)
+                    .answer(answer.getAnswer())
+                    .supplementaryNote(answer.getSupplementaryNote())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    private String serializeChecklistAnswers(List<ChecklistAnswer> answers) {
+        if (answers == null) return null;
+        try {
+            return objectMapper.writeValueAsString(answers);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize checklist answers: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private List<ChecklistAnswer> parseChecklistAnswers(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, ChecklistAnswer.class));
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse checklist answers JSON: {}", e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -394,33 +613,43 @@ public class VerificationService {
     @Transactional
     public VerificationTaskDTO checkIn(UUID taskId, com.example.evstation.verification.api.dto.CheckinDTO dto, UUID userId) {
         log.info("Check-in: taskId={}, userId={}, lat={}, lng={}", taskId, userId, dto.getLat(), dto.getLng());
-        
+
         VerificationTaskEntity task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
-        
+
         // Validate task status
         if (task.getStatus() != VerificationTaskStatus.ASSIGNED) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Can only check-in for ASSIGNED tasks. Current status: " + task.getStatus());
         }
-        
+
         // Validate assignment
         if (!task.getAssignedTo().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Task is not assigned to you");
         }
-        
+
         // Check contract is active
         contractPolicyService.requireActiveContract(userId);
-        
+
         // Calculate distance to station
         int distance = calculateDistanceToStation(task.getStationId(), dto.getLat(), dto.getLng());
-        
+
         if (distance > MAX_CHECKIN_DISTANCE_METERS) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
-                    String.format("Too far from station. Distance: %dm, Maximum allowed: %dm", 
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    String.format("Too far from station. Distance: %dm, Maximum allowed: %dm",
                             distance, MAX_CHECKIN_DISTANCE_METERS));
         }
-        
+
+        // Parse checklist and validate answers
+        List<ChecklistItem> checklist = parseChecklist(task.getChecklistJson());
+        if (checklist != null && !checklist.isEmpty()) {
+            validateCheckinAnswers(checklist, dto.getChecklistAnswers());
+        }
+
+        // Build answers with question snapshot
+        List<ChecklistAnswer> answersSnapshot = buildAnswersSnapshot(checklist, dto.getChecklistAnswers());
+        String answersJson = serializeChecklistAnswers(answersSnapshot);
+
         // Create check-in record
         VerificationCheckinEntity checkin = VerificationCheckinEntity.builder()
                 .taskId(taskId)
@@ -429,20 +658,22 @@ public class VerificationService {
                 .checkedInAt(Instant.now(clock))
                 .distanceM(distance)
                 .deviceNote(dto.getDeviceNote())
+                .checklistAnswersJson(answersJson)
                 .build();
-        
+
         checkinRepository.save(checkin);
-        
+
         // Update task status
         task.setStatus(VerificationTaskStatus.CHECKED_IN);
         taskRepository.save(task);
-        
+
         writeAuditLog(userId, "COLLABORATOR", "CHECKIN_VERIFICATION_TASK", "VERIFICATION_TASK", taskId,
                 Map.of("lat", dto.getLat(),
                        "lng", dto.getLng(),
                        "distance_m", distance,
-                       "stationId", task.getStationId().toString()));
-        
+                       "stationId", task.getStationId().toString(),
+                       "checklistAnswersCount", dto.getChecklistAnswers() != null ? dto.getChecklistAnswers().size() : 0));
+
         log.info("Check-in completed: taskId={}, distance={}m", taskId, distance);
         return buildTaskDTO(task);
     }
@@ -604,6 +835,13 @@ public class VerificationService {
 
         Instant slaDue = Instant.now(clock).plusSeconds(7 * 24 * 3600L);
 
+        // Build station snapshot from battery swap station data
+        String stationSnapshotJson = buildStationSnapshotJson(stationId, VerificationType.BATTERY_SWAP);
+
+        // Generate checklist for battery swap
+        List<ChecklistItem> checklist = generateChecklistItems(List.of(), VerificationType.BATTERY_SWAP);
+        String checklistJson = serializeChecklist(checklist);
+
         VerificationTaskEntity task = VerificationTaskEntity.builder()
                 .stationId(stationId)
                 .changeRequestId(versionId)
@@ -611,6 +849,8 @@ public class VerificationService {
                 .slaDueAt(slaDue)
                 .status(VerificationTaskStatus.OPEN)
                 .verificationType(VerificationType.BATTERY_SWAP)
+                .checklistJson(checklistJson)
+                .stationSnapshotJson(stationSnapshotJson)
                 .createdAt(Instant.now(clock))
                 .build();
 
@@ -619,9 +859,10 @@ public class VerificationService {
         writeAuditLog(adminId, adminRole, "CREATE_BATTERY_SWAP_VERIFICATION_TASK", "VERIFICATION_TASK", task.getId(),
                 Map.of("stationId", stationId.toString(),
                        "versionId", versionId != null ? versionId.toString() : "null",
-                       "priority", task.getPriority()));
+                       "priority", task.getPriority(),
+                       "checklistSize", checklist.size()));
 
-        log.info("Battery swap verification task created: id={}", task.getId());
+        log.info("Battery swap verification task created: id={}, checklistSize={}", task.getId(), checklist.size());
         return buildBatterySwapTaskDTO(task);
     }
 
@@ -859,6 +1100,16 @@ public class VerificationService {
                             distance, MAX_CHECKIN_DISTANCE_METERS));
         }
 
+        // Parse checklist and validate answers
+        List<ChecklistItem> checklist = parseChecklist(task.getChecklistJson());
+        if (checklist != null && !checklist.isEmpty()) {
+            validateCheckinAnswers(checklist, dto.getChecklistAnswers());
+        }
+
+        // Build answers with question snapshot
+        List<ChecklistAnswer> answersSnapshot = buildAnswersSnapshot(checklist, dto.getChecklistAnswers());
+        String answersJson = serializeChecklistAnswers(answersSnapshot);
+
         VerificationCheckinEntity checkin = VerificationCheckinEntity.builder()
                 .taskId(taskId)
                 .checkinLat(BigDecimal.valueOf(dto.getLat()))
@@ -870,6 +1121,7 @@ public class VerificationService {
                 .actualAvailableBatteries(dto.getActualAvailableBatteries())
                 .observedAvgChargePowerKw(dto.getObservedAvgChargePowerKw() != null
                         ? BigDecimal.valueOf(dto.getObservedAvgChargePowerKw()) : null)
+                .checklistAnswersJson(answersJson)
                 .build();
 
         checkinRepository.save(checkin);
@@ -883,7 +1135,8 @@ public class VerificationService {
                        "distance_m", distance,
                        "stationId", task.getStationId().toString(),
                        "actualTotalBatteries", dto.getActualTotalBatteries() != null
-                               ? dto.getActualTotalBatteries().toString() : "null"));
+                               ? dto.getActualTotalBatteries().toString() : "null",
+                       "checklistAnswersCount", dto.getChecklistAnswers() != null ? dto.getChecklistAnswers().size() : 0));
 
         log.info("Battery swap check-in completed: taskId={}, distance={}m", taskId, distance);
         return buildBatterySwapTaskDTO(task);
@@ -968,14 +1221,20 @@ public class VerificationService {
         String stationName = stationVersionRepository.findPublishedByStationId(task.getStationId())
                 .map(StationVersionEntity::getName)
                 .orElse(null);
-        
+
         // Get assigned user email
-        String assignedToEmail = task.getAssignedTo() != null 
+        String assignedToEmail = task.getAssignedTo() != null
                 ? userAccountRepository.findById(task.getAssignedTo())
                     .map(UserAccountEntity::getEmail)
                     .orElse(null)
                 : null;
-        
+
+        // Build checklist from stored JSON
+        List<ChecklistItem> checklist = parseChecklist(task.getChecklistJson());
+
+        // Build station snapshot from stored JSON
+        StationSnapshotDTO stationSnapshot = parseStationSnapshot(task.getStationSnapshotJson());
+
         // Build nested DTOs
         VerificationTaskDTO.CheckinDTO checkinDTO = checkinRepository.findByTaskId(task.getId())
                 .map(c -> VerificationTaskDTO.CheckinDTO.builder()
@@ -984,9 +1243,10 @@ public class VerificationService {
                         .checkedInAt(c.getCheckedInAt())
                         .distanceM(c.getDistanceM())
                         .deviceNote(c.getDeviceNote())
+                        .checklistAnswers(parseChecklistAnswers(c.getChecklistAnswersJson()))
                         .build())
                 .orElse(null);
-        
+
         VerificationTaskDTO.ReviewDTO reviewDTO = reviewRepository.findByTaskId(task.getId())
                 .map(r -> VerificationTaskDTO.ReviewDTO.builder()
                         .result(r.getResult().name())
@@ -1007,7 +1267,7 @@ public class VerificationService {
                         .submittedBy(e.getSubmittedBy().toString())
                         .build())
                 .collect(Collectors.toList());
-        
+
         return VerificationTaskDTO.builder()
                 .id(task.getId().toString())
                 .stationId(task.getStationId().toString())
@@ -1021,10 +1281,30 @@ public class VerificationService {
                 .verificationType(task.getVerificationType().name())
                 .createdAt(task.getCreatedAt())
                 .stationServiceTypes(resolveStationServiceTypes(task))
+                .checklist(checklist.isEmpty() ? null : checklist)
+                .stationSnapshot(stationSnapshot)
                 .checkin(checkinDTO)
                 .evidences(evidenceDTOs)
                 .review(reviewDTO)
                 .build();
+    }
+
+    private StationSnapshotDTO parseStationSnapshot(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            return StationSnapshotDTO.builder()
+                    .totalBatteries(node.has("totalBatteries") ? node.get("totalBatteries").asInt() : null)
+                    .avgChargePowerKw(node.has("avgChargePowerKw") ? node.get("avgChargePowerKw").asDouble() : null)
+                    .pileCount(node.has("pileCount") ? node.get("pileCount").asInt() : null)
+                    .slotCount(node.has("slotCount") ? node.get("slotCount").asInt() : null)
+                    .operatingHours(node.has("operatingHours") ? node.get("operatingHours").asText() : null)
+                    .parkingFee(node.has("parkingFee") ? node.get("parkingFee").asDouble() : null)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to parse station snapshot: {}", e.getMessage());
+            return null;
+        }
     }
 
     private List<String> resolveStationServiceTypes(VerificationTaskEntity task) {
@@ -1088,6 +1368,7 @@ public class VerificationService {
                         .actualAvailableBatteries(c.getActualAvailableBatteries())
                         .observedAvgChargePowerKw(c.getObservedAvgChargePowerKw() != null
                                 ? c.getObservedAvgChargePowerKw().doubleValue() : null)
+                        .checklistAnswers(parseChecklistAnswers(c.getChecklistAnswersJson()))
                         .build())
                 .orElse(null);
 
@@ -1133,6 +1414,7 @@ public class VerificationService {
                 .snapshotOperatingHours((String) snapshot.get("operatingHours"))
                 .snapshotParkingFee((Double) snapshot.get("parkingFee"))
                 .stationServiceTypes(List.of("BATTERY_SWAP"))
+                .checklist(parseChecklist(task.getChecklistJson()).isEmpty() ? null : parseChecklist(task.getChecklistJson()))
                 .checkin(checkinDTO)
                 .evidences(evidenceDTOs)
                 .review(reviewDTO)

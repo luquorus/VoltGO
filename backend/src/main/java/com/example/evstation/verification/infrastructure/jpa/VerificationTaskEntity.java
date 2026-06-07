@@ -59,6 +59,14 @@ public class VerificationTaskEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private String batterySwapStationSnapshot;
 
+    @Column(name = "checklist_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String checklistJson;
+
+    @Column(name = "station_snapshot_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String stationSnapshotJson;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     

@@ -36,6 +36,10 @@ import '../screens/loyalty/loyalty_dashboard_screen.dart';
 import '../screens/loyalty/rating_moderation_screen.dart';
 import '../screens/loyalty/user_loyalty_list_screen.dart';
 import '../screens/loyalty/user_loyalty_detail_screen.dart';
+import '../screens/loyalty/voucher_management_screen.dart';
+import '../screens/loyalty/voucher_redemptions_screen.dart';
+import '../screens/battery_swap/create_battery_swap_station_screen.dart';
+import '../screens/battery_swap/battery_swap_csv_import_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -194,6 +198,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           return BatterySwapStationDetailScreen(id: id);
         },
       ),
+      GoRoute(
+        path: '/battery-swap/stations/create',
+        builder: (_, __) => const CreateBatterySwapStationScreen(),
+      ),
+      GoRoute(
+        path: '/battery-swap/stations/import-csv',
+        builder: (_, __) => const BatterySwapCsvImportScreen(),
+      ),
       // Battery Swap Trust (individual station via query param)
       GoRoute(
         path: '/battery-swap/trust',
@@ -238,6 +250,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = state.pathParameters['id']!;
           return UserLoyaltyDetailScreen(userId: id);
         },
+      ),
+      GoRoute(
+        path: '/loyalty/vouchers',
+        builder: (_, __) => const VoucherManagementScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/vouchers/redemptions',
+        builder: (_, __) => const VoucherRedemptionsScreen(),
       ),
     ],
   );

@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * DTO for battery swap verification checkin request.
  */
@@ -35,4 +37,6 @@ public class BatterySwapCheckinRequestDTO {
     @DecimalMin(value = "0", message = "Observed average charge power must be >= 0")
     @DecimalMax(value = "1000", message = "Observed average charge power must be <= 1000 kW")
     private Double observedAvgChargePowerKw;
+
+    private List<ChecklistAnswer> checklistAnswers;
 }

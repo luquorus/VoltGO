@@ -6,16 +6,22 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import 'package:shared_network/shared_network.dart';
 import 'package:shared_api/shared_api.dart';
-import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'src/routing/app_router.dart';
 import 'src/theme/admin_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
-  
+
+  // Initialize file_picker for web to prevent LateInitializationError
+  if (kIsWeb) {
+    FilePicker.platform;
+  }
+
   final baseUrl = dotenv.get('BASE_URL', fallback: 'http://localhost:8080');
-  
+
   runApp(
     ProviderScope(
       overrides: [

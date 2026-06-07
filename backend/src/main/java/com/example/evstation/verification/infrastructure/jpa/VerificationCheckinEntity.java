@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -49,7 +51,11 @@ public class VerificationCheckinEntity {
     
     @Column(name = "observed_avg_charge_power_kw", precision = 6, scale = 2)
     private java.math.BigDecimal observedAvgChargePowerKw;
-    
+
+    @Column(name = "checklist_answers_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String checklistAnswersJson;
+
     @PrePersist
     protected void onCreate() {
         if (id == null) {

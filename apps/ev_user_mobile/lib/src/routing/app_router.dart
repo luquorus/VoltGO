@@ -26,6 +26,9 @@ import '../screens/rate_station_screen.dart';
 import '../screens/point_history_screen.dart';
 import '../screens/badge_collection_screen.dart';
 import '../screens/referral_screen.dart';
+import '../screens/loyalty/voucher_catalog_screen.dart';
+import '../screens/loyalty/my_vouchers_screen.dart';
+import '../screens/loyalty/voucher_detail_screen.dart';
 
 /// Router provider
 final routerProvider = Provider<GoRouter>((ref) {
@@ -188,6 +191,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             eligibilityId: extra?['eligibilityId'],
           );
         },
+      ),
+      // Voucher routes
+      GoRoute(
+        path: '/loyalty/vouchers/catalog',
+        builder: (context, state) => const VoucherCatalogScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/vouchers/mine',
+        builder: (context, state) => const MyVouchersScreen(),
+      ),
+      GoRoute(
+        path: '/loyalty/vouchers/redemptions/:id',
+        builder: (context, state) => VoucherDetailScreen(
+          redemptionId: state.pathParameters['id']!,
+        ),
       ),
     ],
   );

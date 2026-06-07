@@ -120,6 +120,8 @@ class SkeletonList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: padding,
       itemCount: count,
       itemBuilder: (_, __) => const SkeletonListTile(),

@@ -3,6 +3,7 @@ package com.example.evstation.api.ev_user_mobile.controller;
 import com.example.evstation.loyalty.api.dto.*;
 import com.example.evstation.loyalty.application.*;
 import com.example.evstation.loyalty.domain.EligibilityType;
+import com.example.evstation.loyalty.domain.RedemptionStatus;
 import com.example.evstation.station.infrastructure.jpa.StationVersionEntity;
 import com.example.evstation.station.infrastructure.jpa.StationVersionJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,7 @@ public class EvLoyaltyController {
     private final BadgeService badgeService;
     private final ReferralService referralService;
     private final StationVersionJpaRepository stationVersionRepository;
+    private final VoucherService voucherService;
 
     @Operation(summary = "Get current user's loyalty profile")
     @GetMapping("/me")
@@ -190,6 +192,94 @@ public class EvLoyaltyController {
                 .totalRatings(summary.totalRatings())
                 .r1(summary.r1()).r2(summary.r2()).r3(summary.r3()).r4(summary.r4()).r5(summary.r5())
                 .build());
+    }
+
+    // === VOUCHER ENDPOINTS ===
+    @Operation(summary = "Get available voucher definitions")
+    @GetMapping("/vouchers")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<List<VoucherDefinitionDTO>> getAvailableVouchers(Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        var vouchers = voucherService.getAvailableVouchers(userId).stream()
+                .map(v -> VoucherDefinitionDTO.fromEntity(v, 0L))
+                .toList();
+        return ResponseEntity.ok(vouchers);
+    }
+
+    @Operation(summary = "Get my redeemed vouchers")
+    @GetMapping("/vouchers/mine")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<Page<VoucherRedemptionDTO>> getMyVouchers(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        RedemptionStatus rs = status != null ? RedemptionStatus.valueOf(status) : null;
+        var redemptions = voucherService.getMyRedemptions(userId, rs, PageRequest.of(page, size))
+                .map(r -> {
+                    var def = voucherService.getDefinitionById(r.getVoucherDefinitionId());
+                    long count = voucherService.getRedemptionCount(r.getVoucherDefinitionId());
+                    return VoucherRedemptionDTO.fromEntity(r, def, count);
+                });
+        return ResponseEntity.ok(redemptions);
+    }
+
+    @Operation(summary = "Get redemption detail")
+    @GetMapping("/vouchers/redemptions/{redemptionId}")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<VoucherRedemptionDTO> getRedemptionDetail(
+            @PathVariable UUID redemptionId,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        var r = voucherService.getRedemptionDetail(redemptionId, userId);
+        var def = voucherService.getDefinitionById(r.getVoucherDefinitionId());
+        long count = voucherService.getRedemptionCount(r.getVoucherDefinitionId());
+        return ResponseEntity.ok(VoucherRedemptionDTO.fromEntity(r, def, count));
+    }
+
+    @Operation(summary = "Redeem a voucher")
+    @PostMapping("/vouchers/{definitionId}/redeem")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<VoucherRedemptionDTO> redeemVoucher(
+            @PathVariable UUID definitionId,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        var r = voucherService.redeemVoucher(userId, definitionId);
+        var def = voucherService.getDefinitionById(definitionId);
+        long count = voucherService.getRedemptionCount(definitionId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(VoucherRedemptionDTO.fromEntity(r, def, count));
+    }
+
+    @Operation(summary = "Apply voucher to a booking")
+    @PostMapping("/vouchers/redemptions/{redemptionId}/apply-to-booking")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<VoucherRedemptionDTO> applyVoucherToBooking(
+            @PathVariable UUID redemptionId,
+            @Valid @RequestBody ApplyVoucherRequestDTO request,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        UUID bookingId = UUID.fromString(request.getBookingId());
+        var r = voucherService.applyVoucherToBooking(redemptionId, bookingId, userId);
+        var def = voucherService.getDefinitionById(r.getVoucherDefinitionId());
+        long count = voucherService.getRedemptionCount(r.getVoucherDefinitionId());
+        return ResponseEntity.ok(VoucherRedemptionDTO.fromEntity(r, def, count));
+    }
+
+    @Operation(summary = "Apply voucher to a battery swap reservation")
+    @PostMapping("/vouchers/redemptions/{redemptionId}/apply-to-swap")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<VoucherRedemptionDTO> applyVoucherToSwap(
+            @PathVariable UUID redemptionId,
+            @Valid @RequestBody ApplyVoucherRequestDTO request,
+            Authentication authentication) {
+        UUID userId = extractUserId(authentication);
+        UUID reservationId = UUID.fromString(request.getBookingId());
+        var r = voucherService.applyVoucherToSwap(redemptionId, reservationId, userId);
+        var def = voucherService.getDefinitionById(r.getVoucherDefinitionId());
+        long count = voucherService.getRedemptionCount(r.getVoucherDefinitionId());
+        return ResponseEntity.ok(VoucherRedemptionDTO.fromEntity(r, def, count));
     }
 
     private UUID extractUserId(Authentication authentication) {

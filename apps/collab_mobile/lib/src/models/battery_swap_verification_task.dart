@@ -1,5 +1,7 @@
 /// Battery Swap Verification Task Model for Collaborator Mobile
 /// Extended verification task with battery swap specific data
+import 'verification_task.dart';
+
 class BatterySwapVerificationTask {
   final String id;
   final String stationId;
@@ -16,6 +18,8 @@ class BatterySwapVerificationTask {
   final Review? review;
   final List<String> stationServiceTypes;
   final BatterySwapInventoryData? inventoryData;
+  final List<ChecklistItem>? checklist;
+  final StationSnapshotDTO? stationSnapshot;
 
   BatterySwapVerificationTask({
     required this.id,
@@ -33,6 +37,8 @@ class BatterySwapVerificationTask {
     this.review,
     this.stationServiceTypes = const [],
     this.inventoryData,
+    this.checklist,
+    this.stationSnapshot,
   });
 
   factory BatterySwapVerificationTask.fromJson(Map<String, dynamic> json) {
@@ -66,6 +72,13 @@ class BatterySwapVerificationTask {
       inventoryData: json['inventoryData'] != null
           ? BatterySwapInventoryData.fromJson(
               json['inventoryData'] as Map<String, dynamic>)
+          : null,
+      checklist: (json['checklist'] as List<dynamic>?)
+          ?.map((e) => ChecklistItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      stationSnapshot: json['stationSnapshot'] != null
+          ? StationSnapshotDTO.fromJson(
+              json['stationSnapshot'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -104,6 +117,7 @@ class BatterySwapCheckin {
   final int? pileCount;
   final int? slotCount;
   final bool? isOperatingHoursAccurate;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   BatterySwapCheckin({
     required this.lat,
@@ -115,6 +129,7 @@ class BatterySwapCheckin {
     this.pileCount,
     this.slotCount,
     this.isOperatingHoursAccurate,
+    this.checklistAnswers,
   });
 
   factory BatterySwapCheckin.fromJson(Map<String, dynamic> json) {
@@ -130,6 +145,10 @@ class BatterySwapCheckin {
       pileCount: (json['pileCount'] as num?)?.toInt(),
       slotCount: (json['slotCount'] as num?)?.toInt(),
       isOperatingHoursAccurate: json['isOperatingHoursAccurate'] as bool?,
+      checklistAnswers: (json['checklistAnswers'] as List<dynamic>?)
+          ?.map(
+              (e) => ChecklistAnswer.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -146,6 +165,9 @@ class BatterySwapCheckin {
       if (slotCount != null) 'slotCount': slotCount,
       if (isOperatingHoursAccurate != null)
         'isOperatingHoursAccurate': isOperatingHoursAccurate,
+      if (checklistAnswers != null)
+        'checklistAnswers':
+            checklistAnswers!.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -233,98 +255,5 @@ class BatterySwapInventoryData {
       if (parkingFee != null) 'parkingFee': parkingFee,
       if (notes != null) 'notes': notes,
     };
-  }
-}
-
-/// Review information
-class Review {
-  final String result;
-  final String? adminNote;
-  final DateTime reviewedAt;
-  final String reviewedBy;
-
-  Review({
-    required this.result,
-    this.adminNote,
-    required this.reviewedAt,
-    required this.reviewedBy,
-  });
-
-  factory Review.fromJson(Map<String, dynamic> json) {
-    return Review(
-      result: json['result'] as String,
-      adminNote: json['adminNote'] as String?,
-      reviewedAt: DateTime.parse(json['reviewedAt'] as String),
-      reviewedBy: json['reviewedBy'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'result': result,
-      if (adminNote != null) 'adminNote': adminNote,
-      'reviewedAt': reviewedAt.toIso8601String(),
-      'reviewedBy': reviewedBy,
-    };
-  }
-
-  bool get isPass => result == 'PASS';
-  bool get isFail => result == 'FAIL';
-}
-
-/// Verification Task Status
-enum VerificationTaskStatus {
-  open,
-  assigned,
-  checkedIn,
-  submitted,
-  reviewed;
-
-  static VerificationTaskStatus fromString(String value) {
-    switch (value.toUpperCase()) {
-      case 'OPEN':
-        return VerificationTaskStatus.open;
-      case 'ASSIGNED':
-        return VerificationTaskStatus.assigned;
-      case 'CHECKED_IN':
-        return VerificationTaskStatus.checkedIn;
-      case 'SUBMITTED':
-        return VerificationTaskStatus.submitted;
-      case 'REVIEWED':
-        return VerificationTaskStatus.reviewed;
-      default:
-        throw ArgumentError('Unknown status: $value');
-    }
-  }
-
-  @override
-  String toString() {
-    switch (this) {
-      case VerificationTaskStatus.open:
-        return 'OPEN';
-      case VerificationTaskStatus.assigned:
-        return 'ASSIGNED';
-      case VerificationTaskStatus.checkedIn:
-        return 'CHECKED_IN';
-      case VerificationTaskStatus.submitted:
-        return 'SUBMITTED';
-      case VerificationTaskStatus.reviewed:
-        return 'REVIEWED';
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case VerificationTaskStatus.open:
-        return 'Open';
-      case VerificationTaskStatus.assigned:
-        return 'Assigned';
-      case VerificationTaskStatus.checkedIn:
-        return 'Checked in';
-      case VerificationTaskStatus.submitted:
-        return 'Submitted';
-      case VerificationTaskStatus.reviewed:
-        return 'Reviewed';
-    }
   }
 }

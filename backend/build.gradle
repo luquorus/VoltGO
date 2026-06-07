@@ -56,9 +56,9 @@ dependencies {
     // MinIO for Media/Image Storage
     implementation 'io.minio:minio:8.5.7'
 
-    // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    // Lombok (JDK 25 compatibility: 1.18.32+)
+    compileOnly 'org.projectlombok:lombok:1.18.32'
+    annotationProcessor 'org.projectlombok:lombok:1.18.32'
 
     // Development
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

@@ -492,6 +492,21 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
           loading: () => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
           error: (_, __) => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
         ),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => context.push('/battery-swap/stations/import-csv'),
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Import CSV'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/battery-swap/stations/create'),
+              icon: const Icon(Icons.add),
+              label: const Text('Create Station'),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -584,8 +599,17 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
                     DataCell(Text(station.totalPiles?.toString() ?? 'N/A')),
                     DataCell(_buildTrustBadge(theme, station)),
                     DataCell(Text(station.pendingCRs.toString())),
-                    DataCell(IconButton(icon: const Icon(Icons.visibility, size: 20),
-                        onPressed: () => context.push('/battery-swap/stations/${station.id}'), tooltip: 'View Details')),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.visibility, size: 20),
+                            onPressed: () => context.push('/battery-swap/stations/${station.id}'), tooltip: 'View Details'),
+                        IconButton(icon: const Icon(Icons.delete, size: 20),
+                            onPressed: () => _showDeleteDialog(context, ref, station),
+                            tooltip: 'Delete',
+                            color: Colors.red),
+                      ],
+                    )),
                   ],
                 );
               }).toList(),
@@ -667,5 +691,74 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
     if (ratio >= 0.5) return Colors.green;
     if (ratio >= 0.2) return Colors.orange;
     return Colors.red;
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, BatterySwapStation station) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete Station'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${station.name ?? station.id}"?\n\n'
+          'This will permanently remove the station and all related data (change requests, versions, piles, state, trust records). '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _handleDelete(context, ref, station);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDelete(
+    BuildContext context,
+    WidgetRef ref,
+    BatterySwapStation station,
+  ) async {
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+
+      await factory.admin.deleteBatterySwapStation(station.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Station deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(batterySwapStationsProvider((page: 0, size: 20, search: null)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -1,0 +1,6 @@
+name,address,latitude,longitude,totalBatteries,avgChargePowerKw,operatingHours,parkingFee,note
+Trạm đổi pin Cầu Giấy,123 Cầu Giấy,21.0368,105.7905,25,38.0,06:00-23:00,5000,Gần công viên Cầu Giấy
+Trạm đổi pin Tây Hồ,88 Xuân Diệu,21.0705,105.8214,18,32.0,06:00-22:00,,Khu vực hồ Tây
+Trạm đổi pin Hai Bà Trưng,250 Bạch Mai,21.0009,105.8508,22,35.0,24/7,10000,Gần bệnh viện Bạch Mai
+Trạm đổi pin Đống Đa,75 Tây Sơn,21.0128,105.8227,28,40.0,05:30-23:30,5000,Khu dân cư đông đúc
+Trạm đổi pin Hoàng Mai,150 Giải Phóng,20.9834,105.8412,20,33.0,06:00-22:00,7000,Gần bến xe Giáp Bát

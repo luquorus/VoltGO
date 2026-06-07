@@ -132,9 +132,8 @@ class NotificationBadgeIcon extends StatelessWidget {
       children: [
         Icon(icon),
         if (showBadge)
-          Positioned(
-            right: -6,
-            top: -4,
+          Transform.translate(
+            offset: const Offset(10, -4),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(

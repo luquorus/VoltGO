@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
+import 'package:shared_api/shared_api.dart';
 import '../providers/station_providers.dart';
 import '../providers/loyalty_providers.dart';
 import '../widgets/main_scaffold.dart';
@@ -290,8 +291,19 @@ class _ReservationCardState extends ConsumerState<_ReservationCard> {
                 theme,
                 FontAwesomeIcons.dollarSign,
                 'Fee',
-                '${reservation.basePriceVnd} VND',
+                reservation.voucherRedemptionId != null && (reservation.discountAmountVnd ?? 0) > 0
+                    ? '${_formatAmt(reservation.basePriceVnd - (reservation.discountAmountVnd ?? 0))} VND'
+                    : '${_formatAmt(reservation.basePriceVnd)} VND',
               ),
+              if (reservation.voucherRedemptionId != null && (reservation.discountAmountVnd ?? 0) > 0) ...[
+                const SizedBox(height: 6),
+                _buildInfoRow(
+                  theme,
+                  FontAwesomeIcons.ticketSimple,
+                  'Voucher',
+                  '-${_formatAmt(reservation.discountAmountVnd ?? 0)} VND',
+                ),
+              ],
               const SizedBox(height: 6),
               _buildInfoRow(
                 theme,
@@ -447,26 +459,68 @@ class _ReservationCardState extends ConsumerState<_ReservationCard> {
     final notifier = ref.read(batterySwapProvider.notifier);
     final reservationId = widget.reservation.id;
 
+    final hasAppliedVoucher = widget.reservation.voucherRedemptionId != null && (widget.reservation.discountAmountVnd ?? 0) > 0;
+    final isFree = hasAppliedVoucher && widget.reservation.discountAmountVnd! >= widget.reservation.basePriceVnd;
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        // RESERVED + UNPAID → Pay
-        if (isReserved && !isPaid)
-          ElevatedButton.icon(
-            onPressed: () => _runAction(
-              context,
-              label: 'Pay for battery swap',
-              action: () => notifier.pay(reservationId),
-              successMsg: 'Payment successful.',
+        // RESERVED + UNPAID → Show payment status or free voucher badge
+        if (isReserved && !isPaid) ...[
+          if (isFree) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const FaIcon(FontAwesomeIcons.checkCircle, color: Colors.green, size: 14),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Free (Voucher)',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            icon: const FaIcon(FontAwesomeIcons.creditCard, size: 12),
-            label: const Text('Pay now'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              foregroundColor: Colors.white,
+          ] else ...[
+            if (!hasAppliedVoucher) ...[
+              ElevatedButton.icon(
+                onPressed: () => _showSwapVoucherSelector(context, reservationId),
+                icon: const FaIcon(FontAwesomeIcons.ticketSimple, size: 12),
+                label: const Text('Apply Voucher'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade100,
+                  foregroundColor: Colors.orange.shade800,
+                ),
+              ),
+            ],
+            ElevatedButton.icon(
+              onPressed: () => _runAction(
+                context,
+                label: 'Pay for battery swap',
+                action: () => notifier.pay(reservationId),
+                successMsg: 'Payment successful.',
+              ),
+              icon: const FaIcon(FontAwesomeIcons.creditCard, size: 12),
+              label: Text(hasAppliedVoucher
+                  ? 'Pay remaining'
+                  : 'Pay now'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
             ),
-          ),
+          ],
+        ],
 
         // RESERVED + PAID + not arrived yet → "I'm here"
         if (isReserved && isPaid && !arrived)
@@ -585,6 +639,13 @@ class _ReservationCardState extends ConsumerState<_ReservationCard> {
     }
   }
 
+  String _formatAmt(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
+
   Future<void> _runAction(
     BuildContext context, {
     required String label,
@@ -599,6 +660,78 @@ class _ReservationCardState extends ConsumerState<_ReservationCard> {
         AppToast.showError(context, '$label failed: ${formatApiError(e)}');
       }
     }
+  }
+
+  void _showSwapVoucherSelector(BuildContext context, String reservationId) async {
+    final vouchersAsync = ref.read(myVouchersProvider('REDEEMED'));
+    final state = vouchersAsync.valueOrNull;
+    if (state == null || state.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No free battery swap vouchers available. Earn some from the Loyalty page!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final freeSwapVouchers = state.where((v) {
+      final def = v.definition;
+      return def?.voucherType == 'FREE_SERVICE' && def?.serviceType == 'BATTERY_SWAP';
+    }).toList();
+
+    if (freeSwapVouchers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No free battery swap vouchers available. Earn some from the Loyalty page!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, controller) => _SwapVoucherSelectorSheet(
+          vouchers: freeSwapVouchers,
+          onApply: (voucher) async {
+            Navigator.pop(ctx);
+            try {
+              await ref.read(applyVoucherProvider.notifier).applyToSwap(voucher.id, reservationId);
+              ref.read(batterySwapProvider.notifier).loadMyReservations();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Voucher applied! Battery swap is now free.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to apply voucher: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmAndCancel(BuildContext context) async {
@@ -1076,6 +1209,140 @@ class _SwapCodeCountdownWidgetState extends State<_SwapCodeCountdownWidget> {
     final s = d.inSeconds % 60;
     if (m > 0) return '${m}m ${s}s';
     return '${s}s';
+  }
+}
+
+class _SwapVoucherSelectorSheet extends StatelessWidget {
+  final List<VoucherRedemption> vouchers;
+  final void Function(VoucherRedemption) onApply;
+
+  const _SwapVoucherSelectorSheet({
+    required this.vouchers,
+    required this.onApply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Free Battery Swap Vouchers',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'These vouchers make your battery swap completely free.',
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: vouchers.length,
+              itemBuilder: (context, index) {
+                final voucher = vouchers[index];
+                final def = voucher.definition;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => onApply(voucher),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.battery_charging_full,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  def?.name ?? 'Free Battery Swap',
+                                  style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  def?.description ?? '',
+                                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'FREE',
+                                        style: TextStyle(
+                                          color: Colors.green[700],
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Expires: ${_formatDateShort(voucher.expiresAt)}',
+                                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          FaIcon(
+                            FontAwesomeIcons.chevronRight,
+                            size: 14,
+                            color: Colors.grey[400],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateShort(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }
 

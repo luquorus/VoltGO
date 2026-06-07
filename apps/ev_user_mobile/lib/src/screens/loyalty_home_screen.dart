@@ -667,6 +667,20 @@ class _QuickActions extends StatelessWidget {
           subtitle: 'Earn 50 points per referral',
           onTap: () => context.push('/loyalty/referral'),
         ),
+        const SizedBox(height: 8),
+        _ActionCard(
+          icon: FontAwesomeIcons.ticketSimple,
+          title: 'Redeem Voucher',
+          subtitle: 'Exchange points for vouchers',
+          onTap: () => context.push('/loyalty/vouchers/catalog'),
+        ),
+        const SizedBox(height: 8),
+        _ActionCard(
+          icon: FontAwesomeIcons.receipt,
+          title: 'My Vouchers',
+          subtitle: 'View your redeemed vouchers',
+          onTap: () => context.push('/loyalty/vouchers/mine'),
+        ),
       ],
     );
   }

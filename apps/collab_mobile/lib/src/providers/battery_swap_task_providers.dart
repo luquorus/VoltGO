@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_api/shared_api.dart';
 import 'package:shared_network/shared_network.dart';
 import '../models/battery_swap_verification_task.dart';
+import '../models/verification_task.dart';
 
 /// Battery Swap Task Repository Provider
 final batterySwapTaskRepositoryProvider =
@@ -45,6 +45,7 @@ final batterySwapCheckInProvider =
     isOperatingHoursAccurate: params.isOperatingHoursAccurate,
     parkingFee: params.parkingFee,
     notes: params.notes,
+    checklistAnswers: params.checklistAnswers,
   );
 });
 
@@ -69,6 +70,13 @@ final evidenceViewUrlProvider =
   return repository.getEvidenceViewUrl(objectKey);
 });
 
+/// Evidence image bytes provider — fetches via proxy endpoint (bypasses MinIO direct access).
+final evidenceViewBytesProvider =
+    FutureProvider.family<Uint8List, String>((ref, objectKey) async {
+  final repository = ref.watch(batterySwapTaskRepositoryProvider);
+  return repository.getEvidenceViewBytes(objectKey);
+});
+
 /// Battery Swap Check-in Parameters
 class BatterySwapCheckInParams {
   final String taskId;
@@ -80,6 +88,7 @@ class BatterySwapCheckInParams {
   final bool isOperatingHoursAccurate;
   final int? parkingFee;
   final String? notes;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   BatterySwapCheckInParams({
     required this.taskId,
@@ -91,6 +100,7 @@ class BatterySwapCheckInParams {
     required this.isOperatingHoursAccurate,
     this.parkingFee,
     this.notes,
+    this.checklistAnswers,
   });
 }
 
@@ -172,8 +182,10 @@ class BatterySwapTaskRepository {
     required bool isOperatingHoursAccurate,
     int? parkingFee,
     String? notes,
+    List<ChecklistAnswer>? checklistAnswers,
   }) async {
     try {
+      final checklistData = checklistAnswers?.map((e) => e.toJson()).toList();
       // Map pileCount to actualTotalBatteries as fallback for backend compatibility
       // The backend only accepts: lat, lng, deviceNote, actualTotalBatteries, actualAvailableBatteries, observedAvgChargePowerKw
       final response = await apiClient.batterySwapCheckIn(
@@ -182,6 +194,7 @@ class BatterySwapTaskRepository {
         lng: lng,
         actualTotalBatteries: batteryInventoryCount,
         deviceNote: notes,
+        checklistAnswers: checklistData,
       );
 
       return BatterySwapVerificationTask.fromJson(response);
@@ -191,7 +204,8 @@ class BatterySwapTaskRepository {
     }
   }
 
-  /// Submit evidence for battery swap verification
+  /// Submit evidence for battery swap verification.
+  /// Uses proxy upload through backend to avoid MinIO direct access issues.
   Future<BatterySwapVerificationTask> submitEvidence({
     required String taskId,
     required Uint8List imageBytes,
@@ -200,29 +214,12 @@ class BatterySwapTaskRepository {
     String? note,
   }) async {
     try {
-      final presign = await apiClient.presignUpload(contentType: contentType);
-      final objectKey = presign['objectKey'] as String;
-      final uploadUrl = presign['uploadUrl'] as String;
-
-      try {
-        await Dio().put<dynamic>(
-          uploadUrl,
-          data: imageBytes,
-          options: Options(
-            headers: {
-              'Content-Type': contentType,
-            },
-          ),
-        );
-      } on DioException catch (e) {
-        throw ApiError(
-          traceId: '',
-          code: 'UPLOAD_FAILED',
-          message:
-              'Image upload failed. Check your connection and try again. (${e.message ?? "unknown error"})',
-          timestamp: DateTime.now(),
-        );
-      }
+      final result = await apiClient.proxyUpload(
+        fileBytes: imageBytes,
+        fileName: 'bswap_evidence_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        contentType: contentType,
+      );
+      final objectKey = result['objectKey'] as String;
 
       final trimmedNote = note?.trim();
       final response = await apiClient.batterySwapSubmitEvidence(
@@ -242,6 +239,16 @@ class BatterySwapTaskRepository {
     try {
       final response = await apiClient.presignView(objectKey: objectKey);
       return response['viewUrl'] as String;
+    } catch (e) {
+      if (e is ApiError) rethrow;
+      throw Exception('Could not load evidence image: $e');
+    }
+  }
+
+  /// Fetch evidence image bytes via proxy endpoint (bypasses MinIO direct access).
+  Future<Uint8List> getEvidenceViewBytes(String objectKey) async {
+    try {
+      return await apiClient.proxyViewBytes(objectKey: objectKey);
     } catch (e) {
       if (e is ApiError) rethrow;
       throw Exception('Could not load evidence image: $e');

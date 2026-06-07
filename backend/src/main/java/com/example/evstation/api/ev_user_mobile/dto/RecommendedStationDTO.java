@@ -28,4 +28,7 @@ public class RecommendedStationDTO {
     private Double optimalChargingStopMinutes;
     private Boolean isOptimalStop;
     private Double remainingRangeAfterStopKm;
+    private Double estimatedBatteryAtArrival;
+    private String recommendationReason;
+    private Boolean isRecommended;
 }

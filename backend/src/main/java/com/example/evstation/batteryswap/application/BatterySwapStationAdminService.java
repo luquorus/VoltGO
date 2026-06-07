@@ -3,12 +3,13 @@ package com.example.evstation.batteryswap.application;
 import com.example.evstation.common.web.PaginationResponse;
 import com.example.evstation.batteryswap.api.dto.BatterySwapStationDetailDTO;
 import com.example.evstation.batteryswap.api.dto.BatterySwapStationListDTO;
+import com.example.evstation.batteryswap.api.dto.CreateBatterySwapStationDTO;
 import com.example.evstation.batteryswap.api.dto.UpdateBatterySwapStationDTO;
 import com.example.evstation.batteryswap.domain.ChangeRequestStatus;
 import com.example.evstation.batteryswap.infrastructure.jpa.*;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
-import com.example.evstation.station.domain.WorkflowStatus;
+import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,8 @@ public class BatterySwapStationAdminService {
     private final BatterySwapTrustJpaRepository trustRepository;
     private final BatterySwapPileTemplateJpaRepository pileTemplateRepository;
     private final SwapStationStateApplyService swapStationStateApplyService;
+    private final BatterySwapTrustScoringService trustScoringService;
+    private final AuditLogJpaRepository auditLogRepository;
 
     @Transactional(readOnly = true)
     public PaginationResponse<BatterySwapStationListDTO> listStations(int page, int size, String search) {
@@ -93,6 +96,115 @@ public class BatterySwapStationAdminService {
                 .first(page == 0)
                 .last(toIndex >= total)
                 .build();
+    }
+
+    /**
+     * Create a new battery swap station directly (admin bypass).
+     * Creates StationEntity, BatterySwapStationVersionEntity (versionNo=1), and StationVersionEntity.
+     * If publishImmediately=true, also calls applyForSwapVersion to create runtime piles/slots.
+     */
+    @Transactional
+    public BatterySwapStationDetailDTO createStation(CreateBatterySwapStationDTO request, UUID adminId) {
+        log.info("Admin creating battery swap station: name={}, publishImmediately={}",
+                request.getStationData().getName(), request.getPublishImmediately());
+
+        CreateBatterySwapStationDTO.StationDataDTO data = request.getStationData();
+
+        // 1. Create StationEntity
+        StationEntity station = StationEntity.builder()
+                .id(UUID.randomUUID())
+                .createdAt(Instant.now())
+                .build();
+        stationRepository.save(station);
+        log.info("Created station entity: {}", station.getId());
+
+        // 1b. Initialize trust record with score 50
+        try {
+            trustScoringService.initializeForStation(station.getId());
+            log.info("Initialized trust record for station: {}", station.getId());
+        } catch (Exception e) {
+            log.error("Failed to initialize trust for station: {}", station.getId(), e);
+        }
+
+        // 2. Create BatterySwapStationVersionEntity
+        int versionNo = 1;
+        WorkflowStatus workflowStatus = Boolean.TRUE.equals(request.getPublishImmediately())
+                ? WorkflowStatus.PUBLISHED
+                : WorkflowStatus.DRAFT;
+
+        List<BatterySwapPileTemplateEntity> newPiles;
+        if (data.getNote() != null && !data.getNote().isBlank()) {
+            // When note contains pile layout spec, parse it (or use default)
+            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), null);
+        } else {
+            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), null);
+        }
+
+        BatterySwapStationVersionEntity newBsVersion = BatterySwapStationVersionEntity.builder()
+                .id(UUID.randomUUID())
+                .stationId(station.getId())
+                .versionNo(versionNo)
+                .workflowStatus(workflowStatus)
+                .totalBatteries(data.getTotalBatteries())
+                .avgChargePowerKw(data.getAvgChargePowerKw())
+                .operatingHours(data.getOperatingHours())
+                .parkingFee(data.getParkingFee())
+                .note(data.getNote())
+                .createdBy(adminId)
+                .createdAt(Instant.now())
+                .publishedAt(Boolean.TRUE.equals(request.getPublishImmediately()) ? Instant.now() : null)
+                .pileTemplates(new ArrayList<>())
+                .build();
+
+        for (BatterySwapPileTemplateEntity pile : newPiles) {
+            pile.setStationVersion(newBsVersion);
+            newBsVersion.getPileTemplates().add(pile);
+        }
+
+        bsVersionRepository.save(newBsVersion);
+        log.info("Created battery swap station version: {}, status={}", newBsVersion.getId(), workflowStatus);
+
+        // 3. Create StationVersionEntity (base station info)
+        Point location = createPoint(data.getLocation().getLng(), data.getLocation().getLat());
+
+        StationVersionEntity newStationVersion = StationVersionEntity.builder()
+                .id(newBsVersion.getId())
+                .stationId(station.getId())
+                .versionNo(versionNo)
+                .workflowStatus(workflowStatus)
+                .name(data.getName())
+                .address(data.getAddress())
+                .location(location)
+                .operatingHours(data.getOperatingHours())
+                .parking(ParkingType.FREE)
+                .visibility(VisibilityType.PUBLIC)
+                .publicStatus(PublicStatus.ACTIVE)
+                .createdBy(adminId)
+                .createdAt(Instant.now())
+                .publishedAt(Boolean.TRUE.equals(request.getPublishImmediately()) ? Instant.now() : null)
+                .build();
+
+        stationVersionRepository.save(newStationVersion);
+        log.info("Created station version: {}, status={}", newStationVersion.getId(), workflowStatus);
+
+        // 4. If publishing immediately, apply runtime state (create piles/slots)
+        if (Boolean.TRUE.equals(request.getPublishImmediately())) {
+            try {
+                swapStationStateApplyService.applyForSwapVersion(newBsVersion);
+                log.info("Applied swap station state for version: {}", newBsVersion.getId());
+            } catch (Exception e) {
+                log.error("Failed to apply battery swap state for version: {}", newBsVersion.getId(), e);
+            }
+        }
+
+        // 5. Write audit log
+        writeAuditLog(adminId, "ADMIN", "CREATE_BATTERY_SWAP_STATION", "station", station.getId(),
+                java.util.Map.of(
+                        "bsVersionId", newBsVersion.getId().toString(),
+                        "publishImmediately", request.getPublishImmediately()));
+
+        // Return detail DTO from in-memory entities
+        return buildDetailDTOFromNewVersion(station, newBsVersion, newStationVersion);
     }
 
     @Transactional(readOnly = true)
@@ -516,5 +628,20 @@ public class BatterySwapStationAdminService {
         // Finally delete the station itself
         stationRepository.deleteById(stationId);
         log.info("Battery swap station deleted: stationId={}", stationId);
+    }
+
+    private void writeAuditLog(UUID actorId, String actorRole, String action,
+                              String entityType, UUID entityId, java.util.Map<String, Object> metadata) {
+        AuditLogEntity auditLog = AuditLogEntity.builder()
+                .actorId(actorId)
+                .actorRole(actorRole)
+                .action(action)
+                .entityType(entityType)
+                .entityId(entityId)
+                .metadata(metadata)
+                .createdAt(Instant.now())
+                .build();
+        auditLogRepository.save(auditLog);
+        log.debug("Audit log written: action={}, entityType={}, entityId={}", action, entityType, entityId);
     }
 }

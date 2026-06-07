@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_api/shared_api.dart';
+import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
 
-/// User Loyalty List Screen - List of all users with their loyalty profiles
+/// Re-export so widgets in this file can reference AdminLoyaltyUser
+export '../../providers/loyalty_providers.dart' show AdminLoyaltyUser;
+
+/// User Loyalty List Screen - Paginated list of all users with real loyalty data
 class UserLoyaltyListScreen extends ConsumerStatefulWidget {
   const UserLoyaltyListScreen({super.key});
 
@@ -14,68 +19,35 @@ class UserLoyaltyListScreen extends ConsumerStatefulWidget {
 
 class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
   String _searchQuery = '';
+  final _scrollController = ScrollController();
 
-  final List<_UserLoyaltyItem> _users = [
-    _UserLoyaltyItem(
-      userId: '1',
-      email: 'user1@example.com',
-      currentPoints: 1250,
-      lifetimePoints: 1800,
-      level: 3,
-      totalRatings: 15,
-      totalBookings: 25,
-      totalSwaps: 8,
-      lastActivity: 'Today',
-    ),
-    _UserLoyaltyItem(
-      userId: '2',
-      email: 'user2@example.com',
-      currentPoints: 980,
-      lifetimePoints: 1200,
-      level: 2,
-      totalRatings: 12,
-      totalBookings: 18,
-      totalSwaps: 5,
-      lastActivity: 'Yesterday',
-    ),
-    _UserLoyaltyItem(
-      userId: '3',
-      email: 'user3@example.com',
-      currentPoints: 750,
-      lifetimePoints: 900,
-      level: 2,
-      totalRatings: 8,
-      totalBookings: 12,
-      totalSwaps: 3,
-      lastActivity: '3 days ago',
-    ),
-    _UserLoyaltyItem(
-      userId: '4',
-      email: 'user4@example.com',
-      currentPoints: 520,
-      lifetimePoints: 600,
-      level: 1,
-      totalRatings: 5,
-      totalBookings: 8,
-      totalSwaps: 2,
-      lastActivity: '1 week ago',
-    ),
-    _UserLoyaltyItem(
-      userId: '5',
-      email: 'user5@example.com',
-      currentPoints: 300,
-      lifetimePoints: 350,
-      level: 1,
-      totalRatings: 3,
-      totalBookings: 5,
-      totalSwaps: 1,
-      lastActivity: '2 weeks ago',
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(adminLoyaltyUsersProvider.notifier).loadMore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final usersState = ref.watch(adminLoyaltyUsersProvider);
+    final filteredUsers = _searchQuery.isEmpty
+        ? usersState.users
+        : usersState.users.where((u) {
+            return u.userId.toLowerCase().contains(_searchQuery.toLowerCase());
+          }).toList();
 
     return AdminScaffold(
       title: 'User Points',
@@ -95,7 +67,7 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                      hintText: 'Search by email...',
+                      hintText: 'Search by user ID...',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.search),
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -105,12 +77,33 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
                     },
                   ),
                 ),
+                const SizedBox(width: 16),
+                if (usersState.isLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  '${usersState.users.length}${usersState.hasMore ? '+' : ''} users',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => ref.read(adminLoyaltyUsersProvider.notifier).refresh(),
+                  tooltip: 'Refresh',
+                ),
               ],
             ),
           ),
           // Table
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Card(
@@ -124,49 +117,92 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                         ),
                         child: Row(
-                          children: [
+                          children: const [
                             Expanded(
                               flex: 3,
-                              child: _HeaderCell(text: 'User', sortable: true),
+                              child: _HeaderCell(text: 'User ID'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 1,
-                              child: _HeaderCell(text: 'Level', sortable: true),
+                              child: _HeaderCell(text: 'Level'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 2,
-                              child: _HeaderCell(text: 'Current Points', sortable: true),
+                              child: _HeaderCell(text: 'Current Points'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 2,
-                              child: _HeaderCell(text: 'Lifetime Points', sortable: true),
+                              child: _HeaderCell(text: 'Lifetime Points'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 1,
-                              child: _HeaderCell(text: 'Ratings', sortable: true),
+                              child: _HeaderCell(text: 'Ratings'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 1,
-                              child: _HeaderCell(text: 'Bookings', sortable: true),
+                              child: _HeaderCell(text: 'Bookings'),
                             ),
-                            const Expanded(
+                            Expanded(
                               flex: 1,
-                              child: _HeaderCell(text: 'Swaps', sortable: true),
+                              child: _HeaderCell(text: 'Swaps'),
                             ),
-                            const Expanded(
-                              flex: 1,
-                              child: _HeaderCell(text: 'Last Active', sortable: true),
-                            ),
-                            const SizedBox(width: 120, child: _HeaderCell(text: 'Actions')),
+                            SizedBox(width: 100, child: _HeaderCell(text: 'Actions')),
                           ],
                         ),
                       ),
                       const Divider(height: 1),
+                      // Loading indicator
+                      if (usersState.isLoading && usersState.users.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(),
+                        )
+                      // Error
+                      else if (usersState.error != null && usersState.users.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(Icons.error_outline, size: 40, color: Colors.red[300]),
+                              const SizedBox(height: 8),
+                              Text('Lỗi: ${usersState.error}'),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: () => ref.read(adminLoyaltyUsersProvider.notifier).refresh(),
+                                child: const Text('Thử lại'),
+                              ),
+                            ],
+                          ),
+                        )
+                      // Empty
+                      else if (filteredUsers.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(Icons.people_outline, size: 40, color: Colors.grey[400]),
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchQuery.isEmpty
+                                    ? 'Chưa có user loyalty nào'
+                                    : 'Không tìm thấy user',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        )
                       // Rows
-                      ..._filteredUsers().map((user) => _UserRow(
-                        user: user,
-                        onViewDetails: () => context.go('/loyalty/users/${user.userId}'),
-                      )),
+                      else
+                        ...filteredUsers.map((user) => _UserRow(
+                          user: user,
+                          onViewDetails: () => context.go('/loyalty/users/${user.userId}'),
+                        )),
+                      // Load more indicator
+                      if (usersState.hasMore)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
                     ],
                   ),
                 ),
@@ -177,44 +213,12 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
       ),
     );
   }
-
-  List<_UserLoyaltyItem> _filteredUsers() {
-    if (_searchQuery.isEmpty) return _users;
-    return _users.where((user) {
-      return user.email.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-  }
-}
-
-class _UserLoyaltyItem {
-  final String userId;
-  final String email;
-  final int currentPoints;
-  final int lifetimePoints;
-  final int level;
-  final int totalRatings;
-  final int totalBookings;
-  final int totalSwaps;
-  final String lastActivity;
-
-  _UserLoyaltyItem({
-    required this.userId,
-    required this.email,
-    required this.currentPoints,
-    required this.lifetimePoints,
-    required this.level,
-    required this.totalRatings,
-    required this.totalBookings,
-    required this.totalSwaps,
-    required this.lastActivity,
-  });
 }
 
 class _HeaderCell extends StatelessWidget {
   final String text;
-  final bool sortable;
 
-  const _HeaderCell({required this.text, this.sortable = false});
+  const _HeaderCell({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -224,17 +228,13 @@ class _HeaderCell extends StatelessWidget {
           text,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        if (sortable) ...[
-          const SizedBox(width: 4),
-          const Icon(Icons.unfold_more, size: 16, color: Colors.grey),
-        ],
       ],
     );
   }
 }
 
 class _UserRow extends StatelessWidget {
-  final _UserLoyaltyItem user;
+  final AdminLoyaltyUser user;
   final VoidCallback onViewDetails;
 
   const _UserRow({
@@ -258,8 +258,11 @@ class _UserRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Text(
-              user.email,
-              style: theme.textTheme.bodyMedium,
+              user.userId,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
             ),
           ),
           Expanded(
@@ -295,24 +298,11 @@ class _UserRow extends StatelessWidget {
             flex: 1,
             child: Text('${user.totalSwaps}'),
           ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              user.lastActivity,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ),
           SizedBox(
-            width: 120,
-            child: Row(
-              children: [
-                TextButton(
-                  onPressed: onViewDetails,
-                  child: const Text('Details'),
-                ),
-              ],
+            width: 100,
+            child: TextButton(
+              onPressed: onViewDetails,
+              child: const Text('Details'),
             ),
           ),
         ],

@@ -1,5 +1,7 @@
 package com.example.evstation.loyalty.application;
 
+import com.example.evstation.common.error.BusinessException;
+import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.loyalty.domain.PointType;
 import com.example.evstation.loyalty.infrastructure.jpa.LoyaltyPointTransactionEntity;
@@ -84,8 +86,8 @@ public class LoyaltyPointService {
     @Transactional
     public LoyaltyPointTransactionEntity adjustPoints(UUID userId, int delta, String description) {
         LoyaltyUserProfileEntity profile = profileRepository.findByUserId(userId)
-                .orElseThrow(() -> new com.example.evstation.common.error.BusinessException(
-                        com.example.evstation.common.error.ErrorCode.USER_NOT_FOUND, "User profile not found"));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.USER_NOT_FOUND, "User profile not found"));
 
         int newCurrent = profile.getCurrentPoints() + delta;
         if (newCurrent < 0) newCurrent = 0;
@@ -102,6 +104,36 @@ public class LoyaltyPointService {
                 .description(description)
                 .build();
         return transactionRepository.save(tx);
+    }
+
+    @Transactional
+    public LoyaltyPointTransactionEntity redeemPoints(UUID userId, int amount, UUID redemptionId, String description) {
+        LoyaltyUserProfileEntity profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "User profile not found"));
+
+        if (profile.getCurrentPoints() < amount) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_POINTS,
+                    String.format("Need %d points, have %d", amount, profile.getCurrentPoints()));
+        }
+
+        int newCurrent = profile.getCurrentPoints() - amount;
+        profile.setCurrentPoints(newCurrent);
+        profile.setLastActivityAt(Instant.now(clock));
+        profileRepository.save(profile);
+
+        LoyaltyPointTransactionEntity tx = LoyaltyPointTransactionEntity.builder()
+                .userId(userId)
+                .type(PointType.REDEEM)
+                .source(PointSource.VOUCHER_REDEMPTION)
+                .sourceId(redemptionId)
+                .points(-amount)
+                .balanceAfter(newCurrent)
+                .description(description)
+                .build();
+        tx = transactionRepository.save(tx);
+
+        log.info("Redeemed {} points for userId={}, redemptionId={}, txId={}", amount, userId, redemptionId, tx.getId());
+        return tx;
     }
 
     @Transactional

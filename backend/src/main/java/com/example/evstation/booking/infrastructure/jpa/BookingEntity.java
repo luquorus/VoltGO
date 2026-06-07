@@ -60,7 +60,10 @@ public class BookingEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
     private Map<String, Object> priceSnapshot = Map.of();
-    
+
+    @Column(name = "voucher_redemption_id", columnDefinition = "UUID")
+    private UUID voucherRedemptionId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     

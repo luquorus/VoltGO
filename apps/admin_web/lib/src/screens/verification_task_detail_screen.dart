@@ -188,6 +188,12 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
             const SizedBox(height: 24),
           ],
 
+          // Checklist Section
+          if (task.checklist != null && task.checklist!.isNotEmpty) ...[
+            _buildChecklistSection(context, theme, task),
+            const SizedBox(height: 24),
+          ],
+
           // Evidences
           if (task.evidences.isNotEmpty) ...[
             _buildEvidencesSection(context, theme, ref, task.evidences),
@@ -512,6 +518,204 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistSection(BuildContext context, ThemeData theme, AdminVerificationTask task) {
+    final submittedAnswers = task.checkin?.checklistAnswers ?? [];
+    final answerMap = {for (var a in submittedAnswers) a.itemId: a};
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.checklist, color: AdminTheme.primaryTeal),
+                const SizedBox(width: 8),
+                Text(
+                  'Verification Checklist',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...task.checklist!.map((item) {
+              final answer = answerMap[item.id];
+              return _buildChecklistItemRow(theme, item, answer, task.stationSnapshot);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistItemRow(
+    ThemeData theme,
+    ChecklistItem item,
+    ChecklistAnswer? answer,
+    AdminStationSnapshotDTO? stationSnapshot,
+  ) {
+    final hasNoOrUnable = answer?.answer == ChecklistAnswerValue.no ||
+        answer?.answer == ChecklistAnswerValue.unableToVerify;
+
+    Color answerColor;
+    IconData answerIcon;
+    if (answer == null) {
+      answerColor = Colors.grey;
+      answerIcon = Icons.help_outline;
+    } else {
+      switch (answer.answer) {
+        case ChecklistAnswerValue.yes:
+          answerColor = Colors.green;
+          answerIcon = Icons.check_circle;
+          break;
+        case ChecklistAnswerValue.no:
+          answerColor = Colors.red;
+          answerIcon = Icons.cancel;
+          break;
+        case ChecklistAnswerValue.unableToVerify:
+          answerColor = Colors.orange;
+          answerIcon = Icons.help;
+          break;
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: hasNoOrUnable
+            ? Colors.yellow.shade50
+            : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: hasNoOrUnable
+              ? Colors.yellow.shade300
+              : theme.colorScheme.outline.withOpacity(0.2),
+          width: hasNoOrUnable ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(answerIcon, size: 20, color: answerColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.question,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (item.sourceCode == 'CHANGE_REQUEST')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.purple.shade200),
+                            ),
+                            child: Text(
+                              'Change Request',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.purple.shade700,
+                              ),
+                            ),
+                          )
+                        else if (item.sourceCode == 'DEFAULT')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AdminTheme.primaryTeal.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Default',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AdminTheme.primaryTeal,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        if (answer != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: answerColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: answerColor.withOpacity(0.3)),
+                            ),
+                            child: Text(
+                              answer.answer.toString().replaceAll('ChecklistAnswerValue.', ''),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: answerColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            'Not answered',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (hasNoOrUnable) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber,
+                      size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasNoOrUnable
+                          ? 'Answer is "${answer!.answer.toString().replaceAll('ChecklistAnswerValue.', '')}" - requires attention'
+                          : 'No supplementary note provided',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

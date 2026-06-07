@@ -45,6 +45,12 @@ public class PaymentIntentEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     
+    @Column(name = "voucher_redemption_id", columnDefinition = "UUID")
+    private UUID voucherRedemptionId;
+
+    @Column(name = "discount_amount")
+    private Integer discountAmount;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
     

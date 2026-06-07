@@ -9,6 +9,10 @@ import com.example.evstation.loyalty.application.BadgeService;
 import com.example.evstation.loyalty.application.LoyaltyPointService;
 import com.example.evstation.loyalty.application.RatingEligibilityService;
 import com.example.evstation.loyalty.application.ReferralService;
+import com.example.evstation.loyalty.application.VoucherService;
+import com.example.evstation.loyalty.domain.RedemptionStatus;
+import com.example.evstation.loyalty.infrastructure.jpa.VoucherRedemptionJpaRepository;
+import com.example.evstation.loyalty.infrastructure.jpa.VoucherRedemptionEntity;
 import com.example.evstation.loyalty.domain.BadgeCriteriaType;
 import com.example.evstation.loyalty.domain.EligibilityType;
 import com.example.evstation.loyalty.domain.PointSource;
@@ -39,6 +43,8 @@ public class PaymentService {
     private final RatingEligibilityService ratingEligibilityService;
     private final BadgeService badgeService;
     private final ReferralService referralService;
+    private final VoucherService voucherService;
+    private final VoucherRedemptionJpaRepository voucherRedemptionRepository;
     private final Clock clock;
     
     // Fallback amount if price snapshot is missing or invalid
@@ -82,6 +88,16 @@ public class PaymentService {
         
         // Get amount from booking price snapshot
         int amount = getAmountFromPriceSnapshot(booking.getPriceSnapshot());
+
+        // Apply voucher discount if one was pre-applied via VoucherService
+        int discountAmount = 0;
+        if (booking.getVoucherRedemptionId() != null) {
+            discountAmount = voucherService.getDiscountAmountForRedemption(booking.getVoucherRedemptionId());
+            if (discountAmount > amount) {
+                discountAmount = amount; // cap discount at booking amount
+            }
+            amount = amount - discountAmount;
+        }
         
         // Create payment intent
         Instant createdAt = now;
@@ -92,6 +108,8 @@ public class PaymentService {
                 .status(PaymentIntentStatus.CREATED)
                 .createdAt(createdAt)
                 .updatedAt(createdAt)
+                .voucherRedemptionId(booking.getVoucherRedemptionId())
+                .discountAmount(discountAmount > 0 ? discountAmount : null)
                 .build();
         
         entity = paymentIntentRepository.save(entity);
@@ -99,11 +117,13 @@ public class PaymentService {
                 entity.getId(), bookingId, amount);
         
         // Write audit log
-        writeAuditLog(userId, "EV_USER", "PAYMENT_INTENT_CREATED", 
+        writeAuditLog(userId, "EV_USER", "PAYMENT_INTENT_CREATED",
                 "PAYMENT_INTENT", entity.getId(), Map.of(
                         "bookingId", bookingId.toString(),
                         "amount", String.valueOf(amount),
-                        "currency", "VND"
+                        "currency", "VND",
+                        "originalAmount", String.valueOf(amount + discountAmount),
+                        "discountAmount", String.valueOf(discountAmount)
                 ));
         
         return toDTO(entity);
@@ -184,11 +204,21 @@ public class PaymentService {
         // Update payment intent to SUCCEEDED
         intent.setStatus(PaymentIntentStatus.SUCCEEDED);
         intent.setUpdatedAt(now);
+        intent.setVoucherRedemptionId(booking.getVoucherRedemptionId());
+        intent.setDiscountAmount(booking.getVoucherRedemptionId() != null
+                ? voucherService.getDiscountAmountForRedemption(booking.getVoucherRedemptionId()) : null);
         intent = paymentIntentRepository.save(intent);
         
         // Transition booking HOLD -> CONFIRMED
         booking.setStatus(BookingStatus.CONFIRMED);
         booking = bookingRepository.save(booking);
+
+        // Apply voucher discount if one was applied before payment
+        if (booking.getVoucherRedemptionId() != null) {
+            // discountAmount is already stored in redemption metadata; payment intent amount remains unchanged
+            // as the user effectively gets the discount at payment time
+            log.info("Booking {} has voucher applied: redemptionId={}", booking.getId(), booking.getVoucherRedemptionId());
+        }
 
         // Loyalty: award points for completed charging session
         UUID loyaltyUserId = booking.getUserId();
@@ -211,10 +241,12 @@ public class PaymentService {
                 intentId, booking.getId());
         
         // Write audit log
-        writeAuditLog(booking.getUserId(), "EV_USER", "PAYMENT_SUCCEEDED", 
+        writeAuditLog(booking.getUserId(), "EV_USER", "PAYMENT_SUCCEEDED",
                 "PAYMENT_INTENT", intent.getId(), Map.of(
                         "bookingId", booking.getId().toString(),
-                        "amount", String.valueOf(intent.getAmount())
+                        "amount", String.valueOf(intent.getAmount()),
+                        "originalAmount", String.valueOf(intent.getAmount() + (intent.getDiscountAmount() != null ? intent.getDiscountAmount() : 0)),
+                        "discountAmount", String.valueOf(intent.getDiscountAmount() != null ? intent.getDiscountAmount() : 0)
                 ));
         
         return toDTO(intent);
@@ -301,6 +333,8 @@ public class PaymentService {
                 .status(entity.getStatus().name())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .voucherRedemptionId(entity.getVoucherRedemptionId())
+                .discountAmount(entity.getDiscountAmount())
                 .build();
     }
     

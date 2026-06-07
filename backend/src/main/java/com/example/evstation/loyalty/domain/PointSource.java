@@ -14,7 +14,8 @@ public enum PointSource {
     CR_PUBLISH(40, "Proposal approved and published"),
     REFERRAL(50, "Successful referral"),
     BADGE(0, "Badge earned"),
-    ADMIN_ADJUST(0, "Manual adjustment by admin");
+    ADMIN_ADJUST(0, "Manual adjustment by admin"),
+    VOUCHER_REDEMPTION(0, "Voucher redemption");
 
     private final int basePoints;
     private final String description;

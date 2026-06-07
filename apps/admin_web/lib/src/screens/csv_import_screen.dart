@@ -28,7 +28,8 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
-        withData: true, // This ensures bytes are available (required for web)
+        allowMultiple: false,
+        withData: true,
       );
 
       if (result != null) {
