@@ -65,6 +65,7 @@ public interface StationQueryRepository {
      * @param batteryPercent Current battery percentage (0-100)
      * @param vehicleRangeKm Range at 100% battery (km)
      * @param routeDistanceKm Total route distance (km)
+     * @param traceId Trace ID for diagnostic logging
      * @return List of RecommendedStationDTO sorted by score (lower is better)
      */
     List<RecommendedStationDTO> findStationsAlongRoute(
@@ -75,7 +76,8 @@ public interface StationQueryRepository {
             List<PolylinePoint> polyline,
             Integer batteryPercent,
             Double vehicleRangeKm,
-            Double routeDistanceKm
+            Double routeDistanceKm,
+            String traceId
     );
 }
 

@@ -67,6 +67,9 @@ class RecommendedStation {
   final double? optimalChargingStopMinutes;
   final bool isOptimalStop;
   final double? remainingRangeAfterStopKm;
+  final double? estimatedBatteryAtArrival;
+  final String? recommendationReason;
+  final bool isRecommended;
 
   const RecommendedStation({
     required this.stationId,
@@ -89,6 +92,9 @@ class RecommendedStation {
     this.optimalChargingStopMinutes,
     this.isOptimalStop = false,
     this.remainingRangeAfterStopKm,
+    this.estimatedBatteryAtArrival,
+    this.recommendationReason,
+    this.isRecommended = false,
   });
 
   factory RecommendedStation.fromJson(Map<String, dynamic> json) {
@@ -119,6 +125,9 @@ class RecommendedStation {
       optimalChargingStopMinutes: (json['optimalChargingStopMinutes'] as num?)?.toDouble(),
       isOptimalStop: json['isOptimalStop'] as bool? ?? false,
       remainingRangeAfterStopKm: (json['remainingRangeAfterStopKm'] as num?)?.toDouble(),
+      estimatedBatteryAtArrival: (json['estimatedBatteryAtArrival'] as num?)?.toDouble(),
+      recommendationReason: json['recommendationReason'] as String?,
+      isRecommended: json['isRecommended'] as bool? ?? false,
     );
   }
 }
@@ -129,12 +138,16 @@ class RouteSummary {
   final int durationMinutes;
   final bool viaRoad;
   final bool hasChargingStations;
+  final bool? needsChargingRecommendation;
+  final String? primaryRecommendationReason;
 
   const RouteSummary({
     required this.distanceKm,
     required this.durationMinutes,
     required this.viaRoad,
     required this.hasChargingStations,
+    this.needsChargingRecommendation,
+    this.primaryRecommendationReason,
   });
 
   factory RouteSummary.fromJson(Map<String, dynamic> json) {
@@ -143,6 +156,8 @@ class RouteSummary {
       durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 0,
       viaRoad: json['viaRoad'] as bool? ?? true,
       hasChargingStations: json['hasChargingStations'] as bool? ?? false,
+      needsChargingRecommendation: json['needsChargingRecommendation'] as bool?,
+      primaryRecommendationReason: json['primaryRecommendationReason'] as String?,
     );
   }
 }
