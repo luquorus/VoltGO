@@ -17,5 +17,6 @@ public class AuthResponse {
     private String email;
     private String name;
     private String role;
+    private String status;  // ACTIVE, PENDING_COLLABORATOR, BANNED
 }
 

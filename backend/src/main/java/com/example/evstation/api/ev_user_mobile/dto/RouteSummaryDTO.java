@@ -10,4 +10,6 @@ public class RouteSummaryDTO {
     private int durationMinutes;
     private boolean viaRoad;
     private boolean hasChargingStations;
+    private Boolean needsChargingRecommendation;
+    private String primaryRecommendationReason;
 }

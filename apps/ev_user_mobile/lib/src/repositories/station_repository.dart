@@ -685,5 +685,39 @@ class StationRepository {
       );
     }
   }
+
+  /// Get battery swap trust data for a station
+  /// GET /api/ev/battery-swap/trust/{stationId}
+  Future<Map<String, dynamic>> getSwapTrust(String stationId) async {
+    try {
+      final response = await _dio!.get('$_baseUrl/api/ev/battery-swap/trust/$stationId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final errorData = e.response!.data;
+        throw ApiError(
+          traceId: errorData?['traceId'] as String? ?? '',
+          code: errorData?['code'] as String? ?? 'HTTP_ERROR',
+          message: errorData?['message'] as String? ?? e.message ?? 'Request failed',
+          timestamp: DateTime.now(),
+        );
+      }
+      throw ApiError(
+        traceId: '',
+        code: 'NETWORK_ERROR',
+        message: e.message ?? 'Network request failed',
+        timestamp: DateTime.now(),
+      );
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      throw ApiError(
+        traceId: '',
+        code: 'UNKNOWN_ERROR',
+        message: e.toString(),
+        timestamp: DateTime.now(),
+      );
+    }
+  }
 }
 

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Station Trust Model
 /// Represents the trust score and breakdown for a station
 class StationTrust {
@@ -33,24 +35,25 @@ class StationTrust {
     };
   }
 
-  /// Get score color based on value
-  /// 80-100: Green (Good)
-  /// 60-79: Yellow/Orange (Fair)
-  /// 40-59: Orange (Poor)
-  /// 0-39: Red (Very Poor)
-  String get scoreColor {
-    if (score >= 80) return 'green';
-    if (score >= 60) return 'orange';
-    if (score >= 40) return 'deepOrange';
-    return 'red';
-  }
-
-  /// Get score label
-  String get scoreLabel {
+  String get levelLabel {
     if (score >= 80) return 'Good';
     if (score >= 60) return 'Fair';
     if (score >= 40) return 'Poor';
     return 'Very Poor';
+  }
+
+  Color get scoreColor {
+    if (score >= 80) return const Color(0xFF2E7D32); // green
+    if (score >= 60) return const Color(0xFFEF6C00); // orange
+    if (score >= 40) return const Color(0xFFE64A19); // deepOrange
+    return const Color(0xFFC62828); // red
+  }
+
+  IconData get levelIcon {
+    if (score >= 80) return Icons.verified;
+    if (score >= 60) return Icons.check_circle_outline;
+    if (score >= 40) return Icons.warning;
+    return Icons.error_outline;
   }
 }
 

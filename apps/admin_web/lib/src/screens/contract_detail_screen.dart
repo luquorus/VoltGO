@@ -494,6 +494,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
                     context,
                     ref,
                     contract.id,
+                    contract.collaboratorId,
                     regionController.text.trim().isEmpty ? null : regionController.text.trim(),
                     startDate!,
                     endDate!,
@@ -575,6 +576,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
     BuildContext context,
     WidgetRef ref,
     String contractId,
+    String collaboratorId,
     String? region,
     DateTime startDate,
     DateTime endDate,
@@ -597,11 +599,13 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Contract updated successfully'),
+            content: Text('Contract updated successfully. Notification sent to collaborator.'),
             backgroundColor: Colors.green,
           ),
         );
         ref.invalidate(contractProvider(contractId));
+        ref.invalidate(contractsByCollaboratorProvider(collaboratorId));
+        ref.invalidate(allCollaboratorsProvider);
       }
     } catch (e) {
       if (context.mounted) {
@@ -631,12 +635,13 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Contract terminated successfully'),
+            content: Text('Contract terminated successfully. Notification sent to collaborator.'),
             backgroundColor: Colors.green,
           ),
         );
         ref.invalidate(contractProvider(contractId));
         ref.invalidate(contractsByCollaboratorProvider(collaboratorId));
+        ref.invalidate(allCollaboratorsProvider);
       }
     } catch (e) {
       if (context.mounted) {

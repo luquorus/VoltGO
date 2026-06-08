@@ -733,12 +733,13 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Contract created successfully'),
+            content: Text('Contract created successfully. Notification sent to collaborator.'),
             backgroundColor: Colors.green,
           ),
         );
         ref.invalidate(contractsByCollaboratorProvider(collaboratorId));
         ref.invalidate(collaboratorProvider(widget.id));
+        ref.invalidate(allCollaboratorsProvider);
       }
     } catch (e) {
       if (context.mounted) {

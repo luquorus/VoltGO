@@ -1,6 +1,7 @@
 package com.example.evstation.verification.infrastructure.jpa;
 
 import com.example.evstation.verification.domain.VerificationTaskStatus;
+import com.example.evstation.verification.domain.VerificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -77,5 +78,48 @@ public interface VerificationTaskJpaRepository extends JpaRepository<Verificatio
     List<UUID> findDistinctStationIdsByAssignedToAndStatusIn(
             @Param("assignedTo") UUID assignedTo,
             @Param("statuses") List<VerificationTaskStatus> statuses);
+
+    // ========== Battery Swap Verification Queries ==========
+
+    List<VerificationTaskEntity> findByStationIdAndVerificationTypeOrderByCreatedAtDesc(
+            UUID stationId, VerificationType type);
+
+    Page<VerificationTaskEntity> findByVerificationTypeOrderByCreatedAtDesc(VerificationType type, Pageable pageable);
+
+    Page<VerificationTaskEntity> findByVerificationTypeAndStatusOrderByCreatedAtDesc(
+            VerificationType type, VerificationTaskStatus status, Pageable pageable);
+
+    List<VerificationTaskEntity> findByAssignedToAndVerificationTypeOrderByCreatedAtDesc(
+            UUID assignedTo, VerificationType type);
+
+    Page<VerificationTaskEntity> findByAssignedToAndVerificationTypeOrderByPriorityAscSlaDueAtAscCreatedAtDesc(
+            UUID assignedTo, VerificationType type, Pageable pageable);
+
+    Page<VerificationTaskEntity> findByAssignedToAndVerificationTypeAndStatusOrderByPriorityAscSlaDueAtAscCreatedAtDesc(
+            UUID assignedTo, VerificationType type, VerificationTaskStatus status, Pageable pageable);
+
+    @Query("""
+        SELECT t FROM VerificationTaskEntity t
+        WHERE t.assignedTo = :assignedTo
+        AND t.verificationType = :type
+        AND t.status IN :statuses
+        ORDER BY t.priority ASC, t.slaDueAt ASC NULLS LAST, t.createdAt DESC
+        """)
+    List<VerificationTaskEntity> findByAssignedToAndVerificationTypeAndStatusIn(
+            @Param("assignedTo") UUID assignedTo,
+            @Param("type") VerificationType type,
+            @Param("statuses") List<VerificationTaskStatus> statuses);
+
+    @Query("""
+        SELECT t FROM VerificationTaskEntity t
+        WHERE t.assignedTo = :assignedTo
+        AND t.verificationType = :type
+        AND t.status = 'REVIEWED'
+        ORDER BY t.createdAt DESC
+        """)
+    Page<VerificationTaskEntity> findReviewedByAssignedToAndVerificationType(
+            @Param("assignedTo") UUID assignedTo,
+            @Param("type") VerificationType type,
+            Pageable pageable);
 }
 

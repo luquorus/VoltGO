@@ -2,24 +2,29 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:shared_api/shared_api.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../models/station_trust.dart';
+import '../models/station_trust_summary.dart';
 import '../providers/station_trust_providers.dart';
 import '../repositories/station_trust_repository.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
 
-/// Station Trust Screen
-/// 
-/// Note: This page requires a stationId to be provided either via:
-/// - Deep link: /stations/{stationId}/trust
-/// - Manual input: Enter stationId in the input field
-/// 
-/// OpenAPI limitation: There is no endpoint to list stations for admin,
-/// so this page operates only with a specific stationId.
+final _stationTrustSummaryProvider = FutureProvider<StationTrustSummary>((ref) async {
+  final factory = ref.watch(apiClientFactoryProvider);
+  if (factory == null) throw Exception('API client not initialized');
+
+  try {
+    final response = await factory.admin.getStationsTrustSummary();
+    return StationTrustSummary.fromJson(response);
+  } catch (e) {
+    throw Exception('Failed to get trust summary: $e');
+  }
+});
+
 class StationTrustScreen extends ConsumerStatefulWidget {
-  final String? stationId; // Optional: from deep link
+  final String? stationId;
 
   const StationTrustScreen({
     super.key,
@@ -31,36 +36,14 @@ class StationTrustScreen extends ConsumerStatefulWidget {
 }
 
 class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _stationIdController = TextEditingController();
   String? _currentStationId;
 
   @override
   void initState() {
     super.initState();
-    // If stationId provided via deep link, set it
     if (widget.stationId != null) {
       _currentStationId = widget.stationId;
-      _stationIdController.text = widget.stationId!;
     }
-  }
-
-  @override
-  void dispose() {
-    _stationIdController.dispose();
-    super.dispose();
-  }
-
-  void _handleLoadTrust() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final stationId = _stationIdController.text.trim();
-    setState(() {
-      _currentStationId = stationId;
-    });
-    
-    // Invalidate to trigger fetch
-    ref.invalidate(stationTrustProvider(stationId));
   }
 
   Future<void> _handleRecalculate(String stationId) async {
@@ -104,7 +87,6 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
         );
       }
 
-      // Refresh data
       ref.invalidate(stationTrustProvider(stationId));
     } catch (e) {
       if (mounted) {
@@ -123,218 +105,133 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
     final theme = Theme.of(context);
 
     return AdminScaffold(
-      title: 'Station Trust Score',
+      title: 'Station Trust Dashboard',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Input Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Station ID',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _stationIdController,
-                              enabled: _currentStationId == null,
-                              decoration: InputDecoration(
-                                labelText: 'Station ID (UUID) *',
-                                hintText: 'Enter station UUID...',
-                                border: const OutlineInputBorder(),
-                              ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Station ID is required';
-                                }
-                                // Basic UUID validation
-                                final uuidPattern = RegExp(
-                                  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-                                );
-                                if (!uuidPattern.hasMatch(v.trim())) {
-                                  return 'Please enter a valid UUID format';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: _currentStationId == null ? _handleLoadTrust : null,
-                            icon: const Icon(Icons.search),
-                            label: const Text('Load Trust'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AdminTheme.primaryTeal,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_currentStationId != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          'Note: To view a different station, clear the current station ID first.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _currentStationId = null;
-                              _stationIdController.clear();
-                            });
-                          },
-                          icon: const Icon(Icons.clear),
-                          label: const Text('Clear & Enter New Station ID'),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Trust Score Display
-            if (_currentStationId != null)
-              _buildTrustScoreDisplay(theme, _currentStationId!),
+            if (_currentStationId == null) ...[
+              _buildStationIdInput(theme),
+              const SizedBox(height: 24),
+            ],
+            if (_currentStationId != null) ...[
+              _buildStationSelector(theme),
+              const SizedBox(height: 24),
+              _buildTrustScoreDisplay(theme),
+            ] else ...[
+              _buildSummaryDashboard(theme),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTrustScoreDisplay(ThemeData theme, String stationId) {
-    final trustAsync = ref.watch(stationTrustProvider(stationId));
+  Widget _buildStationIdInput(ThemeData theme) {
+    final controller = TextEditingController();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter Station ID',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Enter a charging station ID to view its trust score and breakdown, '
+              'or leave empty to view the overall trust summary.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      labelText: 'Station ID (UUID)',
+                      hintText: 'Enter station UUID...',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onSubmitted: (value) {
+                      if (value.trim().isNotEmpty) {
+                        setState(() {
+                          _currentStationId = value.trim();
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStationSelector(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.electric_bolt, color: AdminTheme.primaryTeal),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Station ID',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  Text(
+                    _currentStationId!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _currentStationId = null;
+                });
+              },
+              icon: const Icon(Icons.dashboard),
+              label: const Text('View Summary'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrustScoreDisplay(ThemeData theme) {
+    final trustAsync = ref.watch(stationTrustProvider(_currentStationId!));
 
     return trustAsync.when(
       data: (trust) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Score Badge & Actions
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Trust Score',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildScoreBadge(theme, trust),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trust.scoreLabel,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: _getScoreColor(theme, trust.score),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Last updated: ${_formatDateTime(trust.updatedAt)}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _handleRecalculate(stationId),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Recalculate Trust'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AdminTheme.primaryTeal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildScoreOverviewCard(theme, trust),
           const SizedBox(height: 24),
-
-          // Breakdown Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Breakdown',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.copy),
-                        onPressed: () {
-                          final jsonStr = _formatBreakdownJson(trust.breakdown);
-                          Clipboard.setData(ClipboardData(text: jsonStr));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Breakdown JSON copied to clipboard'),
-                              duration: Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        tooltip: 'Copy JSON to clipboard',
-                        color: AdminTheme.primaryTeal,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildBreakdownView(theme, trust.breakdown),
-                ],
-              ),
-            ),
-          ),
+          _buildDimensionBreakdown(theme, trust),
         ],
       ),
       loading: () => const Center(
@@ -352,7 +249,7 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
             code: extractErrorCode(error),
             traceId: extractTraceId(error),
             onRetry: () {
-              ref.invalidate(stationTrustProvider(stationId));
+              ref.invalidate(stationTrustProvider(_currentStationId!));
             },
           ),
         ),
@@ -360,31 +257,159 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
     );
   }
 
-  Widget _buildScoreBadge(ThemeData theme, StationTrust trust) {
-    final color = _getScoreColor(theme, trust.score);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 2),
-      ),
-      child: Text(
-        trust.score.toStringAsFixed(1),
-        style: theme.textTheme.headlineMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: color,
+  Widget _buildScoreOverviewCard(ThemeData theme, StationTrust trust) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Trust Score',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: trust.scoreColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: trust.scoreColor, width: 2),
+                            ),
+                            child: Text(
+                              trust.score.toStringAsFixed(1),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: trust.scoreColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                trust.levelLabel,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: trust.scoreColor,
+                                ),
+                              ),
+                              Text(
+                                'Level: ${trust.levelLabel}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    Icon(
+                      trust.levelIcon,
+                      size: 64,
+                      color: trust.scoreColor,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      trust.levelLabel,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: trust.scoreColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(
+                  'Last updated: ${_formatDateTime(trust.updatedAt)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  onPressed: () => _handleRecalculate(_currentStationId!),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Recalculate Trust'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AdminTheme.primaryTeal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Color _getScoreColor(ThemeData theme, double score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 60) return Colors.orange;
-    if (score >= 40) return Colors.deepOrange;
-    return Colors.red;
+  Widget _buildDimensionBreakdown(ThemeData theme, StationTrust trust) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.analytics, color: AdminTheme.primaryTeal),
+                const SizedBox(width: 8),
+                Text(
+                  'Trust Breakdown',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.copy),
+                  onPressed: () {
+                    final jsonStr = _formatBreakdownJson(trust.breakdown);
+                    Clipboard.setData(ClipboardData(text: jsonStr));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Breakdown JSON copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  tooltip: 'Copy JSON to clipboard',
+                  color: AdminTheme.primaryTeal,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildBreakdownView(theme, trust.breakdown),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBreakdownView(ThemeData theme, Map<String, dynamic> breakdown) {
@@ -419,7 +444,7 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
 
   Widget _buildBreakdownTree(ThemeData theme, Map<String, dynamic> data, int indentLevel) {
     final entries = data.entries.toList();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: entries.map((entry) {
@@ -490,19 +515,415 @@ class _StationTrustScreenState extends ConsumerState<StationTrustScreen> {
     }
   }
 
+  Widget _buildSummaryDashboard(ThemeData theme) {
+    final summaryAsync = ref.watch(_stationTrustSummaryProvider);
+
+    return summaryAsync.when(
+      data: (summary) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildOverviewStatCard(
+                theme,
+                icon: Icons.electric_bolt,
+                label: 'Total Stations',
+                value: summary.totalStations.toString(),
+                color: AdminTheme.primaryTeal,
+              ),
+              const SizedBox(width: 16),
+              _buildOverviewStatCard(
+                theme,
+                icon: Icons.trending_up,
+                label: 'Average Score',
+                value: summary.averageScore.toStringAsFixed(1),
+                color: Colors.blue,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Trust Score Distribution',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildDistributionChart(theme, summary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildTopStationsCard(theme, summary.topStations, true),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTopStationsCard(theme, summary.bottomStations, false),
+              ),
+            ],
+          ),
+        ],
+      ),
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(48),
+          child: LoadingState(message: 'Loading summary...'),
+        ),
+      ),
+      error: (error, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(48),
+          child: ErrorState(
+            title: 'Could not load trust summary',
+            message: formatApiError(error),
+            code: extractErrorCode(error),
+            traceId: extractTraceId(error),
+            onRetry: () {
+              ref.invalidate(_stationTrustSummaryProvider);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverviewStatCard(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDistributionChart(ThemeData theme, StationTrustSummary summary) {
+    final total = summary.totalStations;
+    if (total == 0) {
+      return Center(
+        child: Text(
+          'No data available',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+      );
+    }
+
+    final highPercent = (summary.highCount / total * 100).toStringAsFixed(1);
+    final mediumPercent = (summary.mediumCount / total * 100).toStringAsFixed(1);
+    final lowPercent = (summary.lowCount / total * 100).toStringAsFixed(1);
+
+    return Column(
+      children: [
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Row(
+            children: [
+              if (summary.highCount > 0)
+                Expanded(
+                  flex: summary.highCount,
+                  child: Container(
+                    color: Colors.green,
+                    alignment: Alignment.center,
+                    child: summary.highCount > 2
+                        ? Text(
+                            '${summary.highCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              if (summary.mediumCount > 0)
+                Expanded(
+                  flex: summary.mediumCount,
+                  child: Container(
+                    color: Colors.orange,
+                    alignment: Alignment.center,
+                    child: summary.mediumCount > 2
+                        ? Text(
+                            '${summary.mediumCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              if (summary.lowCount > 0)
+                Expanded(
+                  flex: summary.lowCount,
+                  child: Container(
+                    color: Colors.red,
+                    alignment: Alignment.center,
+                    child: summary.lowCount > 2
+                        ? Text(
+                            '${summary.lowCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildLegendItem(theme, 'High', summary.highCount, highPercent, Colors.green),
+            _buildLegendItem(theme, 'Medium', summary.mediumCount, mediumPercent, Colors.orange),
+            _buildLegendItem(theme, 'Low', summary.lowCount, lowPercent, Colors.red),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(ThemeData theme, String label, int count, String percent, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$label ($count)',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '$percent%',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopStationsCard(
+    ThemeData theme,
+    List<StationTrustStationSummary> stations,
+    bool isTop,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isTop ? Icons.arrow_upward : Icons.arrow_downward,
+                  color: isTop ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isTop ? 'Top Stations' : 'Bottom Stations',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (stations.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No data available',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...stations.map((station) => _buildStationListItem(theme, station)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStationListItem(ThemeData theme, StationTrustStationSummary station) {
+    final color = _getLevelColor(station.level);
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _currentStationId = station.stationId;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                station.score.toStringAsFixed(1),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    station.stationName ?? 'Unknown',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'ID: ${station.stationId.length > 8 ? station.stationId.substring(0, 8) : station.stationId}...',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              _getLevelIcon(station.level),
+              color: color,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getLevelIcon(String level) {
+    switch (level.toUpperCase()) {
+      case 'GOOD':
+        return Icons.verified;
+      case 'FAIR':
+        return Icons.check_circle_outline;
+      case 'POOR':
+      case 'VERY POOR':
+        return Icons.warning;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  Color _getLevelColor(String level) {
+    switch (level.toUpperCase()) {
+      case 'GOOD':
+        return Colors.green;
+      case 'FAIR':
+        return Colors.orange;
+      case 'POOR':
+      case 'VERY POOR':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day.toString().padLeft(2, '0')}/'
+        '${dateTime.month.toString().padLeft(2, '0')}/'
+        '${dateTime.year} '
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
   String _formatBreakdownJson(Map<String, dynamic> breakdown) {
     const encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(breakdown);
   }
-
-  String _formatDateTime(DateTime dateTime) {
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final year = dateTime.year;
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final second = dateTime.second.toString().padLeft(2, '0');
-    return '$day/$month/$year $hour:$minute:$second';
-  }
 }
-

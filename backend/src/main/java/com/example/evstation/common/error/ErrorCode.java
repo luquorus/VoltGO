@@ -22,6 +22,22 @@ public enum ErrorCode {
     INVALID_TIME_RANGE("EVS-0011", "Invalid time range"),
     SERVICE_UNAVAILABLE("EVS-0012", "Service temporarily unavailable"),
     ROUTE_NOT_FOUND("EVS-0013", "No route found between origin and destination"),
+
+    // Loyalty errors
+    RATING_LIMIT_EXCEEDED("EVS-0101", "Daily rating limit exceeded"),
+    STATION_NOT_FOUND("EVS-0102", "Station not found"),
+    ELIGIBILITY_NOT_FOUND("EVS-0103", "Rating eligibility not found"),
+    USER_NOT_FOUND("EVS-0104", "User not found"),
+
+    // Voucher errors
+    VOUCHER_DEFINITION_NOT_FOUND("EVS-0105", "Voucher definition not found"),
+    VOUCHER_NOT_ACTIVE("EVS-0106", "Voucher is not active"),
+    INSUFFICIENT_POINTS("EVS-0107", "Insufficient points for redemption"),
+    VOUCHER_REDEMPTION_NOT_FOUND("EVS-0108", "Voucher redemption not found"),
+    VOUCHER_ALREADY_USED("EVS-0109", "Voucher has already been used"),
+    VOUCHER_EXPIRED("EVS-0110", "Voucher has expired"),
+    VOUCHER_SERVICE_TYPE_MISMATCH("EVS-0111", "Voucher service type does not match booking"),
+    BOOKING_NOT_FOUND("EVS-0112", "Booking not found"),
     ;
 
     private final String code;

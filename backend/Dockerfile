@@ -6,11 +6,11 @@ WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY gradle ./gradle
 
-# Copy source code
+# Copy source code (V130 migration is added here)
 COPY src ./src
 
-# Build application
-RUN gradle clean build -x test --no-daemon
+# Build application — force no Gradle cache
+RUN gradle clean build -x test --no-daemon --no-build-cache
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine

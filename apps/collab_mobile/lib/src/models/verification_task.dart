@@ -13,6 +13,8 @@ class VerificationTask {
   final Checkin? checkin;
   final List<Evidence> evidences;
   final Review? review;
+  final List<ChecklistItem>? checklist;
+  final StationSnapshotDTO? stationSnapshot;
 
   VerificationTask({
     required this.id,
@@ -28,6 +30,8 @@ class VerificationTask {
     this.checkin,
     this.evidences = const [],
     this.review,
+    this.checklist,
+    this.stationSnapshot,
   });
 
   factory VerificationTask.fromJson(Map<String, dynamic> json) {
@@ -54,6 +58,13 @@ class VerificationTask {
       review: json['review'] != null
           ? Review.fromJson(json['review'] as Map<String, dynamic>)
           : null,
+      checklist: (json['checklist'] as List<dynamic>?)
+          ?.map((e) => ChecklistItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      stationSnapshot: json['stationSnapshot'] != null
+          ? StationSnapshotDTO.fromJson(
+              json['stationSnapshot'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -72,6 +83,149 @@ class VerificationTask {
       if (checkin != null) 'checkin': checkin!.toJson(),
       'evidences': evidences.map((e) => e.toJson()).toList(),
       if (review != null) 'review': review!.toJson(),
+    };
+  }
+}
+
+/// Checklist answer value enum
+enum ChecklistAnswerValue {
+  yes,
+  no,
+  unableToVerify;
+
+  static ChecklistAnswerValue fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'YES':
+        return ChecklistAnswerValue.yes;
+      case 'NO':
+        return ChecklistAnswerValue.no;
+      case 'UNABLE_TO_VERIFY':
+        return ChecklistAnswerValue.unableToVerify;
+      default:
+        throw ArgumentError('Unknown answer value: $value');
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case ChecklistAnswerValue.yes:
+        return 'YES';
+      case ChecklistAnswerValue.no:
+        return 'NO';
+      case ChecklistAnswerValue.unableToVerify:
+        return 'UNABLE_TO_VERIFY';
+    }
+  }
+}
+
+/// Checklist item definition
+class ChecklistItem {
+  final String id;
+  final String question;
+  final String type;
+  final String sourceCode;
+
+  ChecklistItem({
+    required this.id,
+    required this.question,
+    required this.type,
+    required this.sourceCode,
+  });
+
+  factory ChecklistItem.fromJson(Map<String, dynamic> json) {
+    return ChecklistItem(
+      id: json['id'] as String,
+      question: json['question'] as String,
+      type: json['type'] as String,
+      sourceCode: json['sourceCode'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'question': question,
+      'type': type,
+      'sourceCode': sourceCode,
+    };
+  }
+}
+
+/// Checklist answer submitted by collaborator
+class ChecklistAnswer {
+  final String itemId;
+  final String question;
+  final String type;
+  final String sourceCode;
+  final ChecklistAnswerValue answer;
+
+  ChecklistAnswer({
+    required this.itemId,
+    required this.question,
+    required this.type,
+    required this.sourceCode,
+    required this.answer,
+  });
+
+  factory ChecklistAnswer.fromJson(Map<String, dynamic> json) {
+    return ChecklistAnswer(
+      itemId: json['itemId'] as String,
+      question: json['question'] as String,
+      type: json['type'] as String,
+      sourceCode: json['sourceCode'] as String,
+      answer: ChecklistAnswerValue.fromString(json['answer'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'itemId': itemId,
+      'question': question,
+      'type': type,
+      'sourceCode': sourceCode,
+      'answer': answer.toString(),
+    };
+  }
+}
+
+/// Station snapshot at task creation time
+class StationSnapshotDTO {
+  final int? totalBatteries;
+  final double? avgChargePowerKw;
+  final int? pileCount;
+  final int? slotCount;
+  final String? operatingHours;
+  final double? parkingFee;
+
+  StationSnapshotDTO({
+    this.totalBatteries,
+    this.avgChargePowerKw,
+    this.pileCount,
+    this.slotCount,
+    this.operatingHours,
+    this.parkingFee,
+  });
+
+  factory StationSnapshotDTO.fromJson(Map<String, dynamic> json) {
+    return StationSnapshotDTO(
+      totalBatteries: (json['totalBatteries'] as num?)?.toInt(),
+      avgChargePowerKw: (json['avgChargePowerKw'] as num?)?.toDouble(),
+      pileCount: (json['pileCount'] as num?)?.toInt(),
+      slotCount: (json['slotCount'] as num?)?.toInt(),
+      operatingHours: json['operatingHours'] as String?,
+      parkingFee: (json['parkingFee'] as num?)?.toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (totalBatteries != null) 'totalBatteries': totalBatteries,
+      if (avgChargePowerKw != null) 'avgChargePowerKw': avgChargePowerKw,
+      if (pileCount != null) 'pileCount': pileCount,
+      if (slotCount != null) 'slotCount': slotCount,
+      if (operatingHours != null) 'operatingHours': operatingHours,
+      if (parkingFee != null) 'parkingFee': parkingFee,
     };
   }
 }
@@ -140,6 +294,7 @@ class Checkin {
   final DateTime checkedInAt;
   final int? distanceM;
   final String? deviceNote;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   Checkin({
     required this.lat,
@@ -147,6 +302,7 @@ class Checkin {
     required this.checkedInAt,
     this.distanceM,
     this.deviceNote,
+    this.checklistAnswers,
   });
 
   factory Checkin.fromJson(Map<String, dynamic> json) {
@@ -156,6 +312,10 @@ class Checkin {
       checkedInAt: DateTime.parse(json['checkedInAt'] as String),
       distanceM: json['distanceM'] as int?,
       deviceNote: json['deviceNote'] as String?,
+      checklistAnswers: (json['checklistAnswers'] as List<dynamic>?)
+          ?.map(
+              (e) => ChecklistAnswer.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -166,6 +326,9 @@ class Checkin {
       'checkedInAt': checkedInAt.toIso8601String(),
       if (distanceM != null) 'distanceM': distanceM,
       if (deviceNote != null) 'deviceNote': deviceNote,
+      if (checklistAnswers != null)
+        'checklistAnswers':
+            checklistAnswers!.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -201,6 +364,9 @@ class Review {
       'reviewedBy': reviewedBy,
     };
   }
+
+  bool get isPass => result == 'PASS';
+  bool get isFail => result == 'FAIL';
 }
 
 /// Check-in request DTO
@@ -208,11 +374,13 @@ class CheckinRequest {
   final double lat;
   final double lng;
   final String? deviceNote;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   CheckinRequest({
     required this.lat,
     required this.lng,
     this.deviceNote,
+    this.checklistAnswers,
   });
 
   Map<String, dynamic> toJson() {
@@ -220,6 +388,9 @@ class CheckinRequest {
       'lat': lat,
       'lng': lng,
       if (deviceNote != null) 'deviceNote': deviceNote,
+      if (checklistAnswers != null)
+        'checklistAnswers':
+            checklistAnswers!.map((e) => e.toJson()).toList(),
     };
   }
 }

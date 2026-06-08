@@ -17,5 +17,7 @@ public class PaymentIntentResponseDTO {
     private String status; // CREATED, SUCCEEDED, FAILED
     private Instant createdAt;
     private Instant updatedAt;
+    private UUID voucherRedemptionId;
+    private Integer discountAmount;
 }
 

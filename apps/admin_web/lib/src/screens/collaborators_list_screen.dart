@@ -291,6 +291,11 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
               ),
             ),
             IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Delete collaborator',
+              onPressed: () => _showDeleteDialog(context, ref, collaborator),
+            ),
+            IconButton(
               icon: const Icon(Icons.chevron_right),
               onPressed: () {
                 context.push('/collaborators/${collaborator.id}');
@@ -309,110 +314,182 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
   }
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
-    final userAccountIdController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
     final fullNameController = TextEditingController();
-    final phoneController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create Collaborator Profile'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: userAccountIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'User Account ID *',
-                    hintText: 'Enter user account UUID with COLLABORATOR role',
-                    helperText: 'The user account must have COLLABORATOR role',
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Create Collaborator'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email *',
+                      hintText: 'e.g. collab@example.com',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Email is required' : null,
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'User Account ID is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: fullNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    hintText: 'Enter full name (optional)',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password *',
+                      hintText: 'Min 8 characters',
+                    ),
+                    obscureText: true,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Password is required';
+                      if (v.length < 8) return 'Min 8 characters';
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    hintText: 'Enter phone number (optional)',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: fullNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name *',
+                      hintText: 'e.g. John Doe',
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Full name is required' : null,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (formKey.currentState!.validate()) {
+                        setDialogState(() => isLoading = true);
+                        await _handleCreateWithAccount(
+                          context,
+                          ref,
+                          emailController.text.trim(),
+                          passwordController.text,
+                          fullNameController.text.trim(),
+                        );
+                        if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primaryTeal,
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleCreateWithAccount(
+    BuildContext context,
+    WidgetRef ref,
+    String email,
+    String password,
+    String fullName,
+  ) async {
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+
+      await factory.admin.createCollaboratorWithAccount(
+        email: email,
+        password: password,
+        fullName: fullName,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Collaborator account created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(collaboratorsProvider);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${formatApiError(e)}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, CollaboratorProfile collaborator) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Collaborator'),
+        content: Text(
+          'Are you sure you want to delete "${collaborator.fullName ?? collaborator.email}"?\n\nThis will permanently remove the collaborator account and their profile. This action cannot be undone.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                await _handleCreate(
-                  context,
-                  ref,
-                  userAccountIdController.text.trim(),
-                  fullNameController.text.trim().isEmpty
-                      ? null
-                      : fullNameController.text.trim(),
-                  phoneController.text.trim().isEmpty
-                      ? null
-                      : phoneController.text.trim(),
-                );
-                if (context.mounted) Navigator.of(context).pop();
-              }
+              Navigator.of(dialogContext).pop();
+              await _handleDelete(context, ref, collaborator);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AdminTheme.primaryTeal,
+              backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Create'),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _handleCreate(
+  Future<void> _handleDelete(
     BuildContext context,
     WidgetRef ref,
-    String userAccountId,
-    String? fullName,
-    String? phone,
+    CollaboratorProfile collaborator,
   ) async {
     try {
       final factory = ref.read(apiClientFactoryProvider);
       if (factory == null) throw Exception('API client not initialized');
 
-      await factory.admin.createCollaborator(
-        userAccountId: userAccountId,
-        fullName: fullName,
-        phone: phone,
-      );
+      await factory.admin.deleteCollaborator(collaborator.id);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Collaborator profile created successfully'),
+            content: Text('Collaborator deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );

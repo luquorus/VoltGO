@@ -1,10 +1,14 @@
 package com.example.evstation.trust.application;
 
+import com.example.evstation.api.admin_web.dto.StationTrustStationSummaryDTO;
+import com.example.evstation.api.admin_web.dto.StationTrustSummaryDTO;
 import com.example.evstation.station.domain.ChangeRequestStatus;
 import com.example.evstation.station.infrastructure.jpa.ChangeRequestEntity;
 import com.example.evstation.station.infrastructure.jpa.ChangeRequestJpaRepository;
 import com.example.evstation.station.infrastructure.jpa.ReportIssueEntity;
 import com.example.evstation.station.infrastructure.jpa.ReportIssueJpaRepository;
+import com.example.evstation.station.infrastructure.jpa.StationVersionJpaRepository;
+import com.example.evstation.station.infrastructure.jpa.StationVersionEntity;
 import com.example.evstation.trust.domain.TrustBreakdown;
 import com.example.evstation.trust.infrastructure.jpa.StationTrustEntity;
 import com.example.evstation.trust.infrastructure.jpa.StationTrustJpaRepository;
@@ -19,9 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Service for calculating and updating station trust scores.
@@ -52,6 +60,7 @@ public class TrustScoringService {
     private final ReportIssueJpaRepository issueRepository;
     private final ChangeRequestJpaRepository changeRequestRepository;
     private final VerificationReviewJpaRepository verificationReviewRepository;
+    private final StationVersionJpaRepository stationVersionRepository;
     private final Clock clock;
     
     /**
@@ -129,6 +138,95 @@ public class TrustScoringService {
     @Transactional(readOnly = true)
     public Optional<StationTrustEntity> getTrustEntity(UUID stationId) {
         return trustRepository.findById(stationId);
+    }
+
+    /**
+     * Get trust summary across all CHARGING stations only.
+     * Trust is only tracked for CHARGING stations.
+     */
+    @Transactional(readOnly = true)
+    public StationTrustSummaryDTO getSummary() {
+        List<StationTrustEntity> allTrust = trustRepository.findAllForChargingStations();
+
+        if (allTrust.isEmpty()) {
+            return StationTrustSummaryDTO.builder()
+                    .totalStations(0)
+                    .averageScore(0.0)
+                    .highCount(0)
+                    .mediumCount(0)
+                    .lowCount(0)
+                    .topStations(List.of())
+                    .bottomStations(List.of())
+                    .build();
+        }
+
+        List<UUID> stationIds = allTrust.stream()
+                .map(StationTrustEntity::getStationId)
+                .toList();
+
+        Map<UUID, StationVersionEntity> stationVersionMap = stationVersionRepository
+                .findPublishedByStationIds(stationIds)
+                .stream()
+                .collect(Collectors.toMap(StationVersionEntity::getStationId, Function.identity()));
+
+        double avg = allTrust.stream()
+                .mapToInt(StationTrustEntity::getScore)
+                .average()
+                .orElse(0.0);
+
+        int high = 0, medium = 0, low = 0;
+        for (StationTrustEntity t : allTrust) {
+            if (t.getScore() >= 80) high++;
+            else if (t.getScore() >= 60) medium++;
+            else low++;
+        }
+
+        Function<Integer, String> levelOf = (score) -> {
+            if (score >= 80) return "Good";
+            if (score >= 60) return "Fair";
+            if (score >= 40) return "Poor";
+            return "Very Poor";
+        };
+
+        Comparator<StationTrustEntity> scoreCmp = Comparator.comparingInt(StationTrustEntity::getScore);
+
+        List<StationTrustStationSummaryDTO> top5 = allTrust.stream()
+                .sorted(scoreCmp.reversed())
+                .limit(5)
+                .map(t -> {
+                    StationVersionEntity v = stationVersionMap.get(t.getStationId());
+                    return StationTrustStationSummaryDTO.builder()
+                            .stationId(t.getStationId().toString())
+                            .stationName(v != null ? v.getName() : null)
+                            .score(t.getScore())
+                            .level(levelOf.apply(t.getScore()))
+                            .build();
+                })
+                .toList();
+
+        List<StationTrustStationSummaryDTO> bottom5 = allTrust.stream()
+                .sorted(scoreCmp)
+                .limit(5)
+                .map(t -> {
+                    StationVersionEntity v = stationVersionMap.get(t.getStationId());
+                    return StationTrustStationSummaryDTO.builder()
+                            .stationId(t.getStationId().toString())
+                            .stationName(v != null ? v.getName() : null)
+                            .score(t.getScore())
+                            .level(levelOf.apply(t.getScore()))
+                            .build();
+                })
+                .toList();
+
+        return StationTrustSummaryDTO.builder()
+                .totalStations(allTrust.size())
+                .averageScore(avg)
+                .highCount(high)
+                .mediumCount(medium)
+                .lowCount(low)
+                .topStations(top5)
+                .bottomStations(bottom5)
+                .build();
     }
     
     // ========== Private calculation methods ==========

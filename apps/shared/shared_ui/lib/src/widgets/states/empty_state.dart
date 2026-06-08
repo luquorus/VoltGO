@@ -39,29 +39,36 @@ class EmptyState extends StatelessWidget {
                 ? FaIcon(resolvedIcon, size: size, color: color)
                 : Icon(resolvedIcon, size: size, color: color),
             SizedBox(height: compact ? 12 : 16),
-            if (title != null) ...[
-              Text(
-                title!,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.8),
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (title != null) ...[
+                    Text(
+                      title!,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.8),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  if (message != null)
+                    Text(
+                      message!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  if (action != null) ...[
+                    SizedBox(height: compact ? 16 : 24),
+                    action!,
+                  ],
+                ],
               ),
-              const SizedBox(height: 6),
-            ],
-            if (message != null)
-              Text(
-                message!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            if (action != null) ...[
-              SizedBox(height: compact ? 16 : 24),
-              action!,
-            ],
+            ),
           ],
         ),
       ),

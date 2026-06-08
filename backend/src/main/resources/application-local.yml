@@ -9,7 +9,7 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
-  
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,7 +22,20 @@ spring:
         use_sql_comments: true
   flyway:
     enabled: true
-  
+
+  # Email configuration (SMTP)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -33,4 +46,14 @@ spring:
           max-active: 8
       max-idle: 8
       min-idle: 0
+
+# MinIO - used for presigned URLs that clients (browsers, mobile) call directly
+minio:
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+
+# Application-specific email settings
+app:
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    from-name: VoltGo
 

@@ -314,5 +314,15 @@ public class CollaboratorCandidateQueryService {
         if (b == null) return -1;
         return a.compareTo(b);
     }
+
+    /**
+     * Find user ID by email address.
+     */
+    @Transactional(readOnly = true)
+    public UUID findUserIdByEmail(String email) {
+        return userAccountRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User not found with email: " + email))
+                .getId();
+    }
 }
 

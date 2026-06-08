@@ -166,6 +166,7 @@ class BatterySwapStationDetailModel {
   final String? address;
   final double? lat;
   final double? lng;
+  final String? operatingHours;
   final double avgChargePowerKw;
   final int basePriceVnd;
   final int totalPiles;
@@ -180,6 +181,7 @@ class BatterySwapStationDetailModel {
     this.address,
     this.lat,
     this.lng,
+    this.operatingHours,
     required this.avgChargePowerKw,
     required this.basePriceVnd,
     required this.totalPiles,
@@ -196,6 +198,7 @@ class BatterySwapStationDetailModel {
       address: j['address'] as String?,
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
+      operatingHours: j['operatingHours'] as String?,
       avgChargePowerKw: (j['avgChargePowerKw'] as num?)?.toDouble() ?? 35,
       basePriceVnd: (j['basePriceVnd'] as num?)?.toInt() ?? 5000,
       totalPiles: (j['totalPiles'] as num?)?.toInt() ?? 0,
@@ -240,8 +243,10 @@ class BatterySwapReservationModel {
   final String? note;
   /// Mã swap 4 chữ số dùng để xác thực tại trạm.
   final String? swapCode;
-  /// Thời điểm mã swap hết hạn.
+  /// Time the swap code expires.
   final DateTime? swapDeadlineAt;
+  final String? voucherRedemptionId;
+  final int? discountAmountVnd;
 
   const BatterySwapReservationModel({
     required this.id,
@@ -268,6 +273,8 @@ class BatterySwapReservationModel {
     this.note,
     this.swapCode,
     this.swapDeadlineAt,
+    this.voucherRedemptionId,
+    this.discountAmountVnd,
   });
 
   static DateTime? _parseInstant(dynamic v) {
@@ -304,6 +311,8 @@ class BatterySwapReservationModel {
       note: j['note'] as String?,
       swapCode: j['swapCode'] as String?,
       swapDeadlineAt: _parseInstant(j['swapDeadlineAt']),
+      voucherRedemptionId: j['voucherRedemptionId'] as String?,
+      discountAmountVnd: (j['discountAmountVnd'] as num?)?.toInt(),
     );
   }
 }

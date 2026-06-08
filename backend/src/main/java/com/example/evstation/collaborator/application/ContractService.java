@@ -35,6 +35,8 @@ public class ContractService {
     private final CollaboratorProfileJpaRepository collaboratorRepository;
     private final AuditLogJpaRepository auditLogRepository;
     private final Clock clock;
+    private final com.example.evstation.notification.application.NotificationService notificationService;
+    private final com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository userAccountRepository;
 
     /**
      * Create a new contract for a collaborator.
@@ -77,6 +79,30 @@ public class ContractService {
                 ));
         
         log.info("Contract created: id={}", contract.getId());
+
+        // Send notification to collaborator
+        try {
+            String email = userAccountRepository.findById(collaborator.getUserAccountId())
+                    .map(u -> u.getEmail()).orElse(null);
+            notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                    .recipientId(collaborator.getUserAccountId())
+                    .type(com.example.evstation.notification.domain.NotificationType.CONTRACT_CREATED)
+                    .category(com.example.evstation.notification.domain.NotificationCategory.CONTRACT)
+                    .title("New Contract Created")
+                    .body("A new VoltGo Collaborator contract has been created for you. Region: " + (dto.getRegion() != null ? dto.getRegion() : "N/A") + ". Period: " + dto.getStartDate() + " to " + dto.getEndDate())
+                    .data(java.util.Map.of(
+                            "contractId", contract.getId().toString(),
+                            "region", dto.getRegion() != null ? dto.getRegion() : "",
+                            "startDate", dto.getStartDate().toString(),
+                            "endDate", dto.getEndDate().toString()
+                    ))
+                    .referenceId(contract.getId())
+                    .referenceType("CONTRACT")
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to send contract creation notification: {}", e.getMessage());
+        }
+
         return buildDTO(contract, collaborator.getFullName());
     }
 
@@ -156,6 +182,32 @@ public class ContractService {
                 ));
         
         log.info("Contract updated: id={}", id);
+
+        // Send notification to collaborator
+        try {
+            UUID userAccountId = collaboratorRepository.findById(contract.getCollaboratorId())
+                    .map(c -> c.getUserAccountId()).orElse(null);
+            if (userAccountId != null) {
+                notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                        .recipientId(userAccountId)
+                        .type(com.example.evstation.notification.domain.NotificationType.CONTRACT_UPDATED)
+                        .category(com.example.evstation.notification.domain.NotificationCategory.CONTRACT)
+                        .title("Contract Updated")
+                        .body("Your VoltGo Collaborator contract has been updated. Period: " + contract.getStartDate() + " to " + contract.getEndDate() + ". Region: " + (contract.getRegion() != null ? contract.getRegion() : "N/A"))
+                        .data(java.util.Map.of(
+                                "contractId", contract.getId().toString(),
+                                "startDate", contract.getStartDate().toString(),
+                                "endDate", contract.getEndDate().toString(),
+                                "region", contract.getRegion() != null ? contract.getRegion() : ""
+                        ))
+                        .referenceId(contract.getId())
+                        .referenceType("CONTRACT")
+                        .build());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send contract update notification: {}", e.getMessage());
+        }
+
         return buildDTO(contract, collabName);
     }
 
@@ -196,6 +248,31 @@ public class ContractService {
                 ));
         
         log.info("Contract terminated: id={}", id);
+
+        // Send notification to collaborator
+        try {
+            UUID userAccountId = collaboratorRepository.findById(contract.getCollaboratorId())
+                    .map(c -> c.getUserAccountId()).orElse(null);
+            if (userAccountId != null) {
+                notificationService.send(com.example.evstation.notification.api.dto.CreateNotificationDTO.builder()
+                        .recipientId(userAccountId)
+                        .type(com.example.evstation.notification.domain.NotificationType.CONTRACT_TERMINATED)
+                        .category(com.example.evstation.notification.domain.NotificationCategory.CONTRACT)
+                        .title("Contract Terminated")
+                        .body("Your VoltGo Collaborator contract has been terminated. Reason: " + (reason != null ? reason : "No reason provided"))
+                        .data(java.util.Map.of(
+                                "contractId", contract.getId().toString(),
+                                "reason", reason != null ? reason : "",
+                                "terminatedAt", contract.getTerminatedAt().toString()
+                        ))
+                        .referenceId(contract.getId())
+                        .referenceType("CONTRACT")
+                        .build());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send contract termination notification: {}", e.getMessage());
+        }
+
         return buildDTO(contract, collabName);
     }
 

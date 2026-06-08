@@ -177,7 +177,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
           ),
         );
         context.pop();
-        ref.invalidate(stationsProvider((page: 0, size: 20)));
+        ref.invalidate(stationsProvider((page: 0, size: 20, search: null)));
         if (_isEditMode) {
           ref.invalidate(stationProvider(widget.station!.stationId));
         }

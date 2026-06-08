@@ -37,6 +37,41 @@ class RoutingDiagnostics {
     debugPrint('[RoutingDiag] $type: $data');
   }
 
+  void logRouteResponse(RouteResponse response, int sequence) {
+    log('ROUTE_BACKEND_RESPONSE', {
+      'sequence': sequence,
+      'distanceMeters': response.distanceMeters,
+      'durationSeconds': response.durationSeconds,
+      'polylinePoints': response.polyline.length,
+      'recommendedStations': response.recommendedStations.length,
+      'optimalStationId': response.optimalStation?.stationId,
+      'optimalStationName': response.optimalStation?.name,
+      'needsChargingStop': response.needsChargingStop,
+      'remainingRangeKm': response.remainingRangeKm,
+      'routeDistanceKm': response.routeDistanceKm,
+      'summary': {
+        'distanceKm': response.summary.distanceKm,
+        'durationMinutes': response.summary.durationMinutes,
+        'hasChargingStations': response.summary.hasChargingStations,
+        'needsChargingRecommendation': response.summary.needsChargingRecommendation,
+      },
+      // Station details for each recommended station
+      'stations': response.recommendedStations.map((s) => {
+        'stationId': s.stationId,
+        'name': s.name,
+        'distanceFromRouteMeters': s.distanceFromRouteMeters,
+        'totalPowerKw': s.totalPowerKw,
+        'availablePorts': s.availablePorts,
+        'totalPorts': s.totalPorts,
+        'score': s.score,
+        'isOptimalStop': s.isOptimalStop,
+        'isRecommended': s.isRecommended,
+        'batteryAtArrival': s.estimatedBatteryAtArrival,
+        'recommendationReason': s.recommendationReason,
+      }).toList(),
+    });
+  }
+
   void logRenderSuccess(int polylinePoints, int stationMarkers, int sequence) {
     log('ROUTE_RENDER_SUCCESS', {
       'polylinePoints': polylinePoints,
@@ -176,6 +211,9 @@ class _DefaultDiagnostics implements RoutingDiagnostics {
 
   @override
   void log(String type, Map<String, dynamic> data) {}
+
+  @override
+  void logRouteResponse(RouteResponse response, int sequence) {}
 
   @override
   void logRenderSuccess(int polylinePoints, int stationMarkers, int sequence) {}

@@ -17,6 +17,8 @@ class TokenStorage {
   static const String _keyUserId = 'auth_user_id';
   static const String _keyEmail = 'auth_email';
   static const String _keyRole = 'auth_role';
+  static const String _keyStatus = 'auth_status';
+  static const String _keyRegistrationSubmitted = 'auth_registration_submitted';
 
   final FlutterSecureStorage? _secureStorage;
   final SharedPreferences? _prefs;
@@ -24,17 +26,11 @@ class TokenStorage {
   TokenStorage()
       : _secureStorage = kIsWeb ? null : const FlutterSecureStorage(),
         _prefs = null {
-    // Initialize SharedPreferences for web
     if (kIsWeb) {
-      SharedPreferences.getInstance().then((prefs) {
-        // Store in instance variable would require async initialization
-        // For now, we'll get it on-demand
-      });
+      SharedPreferences.getInstance().then((prefs) {});
     }
   }
 
-  // Web: Use SharedPreferences (localStorage)
-  // Mobile: Use FlutterSecureStorage (encrypted)
   Future<String?> getToken() async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
@@ -68,6 +64,25 @@ class TokenStorage {
       return prefs.getString(_keyRole);
     } else {
       return await _secureStorage?.read(key: _keyRole);
+    }
+  }
+
+  Future<String?> getStatus() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_keyStatus);
+    } else {
+      return await _secureStorage?.read(key: _keyStatus);
+    }
+  }
+
+  Future<bool> getRegistrationSubmitted() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_keyRegistrationSubmitted) ?? false;
+    } else {
+      final val = await _secureStorage?.read(key: _keyRegistrationSubmitted);
+      return val == 'true';
     }
   }
 
@@ -107,6 +122,24 @@ class TokenStorage {
     }
   }
 
+  Future<void> saveStatus(String status) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyStatus, status);
+    } else {
+      await _secureStorage?.write(key: _keyStatus, value: status);
+    }
+  }
+
+  Future<void> saveRegistrationSubmitted(bool value) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyRegistrationSubmitted, value);
+    } else {
+      await _secureStorage?.write(key: _keyRegistrationSubmitted, value: value.toString());
+    }
+  }
+
   Future<void> clear() async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
@@ -114,11 +147,15 @@ class TokenStorage {
       await prefs.remove(_keyUserId);
       await prefs.remove(_keyEmail);
       await prefs.remove(_keyRole);
+      await prefs.remove(_keyStatus);
+      await prefs.remove(_keyRegistrationSubmitted);
     } else {
       await _secureStorage?.delete(key: _keyToken);
       await _secureStorage?.delete(key: _keyUserId);
       await _secureStorage?.delete(key: _keyEmail);
       await _secureStorage?.delete(key: _keyRole);
+      await _secureStorage?.delete(key: _keyStatus);
+      await _secureStorage?.delete(key: _keyRegistrationSubmitted);
     }
   }
 }

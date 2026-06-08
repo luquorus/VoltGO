@@ -23,10 +23,9 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- Provider user (for creating stations)
-INSERT INTO user_account (id, email, password_hash, role, status, created_at)
-VALUES 
-    ('20000000-0000-0000-0000-000000000001', 'provider1@local', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'PROVIDER', 'ACTIVE', NOW())
-ON CONFLICT (email) DO NOTHING;
+-- NOTE: PROVIDER role has been removed from the system.
+-- This user and its associated stations have been migrated to EV_USER.
+-- See V99_migrate_provider_to_ev_user.sql for migration details.
 
 -- ============================================
 -- 2. STATIONS (with published versions for stationName)
@@ -35,7 +34,7 @@ ON CONFLICT (email) DO NOTHING;
 -- Station 1: Hanoi - Hoàn Kiếm District
 INSERT INTO station (id, provider_id, created_at)
 VALUES 
-    ('a0000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', NOW())
+    ('a0000000-0000-0000-0000-000000000001', NULL, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO station_version (
@@ -55,7 +54,7 @@ VALUES (
     'FREE',
     'PUBLIC',
     'ACTIVE',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     NOW() - INTERVAL '30 days',
     NOW() - INTERVAL '25 days'
 )
@@ -64,7 +63,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Station 2: Hanoi - Ba Đình District
 INSERT INTO station (id, provider_id, created_at)
 VALUES 
-    ('a0000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', NOW())
+    ('a0000000-0000-0000-0000-000000000002', NULL, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO station_version (
@@ -84,7 +83,7 @@ VALUES (
     'PAID',
     'PUBLIC',
     'ACTIVE',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     NOW() - INTERVAL '20 days',
     NOW() - INTERVAL '15 days'
 )
@@ -93,7 +92,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Station 3: Hanoi - Cầu Giấy District
 INSERT INTO station (id, provider_id, created_at)
 VALUES 
-    ('a0000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000001', NOW())
+    ('a0000000-0000-0000-0000-000000000003', NULL, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO station_version (
@@ -113,7 +112,7 @@ VALUES (
     'FREE',
     'PUBLIC',
     'ACTIVE',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     NOW() - INTERVAL '10 days',
     NOW() - INTERVAL '5 days'
 )
@@ -122,7 +121,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Station 4: Hanoi - Tây Hồ District
 INSERT INTO station (id, provider_id, created_at)
 VALUES 
-    ('a0000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001', NOW())
+    ('a0000000-0000-0000-0000-000000000004', NULL, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO station_version (
@@ -142,7 +141,7 @@ VALUES (
     'FREE',
     'PUBLIC',
     'ACTIVE',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     NOW() - INTERVAL '15 days',
     NOW() - INTERVAL '10 days'
 )
@@ -163,7 +162,7 @@ VALUES (
     'PENDING',
     'a0000000-0000-0000-0000-000000000001',
     'b0000000-0000-0000-0000-000000000001',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     45,
     '["PORTS_CHANGED"]'::jsonb,
     NOW() - INTERVAL '5 days',
@@ -182,7 +181,7 @@ VALUES (
     'APPROVED',
     'a0000000-0000-0000-0000-000000000002',
     'b0000000-0000-0000-0000-000000000002',
-    '20000000-0000-0000-0000-000000000001',
+    NULL,
     25,
     '["HOURS_CHANGED"]'::jsonb,
     NOW() - INTERVAL '3 days',

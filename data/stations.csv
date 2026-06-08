@@ -1,0 +1,3 @@
+name,address,latitude,longitude,ports_250kw,ports_180kw,ports_150kw,ports_120kw,ports_80kw,ports_60kw,ports_40kw,ports_ac,operatingHours,parking,stationType,status
+Tram sac To Hien Thanh,"To Hien Thanh, Hanoi",  21.013236, 105.849676,0,0,0,4,0,2,0,0,24/7,Paid,Public,active
+

@@ -12,6 +12,7 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
+import com.example.evstation.trust.application.TrustScoringService;
 import com.example.evstation.trust.infrastructure.jpa.StationTrustEntity;
 import com.example.evstation.trust.infrastructure.jpa.StationTrustJpaRepository;
 import java.util.Map;
@@ -46,21 +47,38 @@ public class AdminStationService {
     private final BookingJpaRepository bookingRepository;
     private final StationTrustJpaRepository trustRepository;
     private final AuditLogJpaRepository auditLogRepository;
+    private final TrustScoringService trustScoringService;
     private final ChargerUnitCreationService chargerUnitCreationService;
     private final SwapStationStateApplyService swapStationStateApplyService;
     
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
     
     /**
-     * Get all stations with pagination (admin only)
+     * Get all stations with pagination (admin only).
+     * Defaults to CHARGING stations only to match the /stations admin page.
+     */
+    @Transactional(readOnly = true)
+    public Page<AdminStationDTO> getAllStations(Pageable pageable, ServiceType serviceType, String search) {
+        log.info("Admin getting all stations: page={}, size={}, serviceType={}, search={}",
+                pageable.getPageNumber(), pageable.getPageSize(), serviceType, search);
+
+        Page<StationEntity> stations;
+        if (search != null && !search.isBlank()) {
+            stations = stationRepository.findByServiceTypeAndSearch(serviceType, search.trim(), pageable);
+        } else {
+            stations = stationRepository.findByServiceType(serviceType, pageable);
+        }
+
+        return stations.map(this::buildAdminStationDTO);
+    }
+    
+    /**
+     * Get all stations with pagination, defaulting to CHARGING service type.
+     * @deprecated Use {@link #getAllStations(Pageable, ServiceType, String)} instead.
      */
     @Transactional(readOnly = true)
     public Page<AdminStationDTO> getAllStations(Pageable pageable) {
-        log.info("Admin getting all stations: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        
-        Page<StationEntity> stations = stationRepository.findAll(pageable);
-        
-        return stations.map(this::buildAdminStationDTO);
+        return getAllStations(pageable, ServiceType.CHARGING, null);
     }
     
     /**
@@ -141,6 +159,11 @@ public class AdminStationService {
             } catch (Exception e) {
                 log.error("Failed to apply battery swap state for station version: {}",
                         stationVersion.getId(), e);
+            }
+            try {
+                trustScoringService.recalculate(station.getId());
+            } catch (Exception e) {
+                log.warn("TrustScoringService.recalculate failed for new station: {}", e.getMessage());
             }
         }
         
@@ -229,6 +252,11 @@ public class AdminStationService {
             } catch (Exception e) {
                 log.error("Failed to apply battery swap state for station version: {}",
                         newVersion.getId(), e);
+            }
+            try {
+                trustScoringService.recalculate(stationId);
+            } catch (Exception e) {
+                log.warn("TrustScoringService.recalculate failed for station update: {}", e.getMessage());
             }
         }
         

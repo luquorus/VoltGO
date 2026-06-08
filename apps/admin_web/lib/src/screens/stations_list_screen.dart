@@ -19,12 +19,21 @@ class StationsListScreen extends ConsumerStatefulWidget {
 }
 
 class _StationsListScreenState extends ConsumerState<StationsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final page = ref.watch(stationsPageProvider);
     final pageSize = ref.watch(stationsPageSizeProvider);
-    final stationsAsync = ref.watch(stationsProvider((page: page, size: pageSize)));
+    final search = ref.watch(stationsSearchProvider);
+    final stationsAsync = ref.watch(stationsProvider((page: page, size: pageSize, search: search)));
 
     return AdminScaffold(
       title: 'Charging Stations',
@@ -113,6 +122,40 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+            // Search bar
+            SizedBox(
+              width: 400,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search by name or ID...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: search != null && search.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref.read(stationsSearchProvider.notifier).state = null;
+                            ref.read(stationsPageProvider.notifier).state = 0;
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) {
+                  ref.read(stationsSearchProvider.notifier).state = value.isEmpty ? null : value;
+                  ref.read(stationsPageProvider.notifier).state = 0;
+                },
+                onSubmitted: (_) {
+                  ref.read(stationsPageProvider.notifier).state = 0;
+                },
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Stations Table
@@ -130,7 +173,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                     traceId: extractTraceId(error),
                     onRetry: () {
                       ref.invalidate(
-                          stationsProvider((page: page, size: pageSize)));
+                          stationsProvider((page: page, size: pageSize, search: search)));
                     },
                   ),
                 ),
@@ -364,7 +407,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
                 print('Delete successful');
                 
                 // Invalidate stations provider to refresh the list
-                ref.invalidate(stationsProvider((page: ref.read(stationsPageProvider), size: ref.read(stationsPageSizeProvider))));
+                ref.invalidate(stationsProvider((page: ref.read(stationsPageProvider), size: ref.read(stationsPageSizeProvider), search: ref.read(stationsSearchProvider))));
                 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

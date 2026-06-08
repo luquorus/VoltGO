@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/admin_theme.dart';
+import '../providers/registration_request_providers.dart';
 
-class AdminSidebar extends StatelessWidget {
+class AdminSidebar extends ConsumerWidget {
   final String currentRoute;
 
   const AdminSidebar({
@@ -11,8 +13,13 @@ class AdminSidebar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final pendingCountAsync = ref.watch(pendingRequestsCountProvider);
+    final pendingCount = pendingCountAsync.maybeWhen(
+      data: (count) => count,
+      orElse: () => 0,
+    );
     
     return Container(
       width: 260,
@@ -85,6 +92,14 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  icon: Icons.analytics,
+                  label: 'Analytics',
+                  route: '/dashboard',
+                  isActive: currentRoute == '/dashboard',
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
                   icon: Icons.description_rounded,
                   label: 'Change Requests',
                   route: '/change-requests',
@@ -102,7 +117,7 @@ class AdminSidebar extends StatelessWidget {
                   context,
                   theme,
                   icon: Icons.ev_station,
-                  label: 'Charging Stations',
+                  label: 'Stations',
                   route: '/stations',
                   isActive: currentRoute.startsWith('/stations') &&
                       !currentRoute.startsWith('/stations/trust'),
@@ -111,17 +126,27 @@ class AdminSidebar extends StatelessWidget {
                   context,
                   theme,
                   icon: Icons.verified_user_rounded,
-                  label: 'Station Trust Scores',
+                  label: 'Trust Dashboard',
                   route: '/stations/trust',
                   isActive: currentRoute.startsWith('/stations/trust'),
+                ),
+                _SidebarNavItem(
+                  context: context,
+                  theme: theme,
+                  icon: Icons.people_rounded,
+                  label: 'Collaborators',
+                  route: '/collaborators',
+                  isActive: currentRoute.startsWith('/collaborators') &&
+                      !currentRoute.contains('/performance'),
+                  badgeCount: pendingCount,
                 ),
                 _buildNavItem(
                   context,
                   theme,
-                  icon: Icons.people_rounded,
-                  label: 'Collaborators',
-                  route: '/collaborators',
-                  isActive: currentRoute.startsWith('/collaborators'),
+                  icon: Icons.trending_up,
+                  label: 'Collaborator Performance',
+                  route: '/collaborators/performance',
+                  isActive: currentRoute.startsWith('/collaborators/performance'),
                 ),
                 _buildNavItem(
                   context,
@@ -138,6 +163,31 @@ class AdminSidebar extends StatelessWidget {
                   label: 'Audit Logs',
                   route: '/audit',
                   isActive: currentRoute.startsWith('/audit'),
+                ),
+                const Divider(height: 32, indent: 16, endIndent: 16),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.card_giftcard,
+                  label: 'Loyalty',
+                  route: '/loyalty',
+                  isActive: currentRoute.startsWith('/loyalty'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.local_offer,
+                  label: 'Quản lý Voucher',
+                  route: '/loyalty/vouchers',
+                  isActive: currentRoute == '/loyalty/vouchers',
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  icon: Icons.receipt_long,
+                  label: 'Redemptions',
+                  route: '/loyalty/vouchers/redemptions',
+                  isActive: currentRoute == '/loyalty/vouchers/redemptions',
                 ),
                 const Divider(height: 32, indent: 16, endIndent: 16),
                 _buildNavItem(
@@ -274,3 +324,102 @@ class AdminSidebar extends StatelessWidget {
   }
 }
 
+/// Sidebar nav item with optional badge count
+class _SidebarNavItem extends StatelessWidget {
+  final BuildContext context;
+  final ThemeData theme;
+  final IconData icon;
+  final String label;
+  final String route;
+  final bool isActive;
+  final int badgeCount;
+
+  const _SidebarNavItem({
+    required this.context,
+    required this.theme,
+    required this.icon,
+    required this.label,
+    required this.route,
+    required this.isActive,
+    this.badgeCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => GoRouter.of(context).go(route),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AdminTheme.primaryTeal.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isActive
+                  ? Border.all(
+                      color: AdminTheme.primaryTeal.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isActive
+                      ? AdminTheme.primaryTeal
+                      : theme.colorScheme.onSurface.withOpacity(0.6),
+                  size: 22,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                      color: isActive
+                          ? AdminTheme.primaryTeal
+                          : theme.colorScheme.onSurface.withOpacity(0.8),
+                    ),
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18),
+                    child: Text(
+                      badgeCount > 99 ? '99+' : badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                else if (isActive)
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: AdminTheme.primaryTeal,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -47,6 +47,8 @@ voltgo:
     expire-slot-grace-minutes: 15
     expire-no-slot-grace-minutes: 30
     expire-job-interval-ms: 60000
+    charge-simulation-interval-ms: 30000
+    default-charge-duration-minutes: 30
 
 app:
   recommendation:
@@ -56,7 +58,13 @@ app:
     default-target-percent: 80
     default-limit: 10
   routing:
-    default-station-limit: 10
-    corridor-buffer-meters: 5000
+    default-station-limit: 3
+    corridor-buffer-meters: 1000
+    safety-buffer-percent: 5
+    default-average-speed-kmph: 30.0
+    default-consumption-kwh-per-km: 0.18
+    default-vehicle-max-charge-kw: 120.0
+    default-target-percent: 80
+    min-battery-percent-at-arrival: 10
     osrm-base-url: http://router.project-osrm.org
 

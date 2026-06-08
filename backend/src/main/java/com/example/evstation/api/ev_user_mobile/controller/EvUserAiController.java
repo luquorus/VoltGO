@@ -25,7 +25,7 @@ public class EvUserAiController {
 
     @Operation(summary = "Get personalized station recommendations")
     @PostMapping("/personalized-recommendations")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<Map<String, Object>> getPersonalizedRecommendations(
             @Valid @RequestBody RecommendationRequestDTO request,
             Authentication authentication) {
@@ -35,7 +35,7 @@ public class EvUserAiController {
 
     @Operation(summary = "Suggest smart charging time slots")
     @PostMapping("/smart-time-suggestions")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<Map<String, Object>> getSmartTimeSuggestions(
             @Valid @RequestBody SmartTimeSuggestionRequestDTO request,
             Authentication authentication) {

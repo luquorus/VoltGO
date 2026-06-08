@@ -9,7 +9,7 @@ import java.util.UUID;
 @Data
 @Builder
 public class BookingResponseDTO {
-    
+
     private UUID id;
     private UUID userId;
     private UUID stationId;
@@ -20,5 +20,6 @@ public class BookingResponseDTO {
     private Instant holdExpiresAt;
     private Instant createdAt;
     private java.util.Map<String, Object> priceSnapshot; // Snapshot of pricing at booking time
+    private UUID voucherRedemptionId; // Set when voucher is applied
 }
 

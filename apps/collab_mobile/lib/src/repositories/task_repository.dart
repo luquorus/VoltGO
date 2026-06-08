@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:shared_api/shared_api.dart';
 import 'package:shared_network/shared_network.dart';
 import '../models/verification_task.dart';
@@ -46,13 +45,16 @@ class TaskRepository {
     required double lat,
     required double lng,
     String? deviceNote,
+    List<ChecklistAnswer>? checklistAnswers,
   }) async {
     try {
+      final checklistData = checklistAnswers?.map((e) => e.toJson()).toList();
       final response = await apiClient.checkIn(
         taskId: taskId,
         lat: lat,
         lng: lng,
         deviceNote: deviceNote,
+        checklistAnswers: checklistData,
       );
 
       return VerificationTask.fromJson(response);
@@ -64,6 +66,8 @@ class TaskRepository {
   }
 
   /// Upload ảnh bằng chứng và gửi review.
+  /// Dùng proxy upload qua backend thay vì presigned URL trực tiếp lên MinIO.
+  /// Backend proxy giải quyết vấn đề IP cứng và network restriction.
   Future<VerificationTask> submitEvidence({
     required String taskId,
     required Uint8List imageBytes,
@@ -71,29 +75,12 @@ class TaskRepository {
     String? note,
   }) async {
     try {
-      final presign = await apiClient.presignUpload(contentType: contentType);
-      final objectKey = presign['objectKey'] as String;
-      final uploadUrl = presign['uploadUrl'] as String;
-
-      try {
-        await Dio().put<dynamic>(
-          uploadUrl,
-          data: imageBytes,
-          options: Options(
-            headers: {
-              'Content-Type': contentType,
-            },
-          ),
-        );
-      } on DioException catch (e) {
-        throw ApiError(
-          traceId: '',
-          code: 'UPLOAD_FAILED',
-          message:
-              'Image upload failed. Check your connection and try again. (${e.message ?? "unknown error"})',
-          timestamp: DateTime.now(),
-        );
-      }
+      final result = await apiClient.proxyUpload(
+        fileBytes: imageBytes,
+        fileName: 'evidence_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        contentType: contentType,
+      );
+      final objectKey = result['objectKey'] as String;
 
       final trimmedNote = note?.trim();
       final response = await apiClient.submitEvidence(
@@ -114,6 +101,17 @@ class TaskRepository {
     try {
       final response = await apiClient.presignView(objectKey: objectKey);
       return response['viewUrl'] as String;
+    } on ApiError {
+      rethrow;
+    } catch (e) {
+      throw _wrap(e, fallbackMessage: 'Could not load evidence image.');
+    }
+  }
+
+  /// Fetch evidence image bytes via proxy endpoint (bypasses MinIO direct access).
+  Future<Uint8List> getEvidenceViewBytes(String objectKey) async {
+    try {
+      return await apiClient.proxyViewBytes(objectKey: objectKey);
     } on ApiError {
       rethrow;
     } catch (e) {

@@ -20,6 +20,13 @@ import com.example.evstation.batteryswap.infrastructure.jpa.SwapPileEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.SwapPileJpaRepository;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.loyalty.application.BadgeService;
+import com.example.evstation.loyalty.application.LoyaltyPointService;
+import com.example.evstation.loyalty.application.RatingEligibilityService;
+import com.example.evstation.loyalty.application.ReferralService;
+import com.example.evstation.loyalty.domain.BadgeCriteriaType;
+import com.example.evstation.loyalty.domain.EligibilityType;
+import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.station.domain.ServiceType;
 import com.example.evstation.station.infrastructure.jpa.AuditLogEntity;
 import com.example.evstation.station.infrastructure.jpa.AuditLogJpaRepository;
@@ -67,6 +74,10 @@ public class BatterySwapService {
     private final SwapCodeService swapCodeService;
     private final AuditLogJpaRepository auditLogRepository;
     private final BatterySwapBroadcastService broadcastService;
+    private final LoyaltyPointService loyaltyPointService;
+    private final RatingEligibilityService ratingEligibilityService;
+    private final BadgeService badgeService;
+    private final ReferralService referralService;
 
     @Value("${voltgo.battery-swap.base-price-vnd:5000}")
     private long configuredBasePriceVnd;
@@ -202,6 +213,7 @@ public class BatterySwapService {
                 .address(version.getAddress())
                 .lat(version.getLocation().getY())
                 .lng(version.getLocation().getX())
+                .operatingHours(version.getOperatingHours())
                 .avgChargePowerKw(state != null ? state.getAvgChargePowerKw() : BigDecimal.valueOf(35.0))
                 .basePriceVnd(configuredBasePriceVnd)
                 .totalPiles(piles.size())
@@ -745,6 +757,23 @@ public class BatterySwapService {
         reservation = reservationRepository.save(reservation);
 
         syncAvailableBatteries(reservation.getStationId(), now);
+
+        // Loyalty: award points for completed battery swap
+        UUID loyaltyUserId = reservation.getUserId();
+        loyaltyPointService.earnPoints(loyaltyUserId, PointSource.BATTERY_SWAP, reservation.getId(),
+                String.format("Completed battery swap at station %s", reservation.getStationId()));
+        loyaltyPointService.incrementSwapCount(loyaltyUserId);
+        badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.FIRST_SWAP, 1);
+        var profileOpt = loyaltyPointService.getProfile(loyaltyUserId);
+        profileOpt.ifPresent(p -> badgeService.checkAndAwardBadges(loyaltyUserId, BadgeCriteriaType.SWAP_COUNT, p.getTotalSwaps()));
+
+        // Referral: award referral bonus if this is referee's first completed booking/swap
+        referralService.onRefereeFirstBookingCompleted(loyaltyUserId);
+
+        // Loyalty: mark station as eligible for rating
+        ratingEligibilityService.markEligible(
+                loyaltyUserId, reservation.getStationId(), reservation.getId(),
+                EligibilityType.SWAP_USAGE, now);
 
         BatterySwapStationStateEntity stationState = stationStateRepository.findById(reservation.getStationId())
                 .orElseThrow();

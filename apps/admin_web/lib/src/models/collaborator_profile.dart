@@ -22,10 +22,21 @@ class CollaboratorProfile {
     this.location,
   });
 
-  factory CollaboratorProfile.fromJson(Map<String, dynamic> json) {
+  factory CollaboratorProfile.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      throw Exception('Collaborator profile data is null (collaborator not found)');
+    }
+    final id = json['id'] as String?;
+    final userAccountId = json['userAccountId'] as String?;
+    if (id == null || id.isEmpty) {
+      throw Exception('id is missing in collaborator profile response');
+    }
+    if (userAccountId == null || userAccountId.isEmpty) {
+      throw Exception('userAccountId is missing in collaborator profile response');
+    }
     return CollaboratorProfile(
-      id: json['id'] as String,
-      userAccountId: json['userAccountId'] as String,
+      id: id,
+      userAccountId: userAccountId,
       email: json['email'] as String?,
       fullName: json['fullName'] as String?,
       phone: json['phone'] as String?,
@@ -67,7 +78,8 @@ class CollaboratorLocation {
     this.source,
   });
 
-  factory CollaboratorLocation.fromJson(Map<String, dynamic> json) {
+  factory CollaboratorLocation.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return CollaboratorLocation();
     return CollaboratorLocation(
       lat: json['lat'] != null ? (json['lat'] as num).toDouble() : null,
       lng: json['lng'] != null ? (json['lng'] as num).toDouble() : null,

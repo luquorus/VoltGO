@@ -15,6 +15,7 @@ public class BatterySwapStationDetailDTO {
     private String address;
     private Double lat;
     private Double lng;
+    private String operatingHours;
     private BigDecimal avgChargePowerKw;
     private Long basePriceVnd;
     private int totalPiles;

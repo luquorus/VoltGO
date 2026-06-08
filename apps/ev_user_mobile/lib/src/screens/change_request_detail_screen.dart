@@ -93,7 +93,18 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     DateTime? submittedAt,
     DateTime? decidedAt,
   ) {
-    final statuses = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'PUBLISHED'];
+    // APPROVED and REJECTED are mutually exclusive branches after PENDING.
+    // PUBLISHED only appears on the APPROVED path.
+    final isRejected = status == 'REJECTED';
+    final decidedStatus = isRejected ? 'REJECTED' : 'APPROVED';
+    final isPublished = status == 'PUBLISHED';
+    final statuses = [
+      'DRAFT',
+      'PENDING',
+      decidedStatus,
+      if (isPublished) 'PUBLISHED',
+    ];
+
     final currentIndex = statuses.indexOf(status);
     if (currentIndex == -1) return const SizedBox.shrink();
 

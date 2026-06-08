@@ -20,10 +20,17 @@ public class VerificationTaskDTO {
     private String assignedToEmail;
     private VerificationTaskStatus status;
     private Instant createdAt;
+    private String verificationType;
 
     /** Service types on the station version under verification (e.g. CHARGING, BATTERY_SWAP). */
     private List<String> stationServiceTypes;
-    
+
+    /** Immutable checklist definition snapshot at task creation time. */
+    private List<ChecklistItem> checklist;
+
+    /** Station data snapshot at task creation time (expected values). */
+    private StationSnapshotDTO stationSnapshot;
+
     // Nested details
     private CheckinDTO checkin;
     private List<EvidenceDTO> evidences;
@@ -37,6 +44,7 @@ public class VerificationTaskDTO {
         private Instant checkedInAt;
         private Integer distanceM;
         private String deviceNote;
+        private List<ChecklistAnswer> checklistAnswers;
     }
     
     @Data

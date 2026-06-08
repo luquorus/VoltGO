@@ -16,6 +16,7 @@ class BottomNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final isHome = currentLocation == '/home';
     final isBookings = currentLocation.startsWith('/bookings') && currentLocation != '/bookings/create';
+    final isLoyalty = currentLocation.startsWith('/loyalty');
     final isProfile = currentLocation == '/profile';
 
     return Container(
@@ -29,7 +30,7 @@ class BottomNavBar extends StatelessWidget {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _getCurrentIndex(isHome, isBookings, isProfile),
+        currentIndex: _getCurrentIndex(isHome, isBookings, isLoyalty, isProfile),
         onTap: (index) => _onTap(context, index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: theme.colorScheme.primary,
@@ -48,6 +49,11 @@ class BottomNavBar extends StatelessWidget {
             label: 'Bookings',
           ),
           BottomNavigationBarItem(
+            icon: FaIcon(FontAwesomeIcons.gift),
+            activeIcon: FaIcon(FontAwesomeIcons.gift),
+            label: 'Rewards',
+          ),
+          BottomNavigationBarItem(
             icon: FaIcon(FontAwesomeIcons.user),
             activeIcon: FaIcon(FontAwesomeIcons.user),
             label: 'Profile',
@@ -57,11 +63,12 @@ class BottomNavBar extends StatelessWidget {
     );
   }
 
-  int _getCurrentIndex(bool isHome, bool isBookings, bool isProfile) {
+  int _getCurrentIndex(bool isHome, bool isBookings, bool isLoyalty, bool isProfile) {
     if (isHome) return 0;
     if (isBookings) return 1;
-    if (isProfile) return 2;
-    return 0; // Default to home
+    if (isLoyalty) return 2;
+    if (isProfile) return 3;
+    return 0;
   }
 
   void _onTap(BuildContext context, int index) {
@@ -73,9 +80,11 @@ class BottomNavBar extends StatelessWidget {
         context.go('/bookings');
         break;
       case 2:
+        context.go('/loyalty');
+        break;
+      case 3:
         context.go('/profile');
         break;
     }
   }
 }
-

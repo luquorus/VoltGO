@@ -14,14 +14,14 @@ public class UserAccount {
     private Instant createdAt;
 
     // Constructor for new account
-    public UserAccount(String email, String name, String passwordHash, Role role) {
+    public UserAccount(String email, String name, String passwordHash, Role role, UserStatus status) {
         this.id = UUID.randomUUID();
         this.email = email;
         this.name = name;
         this.phone = null;
         this.passwordHash = passwordHash;
         this.role = role;
-        this.status = UserStatus.ACTIVE;
+        this.status = status;
         this.createdAt = Instant.now();
     }
 
@@ -42,7 +42,7 @@ public class UserAccount {
     }
 
     public boolean canAccessEvApi() {
-        return isActive() && (role == Role.EV_USER || role == Role.PROVIDER);
+        return isActive() && role == Role.EV_USER;
     }
 
     public boolean canAccessCollabApi() {

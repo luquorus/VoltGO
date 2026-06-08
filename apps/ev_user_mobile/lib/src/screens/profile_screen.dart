@@ -7,6 +7,7 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../widgets/main_scaffold.dart';
 import '../providers/profile_providers.dart';
+import '../providers/loyalty_providers.dart';
 
 /// Hồ sơ người dùng EV.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -54,6 +55,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _buildProfileCard(context, theme, displayName, authState,
                   profileState.profile),
               const SizedBox(height: 24),
+              _buildMenuItem(
+                context,
+                theme,
+                FontAwesomeIcons.gift,
+                'Rewards',
+                () => context.go('/loyalty'),
+              ),
               _buildMenuItem(
                 context,
                 theme,
@@ -205,8 +213,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     switch (role) {
       case 'EV_USER':
         return 'EV user';
-      case 'PROVIDER':
-        return 'Provider';
       case 'ADMIN':
         return 'Administrator';
       case 'COLLABORATOR':

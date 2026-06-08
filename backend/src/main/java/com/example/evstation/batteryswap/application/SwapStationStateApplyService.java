@@ -4,8 +4,13 @@ import com.example.evstation.batteryswap.domain.BatterySlotStatus;
 import com.example.evstation.batteryswap.domain.SwapPileStatus;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySlotEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySlotJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapPileTemplateEntity;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapPileTemplateJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapSlotTemplateEntity;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapSlotTemplateJpaRepository;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationStateEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationStateJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationVersionEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.SwapPileEntity;
 import com.example.evstation.batteryswap.infrastructure.jpa.SwapPileJpaRepository;
 import com.example.evstation.station.domain.ServiceType;
@@ -38,6 +43,8 @@ public class SwapStationStateApplyService {
     private final StationServiceJpaRepository stationServiceRepository;
     private final SwapPileJpaRepository swapPileRepository;
     private final BatterySlotJpaRepository batterySlotRepository;
+    private final BatterySwapPileTemplateJpaRepository pileTemplateRepository;
+    private final BatterySwapSlotTemplateJpaRepository slotTemplateRepository;
 
     /**
      * Áp cấu hình swap (totalBatteries, avgChargePowerKw) từ services của một version
@@ -128,6 +135,94 @@ public class SwapStationStateApplyService {
                 swapPileRepository.save(pile);
             }
             log.info("Created {} swap piles for station={}", numPiles, stationId);
+        }
+    }
+
+    /**
+     * Apply a BatterySwapStationVersion to the operational state tables (swap_pile, battery_slot).
+     * This is called when a BatterySwapChangeRequest is published.
+     *
+     * <ul>
+     *   <li>First publish: creates SwapPile + BatterySlot rows from PileTemplate/SlotTemplate</li>
+     *   <li>Update (re-publish): updates state counters only</li>
+     * </ul>
+     *
+     * Also creates/updates BatterySwapStationStateEntity.
+     */
+    @Transactional
+    public void applyForSwapVersion(BatterySwapStationVersionEntity version) {
+        var stationId = version.getStationId();
+        Instant now = Instant.now();
+
+        List<BatterySwapPileTemplateEntity> pileTemplates =
+                pileTemplateRepository.findByStationVersionIdOrderByPileIndex(version.getId());
+
+        if (pileTemplates.isEmpty()) {
+            log.warn("No pile templates found for version={}, skip apply", version.getId());
+            return;
+        }
+
+        List<SwapPileEntity> existingPiles = swapPileRepository.findByStationIdOrderByPileIndexAsc(stationId);
+        boolean isFirstPublish = existingPiles.isEmpty();
+
+        int totalSlots = pileTemplates.stream().mapToInt(BatterySwapPileTemplateEntity::getSlotsPerPile).sum();
+        Instant publishAt = version.getPublishedAt() != null ? version.getPublishedAt() : now;
+
+        Optional<BatterySwapStationStateEntity> existingState = stationStateRepository.findById(stationId);
+        if (existingState.isEmpty()) {
+            BatterySwapStationStateEntity state = BatterySwapStationStateEntity.builder()
+                    .stationId(stationId)
+                    .totalBatteries(totalSlots)
+                    .availableBatteries(0)
+                    .avgChargePowerKw(version.getAvgChargePowerKw())
+                    .updatedAt(now)
+                    .build();
+            stationStateRepository.save(state);
+            log.info("Created battery_swap_station_state for station={} (total={}, avgPower={})",
+                    stationId, totalSlots, version.getAvgChargePowerKw());
+        } else {
+            BatterySwapStationStateEntity state = existingState.get();
+            state.setTotalBatteries(totalSlots);
+            state.setAvgChargePowerKw(version.getAvgChargePowerKw());
+            if (state.getAvailableBatteries() > totalSlots) {
+                state.setAvailableBatteries(totalSlots);
+            }
+            state.setUpdatedAt(now);
+            stationStateRepository.save(state);
+            log.info("Updated battery_swap_station_state for station={} (total={}, avgPower={})",
+                    stationId, totalSlots, version.getAvgChargePowerKw());
+        }
+
+        if (isFirstPublish) {
+            for (BatterySwapPileTemplateEntity pileTemplate : pileTemplates) {
+                SwapPileEntity pile = SwapPileEntity.builder()
+                        .stationId(stationId)
+                        .pileIndex(pileTemplate.getPileIndex())
+                        .status(SwapPileStatus.ACTIVE)
+                        .createdAt(publishAt)
+                        .updatedAt(now)
+                        .slots(new ArrayList<>())
+                        .build();
+
+                List<BatterySwapSlotTemplateEntity> slotTemplates =
+                        slotTemplateRepository.findByPileTemplateIdOrderBySlotIndex(pileTemplate.getId());
+
+                for (BatterySwapSlotTemplateEntity slotTemplate : slotTemplates) {
+                    BatterySlotEntity slot = BatterySlotEntity.builder()
+                            .slotIndex(slotTemplate.getSlotIndex())
+                            .batteryChargePercent(0)
+                            .status(BatterySlotStatus.CHARGING)
+                            .chargingStartedAt(now)
+                            .updatedAt(now)
+                            .build();
+                    pile.addSlot(slot);
+                }
+                swapPileRepository.save(pile);
+            }
+            log.info("Created {} swap piles from PileTemplates for station={}", pileTemplates.size(), stationId);
+        } else {
+            log.info("Update publish: {} existing piles kept, state counters updated for station={}",
+                    existingPiles.size(), stationId);
         }
     }
 }

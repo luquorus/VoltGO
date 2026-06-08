@@ -1,6 +1,9 @@
 package com.example.evstation.station.infrastructure.jpa;
 
+import com.example.evstation.station.domain.ServiceType;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -26,5 +29,34 @@ public interface StationJpaRepository extends JpaRepository<StationEntity, UUID>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM StationEntity s WHERE s.id = :id")
     Optional<StationEntity> findByIdForUpdate(@Param("id") UUID id);
+    
+    /**
+     * Find all stations that have a published version with a specific service type.
+     * Joins through StationVersion and StationService to filter correctly.
+     */
+    @Query("""
+        SELECT DISTINCT s FROM StationEntity s
+        JOIN StationVersionEntity sv ON sv.stationId = s.id AND sv.workflowStatus = 'PUBLISHED'
+        JOIN StationServiceEntity ss ON ss.stationVersionId = sv.id
+        WHERE ss.serviceType = :serviceType
+        """)
+    Page<StationEntity> findByServiceType(@Param("serviceType") ServiceType serviceType, Pageable pageable);
+
+    /**
+     * Find all stations that have a published version with a specific service type,
+     * optionally filtered by name or station ID search.
+     */
+    @Query("""
+        SELECT DISTINCT s FROM StationEntity s
+        JOIN StationVersionEntity sv ON sv.stationId = s.id AND sv.workflowStatus = 'PUBLISHED'
+        JOIN StationServiceEntity ss ON ss.stationVersionId = sv.id
+        WHERE ss.serviceType = :serviceType
+        AND (LOWER(sv.name) LIKE LOWER(CONCAT('%', :search, '%'))
+             OR LOWER(CAST(s.id AS string)) LIKE LOWER(CONCAT('%', :search, '%')))
+        """)
+    Page<StationEntity> findByServiceTypeAndSearch(
+            @Param("serviceType") ServiceType serviceType,
+            @Param("search") String search,
+            Pageable pageable);
 }
 

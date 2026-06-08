@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_api/shared_api.dart' hide RegistrationRequest, RegistrationRequestStatus;
 import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_verification_task.dart';
 import '../providers/verification_task_providers.dart';
@@ -132,6 +133,67 @@ class _VerificationTasksListScreenState
                   ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
                 },
               ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          Text(
+            'Type:',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(width: 16),
+          // Type filter toggle buttons
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: theme.colorScheme.outline),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: VerificationTypeFilter.values.map((type) {
+                final isSelected = filters.typeFilter == type;
+                return InkWell(
+                  onTap: () {
+                    ref.read(verificationTaskFiltersProvider.notifier).state =
+                        filters.copyWith(typeFilter: type);
+                    ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AdminTheme.primaryTeal.withOpacity(0.1) : null,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          type == VerificationTypeFilter.batterySwap
+                              ? Icons.battery_charging_full
+                              : type == VerificationTypeFilter.chargingStation
+                                  ? Icons.ev_station
+                                  : Icons.list,
+                          size: 16,
+                          color: isSelected
+                              ? AdminTheme.primaryTeal
+                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          type.displayName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isSelected
+                                ? AdminTheme.primaryTeal
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontWeight: isSelected ? FontWeight.w600 : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -351,11 +413,25 @@ class _VerificationTasksListScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.stationName,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      if (task.isBatterySwapStation) ...[
+                        Icon(Icons.battery_charging_full, size: 16, color: Colors.amber),
+                        const SizedBox(width: 4),
+                      ] else if (task.isChargingStation) ...[
+                        Icon(Icons.ev_station, size: 16, color: Colors.teal),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          task.stationName,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -443,6 +519,13 @@ class _VerificationTasksListScreenState
                 style: theme.textTheme.bodySmall,
               ),
             ),
+            if (task.canDelete)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _showDeleteDialog(context, ref, task),
+                tooltip: 'Delete task',
+                color: theme.colorScheme.error,
+              ),
             if (task.canAssign)
               IconButton(
                 icon: const Icon(Icons.person_add),
@@ -565,6 +648,55 @@ class _VerificationTasksListScreenState
       return 'Due in ${difference.inMinutes}m';
     }
     return 'Due soon';
+  }
+
+  Future<void> _showDeleteDialog(
+      BuildContext context, WidgetRef ref, AdminVerificationTask task) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Verification Task'),
+        content: Text(
+          'Are you sure you want to delete this verification task?\n\n'
+          'Station: ${task.stationName ?? "N/A"}\n'
+          'Status: ${task.status.displayName}\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final factory = ref.read(apiClientFactoryProvider);
+      if (factory == null) throw Exception('API client not initialized');
+      await factory.admin.deleteVerificationTask(task.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task deleted successfully')),
+        );
+      }
+      ref.invalidate(verificationTasksPageProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete task: $e')),
+        );
+      }
+    }
   }
 }
 

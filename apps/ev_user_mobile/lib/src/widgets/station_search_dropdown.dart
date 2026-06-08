@@ -4,14 +4,19 @@ import 'package:shared_api/shared_api.dart';
 import 'package:shared_ui/shared_ui.dart';
 
 /// Station Search Dropdown Widget
-/// 
+///
 /// A searchable dropdown that allows users to search and select a station by name.
 /// Only displays PUBLISHED stations.
+/// Supports both charging stations and battery swap stations via [stationKind].
 class StationSearchDropdown extends ConsumerStatefulWidget {
   final ValueChanged<String?> onStationSelected; // stationId
   final String? initialStationId;
   final bool enabled;
   final String? Function(String?)? validator;
+  /// 'CHARGING' or 'BATTERY_SWAP'. Determines which API endpoint is used for search.
+  final String stationKind;
+  final double defaultLat;
+  final double defaultLng;
 
   const StationSearchDropdown({
     super.key,
@@ -19,6 +24,9 @@ class StationSearchDropdown extends ConsumerStatefulWidget {
     this.initialStationId,
     this.enabled = true,
     this.validator,
+    this.stationKind = 'CHARGING',
+    this.defaultLat = 0,
+    this.defaultLng = 0,
   });
 
   @override
@@ -76,7 +84,6 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
       return;
     }
 
-    // Minimum 2 characters to search
     if (query.trim().length < 2) {
       setState(() {
         _stations = [];
@@ -96,21 +103,38 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
         throw Exception('API client not initialized');
       }
 
-      final response = await factory.ev.searchStationsByName(
-        name: query.trim(),
-        page: 0,
-        size: 20, // Limit to 20 results
-      );
+      List<StationOption> stations;
 
-      final content = response['content'] as List<dynamic>? ?? [];
-      final stations = content.map((item) {
-        final station = item as Map<String, dynamic>;
-        return StationOption(
-          id: station['stationId'] as String? ?? '',
-          name: station['name'] as String? ?? 'Unknown',
-          address: station['address'] as String?,
+      if (widget.stationKind == 'BATTERY_SWAP') {
+        final results = await factory.ev.searchBatterySwapStationsByName(
+          name: query.trim(),
+          lat: widget.defaultLat,
+          lng: widget.defaultLng,
+          radiusKm: 50,
         );
-      }).toList();
+        stations = results.map((station) {
+          return StationOption(
+            id: station['stationId'] as String? ?? station['id'] as String? ?? '',
+            name: station['name'] as String? ?? 'Unknown',
+            address: station['address'] as String?,
+          );
+        }).toList();
+      } else {
+        final response = await factory.ev.searchStationsByName(
+          name: query.trim(),
+          page: 0,
+          size: 20,
+        );
+        final content = response['content'] as List<dynamic>? ?? [];
+        stations = content.map((item) {
+          final station = item as Map<String, dynamic>;
+          return StationOption(
+            id: station['stationId'] as String? ?? '',
+            name: station['name'] as String? ?? 'Unknown',
+            address: station['address'] as String?,
+          );
+        }).toList();
+      }
 
       if (mounted) {
         setState(() {

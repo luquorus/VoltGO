@@ -1,6 +1,7 @@
 /// Admin Station Model
 /// 
 /// Represents a station with all admin-specific fields
+/// Maps to backend AdminStationDTO
 class AdminStation {
   final String stationId;
   final String? providerId;
@@ -60,44 +61,53 @@ class AdminStation {
 
   factory AdminStation.fromJson(Map<String, dynamic> json) {
     return AdminStation(
-      stationId: json['stationId'] as String,
+      stationId: (json['stationId'] as String?) ?? '',
       providerId: json['providerId'] as String?,
       providerEmail: json['providerEmail'] as String?,
-      stationCreatedAt: json['stationCreatedAt'] != null
-          ? DateTime.parse(json['stationCreatedAt'] as String)
-          : null,
+      stationCreatedAt: _parseDateTime(json['stationCreatedAt']),
       publishedVersionId: json['publishedVersionId'] as String?,
       publishedVersionNo: json['publishedVersionNo'] as int?,
-      workflowStatus: json['workflowStatus'] != null
-          ? WorkflowStatus.fromString(json['workflowStatus'] as String)
-          : null,
+      workflowStatus: _parseEnum(json['workflowStatus'], WorkflowStatus.fromString),
       name: json['name'] as String?,
       address: json['address'] as String?,
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
       operatingHours: json['operatingHours'] as String?,
-      parking: json['parking'] != null
-          ? ParkingType.fromString(json['parking'] as String)
-          : null,
-      visibility: json['visibility'] != null
-          ? VisibilityType.fromString(json['visibility'] as String)
-          : null,
-      publicStatus: json['publicStatus'] != null
-          ? PublicStatus.fromString(json['publicStatus'] as String)
-          : null,
-      publishedAt: json['publishedAt'] != null
-          ? DateTime.parse(json['publishedAt'] as String)
-          : null,
+      parking: _parseEnum(json['parking'], ParkingType.fromString),
+      visibility: _parseEnum(json['visibility'], VisibilityType.fromString),
+      publicStatus: _parseEnum(json['publicStatus'], PublicStatus.fromString),
+      publishedAt: _parseDateTime(json['publishedAt']),
       createdBy: json['createdBy'] as String?,
       createdByEmail: json['createdByEmail'] as String?,
-      services: (json['services'] as List<dynamic>?)
-              ?.map((e) => Service.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      services: _parseList(json['services'], Service.fromJson),
       trustScore: json['trustScore'] as int?,
-      totalVersions: json['totalVersions'] as int? ?? 0,
-      activeBookings: json['activeBookings'] as int? ?? 0,
+      totalVersions: (json['totalVersions'] as num?)?.toInt() ?? 0,
+      activeBookings: (json['activeBookings'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  static T? _parseEnum<T>(dynamic value, T Function(String) fromString) {
+    if (value == null) return null;
+    if (value is T) return value;
+    if (value is String) return fromString(value);
+    return null;
+  }
+
+  static List<T> _parseList<T>(dynamic value, T Function(Map<String, dynamic>) fromJson) {
+    if (value is! List) return [];
+    return value
+        .whereType<Map>()
+        .map((e) => fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   bool get isPublished => workflowStatus == WorkflowStatus.published;
@@ -119,14 +129,26 @@ class Service {
 
   factory Service.fromJson(Map<String, dynamic> json) {
     return Service(
-      type: ServiceType.fromString(json['type'] as String),
-      chargingPorts: (json['chargingPorts'] as List<dynamic>?)
-              ?.map((e) => ChargingPort.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      type: _parseEnum(json['type'], ServiceType.fromString) ?? ServiceType.charging,
+      chargingPorts: _parseList(json['chargingPorts'], ChargingPort.fromJson),
       totalBatteries: json['totalBatteries'] as int?,
       avgChargePowerKw: (json['avgChargePowerKw'] as num?)?.toDouble(),
     );
+  }
+
+  static T? _parseEnum<T>(dynamic value, T Function(String) fromString) {
+    if (value == null) return null;
+    if (value is T) return value;
+    if (value is String) return fromString(value);
+    return null;
+  }
+
+  static List<T> _parseList<T>(dynamic value, T Function(Map<String, dynamic>) fromJson) {
+    if (value is! List) return [];
+    return value
+        .whereType<Map>()
+        .map((e) => fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 }
 
@@ -143,10 +165,17 @@ class ChargingPort {
 
   factory ChargingPort.fromJson(Map<String, dynamic> json) {
     return ChargingPort(
-      powerType: PowerType.fromString(json['powerType'] as String),
+      powerType: _parseEnum(json['powerType'], PowerType.fromString) ?? PowerType.dc,
       powerKw: (json['powerKw'] as num?)?.toDouble(),
-      portCount: json['portCount'] as int? ?? 0,
+      portCount: (json['portCount'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  static T? _parseEnum<T>(dynamic value, T Function(String) fromString) {
+    if (value == null) return null;
+    if (value is T) return value;
+    if (value is String) return fromString(value);
+    return null;
   }
 }
 
@@ -210,8 +239,9 @@ enum ServiceType {
   batterySwap;
 
   static ServiceType fromString(String value) {
+    final normalized = value.toUpperCase().replaceAll('_', '');
     return ServiceType.values.firstWhere(
-      (e) => e.name.toUpperCase() == value.toUpperCase().replaceAll('_', ''),
+      (e) => e.name.toUpperCase() == normalized,
       orElse: () => ServiceType.charging,
     );
   }
@@ -228,4 +258,3 @@ enum PowerType {
     );
   }
 }
-

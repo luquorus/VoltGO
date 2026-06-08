@@ -32,7 +32,7 @@ public class ChangeRequestController {
         description = "Create a new change request for CREATE_STATION or UPDATE_STATION. Status will be DRAFT."
     )
     @PostMapping
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<ChangeRequestResponseDTO> createChangeRequest(
             @Valid @RequestBody CreateChangeRequestDTO request,
             Authentication authentication) {
@@ -49,7 +49,7 @@ public class ChangeRequestController {
         description = "Submit a DRAFT change request for review. Status changes from DRAFT to PENDING."
     )
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<ChangeRequestResponseDTO> submitChangeRequest(
             @Parameter(description = "Change request ID", required = true)
             @PathVariable UUID id,
@@ -67,7 +67,7 @@ public class ChangeRequestController {
         description = "Get all change requests submitted by the current user"
     )
     @GetMapping("/mine")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<List<ChangeRequestResponseDTO>> getMyChangeRequests(
             Authentication authentication) {
         
@@ -83,7 +83,7 @@ public class ChangeRequestController {
         description = "Get details of a specific change request by ID"
     )
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('EV_USER') or hasRole('PROVIDER')")
+    @PreAuthorize("hasRole('EV_USER')")
     public ResponseEntity<ChangeRequestResponseDTO> getChangeRequest(
             @Parameter(description = "Change request ID", required = true)
             @PathVariable UUID id,

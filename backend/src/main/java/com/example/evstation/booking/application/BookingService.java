@@ -283,6 +283,7 @@ public class BookingService {
                 .holdExpiresAt(entity.getHoldExpiresAt())
                 .createdAt(entity.getCreatedAt())
                 .priceSnapshot(entity.getPriceSnapshot())
+                .voucherRedemptionId(entity.getVoucherRedemptionId())
                 .build();
     }
     

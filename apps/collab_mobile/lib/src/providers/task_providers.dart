@@ -52,6 +52,7 @@ final checkInProvider = Provider.family<Future<VerificationTask>, CheckInParams>
     lat: params.lat,
     lng: params.lng,
     deviceNote: params.deviceNote,
+    checklistAnswers: params.checklistAnswers,
   );
 });
 
@@ -72,18 +73,26 @@ final evidenceViewUrlProvider = FutureProvider.family<String, String>((ref, obje
   return repository.getEvidenceViewUrl(objectKey);
 });
 
+/// Evidence image bytes provider — fetches via proxy endpoint (bypasses MinIO direct access).
+final evidenceViewBytesProvider = FutureProvider.family<Uint8List, String>((ref, objectKey) async {
+  final repository = ref.watch(taskRepositoryProvider);
+  return repository.getEvidenceViewBytes(objectKey);
+});
+
 /// Check-in Parameters
 class CheckInParams {
   final String taskId;
   final double lat;
   final double lng;
   final String? deviceNote;
+  final List<ChecklistAnswer>? checklistAnswers;
 
   CheckInParams({
     required this.taskId,
     required this.lat,
     required this.lng,
     this.deviceNote,
+    this.checklistAnswers,
   });
 }
 
