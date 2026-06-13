@@ -7,6 +7,7 @@ import '../models/admin_verification_task.dart';
 import '../providers/verification_task_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 import 'create_task_modal.dart';
 import 'assign_task_modal.dart';
 
@@ -48,17 +49,17 @@ class _VerificationTasksListScreenState
         ),
       ],
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Filters
             _buildFilterPanel(theme, filters),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
 
-            // Stats Row
+            // Stats Row - wrap on mobile
             _buildStatsRow(theme, tasksPageAsync),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
 
             // Tasks Table
             Expanded(
@@ -95,109 +96,186 @@ class _VerificationTasksListScreenState
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
       ),
-      child: Row(
-        children: [
-          Text(
-            'Filter by Status:',
-            style: theme.textTheme.titleSmall,
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<VerificationTaskStatus?>(
-                value: filters.status,
-                hint: Text(
-                  'All Status',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                items: [
-                  const DropdownMenuItem<VerificationTaskStatus?>(
-                    value: null,
-                    child: Text('All Status'),
-                  ),
-                  ...VerificationTaskStatus.values.map((status) =>
-                      DropdownMenuItem<VerificationTaskStatus>(
-                        value: status,
-                        child: Text(status.displayName),
-                      )),
-                ],
-                onChanged: (value) {
-                  ref.read(verificationTaskFiltersProvider.notifier).state =
-                      filters.copyWith(status: value, clearStatus: value == null);
-                  ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 24),
-          Text(
-            'Type:',
-            style: theme.textTheme.titleSmall,
-          ),
-          const SizedBox(width: 16),
-          // Type filter toggle buttons
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: VerificationTypeFilter.values.map((type) {
-                final isSelected = filters.typeFilter == type;
-                return InkWell(
-                  onTap: () {
-                    ref.read(verificationTaskFiltersProvider.notifier).state =
-                        filters.copyWith(typeFilter: type);
-                    ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AdminTheme.primaryTeal.withOpacity(0.1) : null,
-                      borderRadius: BorderRadius.circular(8),
+      child: isMobile(context)
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Status:',
+                      style: theme.textTheme.titleSmall,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          type == VerificationTypeFilter.batterySwap
-                              ? Icons.battery_charging_full
-                              : type == VerificationTypeFilter.chargingStation
-                                  ? Icons.ev_station
-                                  : Icons.list,
-                          size: 16,
-                          color: isSelected
-                              ? AdminTheme.primaryTeal
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: theme.colorScheme.outline),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          type.displayName,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isSelected
-                                ? AdminTheme.primaryTeal
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                            fontWeight: isSelected ? FontWeight.w600 : null,
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<VerificationTaskStatus?>(
+                            value: filters.status,
+                            isExpanded: true,
+                            hint: Text(
+                              'All Status',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            items: [
+                              const DropdownMenuItem<VerificationTaskStatus?>(
+                                value: null,
+                                child: Text('All Status'),
+                              ),
+                              ...VerificationTaskStatus.values.map((status) =>
+                                  DropdownMenuItem<VerificationTaskStatus>(
+                                    value: status,
+                                    child: Text(status.displayName),
+                                  )),
+                            ],
+                            onChanged: (value) {
+                              ref.read(verificationTaskFiltersProvider.notifier).state =
+                                  filters.copyWith(status: value, clearStatus: value == null);
+                              ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                            },
                           ),
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      'Type:',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        children: VerificationTypeFilter.values.map((type) {
+                          final isSelected = filters.typeFilter == type;
+                          return ChoiceChip(
+                            label: Text(type.displayName),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              ref.read(verificationTaskFiltersProvider.notifier).state =
+                                  filters.copyWith(typeFilter: type);
+                              ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Text(
+                  'Filter by Status:',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: theme.colorScheme.outline),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<VerificationTaskStatus?>(
+                      value: filters.status,
+                      hint: Text(
+                        'All Status',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      items: [
+                        const DropdownMenuItem<VerificationTaskStatus?>(
+                          value: null,
+                          child: Text('All Status'),
+                        ),
+                        ...VerificationTaskStatus.values.map((status) =>
+                            DropdownMenuItem<VerificationTaskStatus>(
+                              value: status,
+                              child: Text(status.displayName),
+                            )),
                       ],
+                      onChanged: (value) {
+                        ref.read(verificationTaskFiltersProvider.notifier).state =
+                            filters.copyWith(status: value, clearStatus: value == null);
+                        ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                      },
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(width: 24),
+                Text(
+                  'Type:',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(width: 16),
+                // Type filter toggle buttons
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: theme.colorScheme.outline),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: VerificationTypeFilter.values.map((type) {
+                      final isSelected = filters.typeFilter == type;
+                      return InkWell(
+                        onTap: () {
+                          ref.read(verificationTaskFiltersProvider.notifier).state =
+                              filters.copyWith(typeFilter: type);
+                          ref.read(verificationTasksCurrentPageProvider.notifier).state = 0;
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AdminTheme.primaryTeal.withOpacity(0.1) : null,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                type == VerificationTypeFilter.batterySwap
+                                    ? Icons.battery_charging_full
+                                    : type == VerificationTypeFilter.chargingStation
+                                        ? Icons.ev_station
+                                        : Icons.list,
+                                size: 16,
+                                color: isSelected
+                                    ? AdminTheme.primaryTeal
+                                    : theme.colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                type.displayName,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isSelected
+                                      ? AdminTheme.primaryTeal
+                                      : theme.colorScheme.onSurface.withOpacity(0.6),
+                                  fontWeight: isSelected ? FontWeight.w600 : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 

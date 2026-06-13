@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_api/shared_api.dart';
 import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
+import '../../utils/responsive_utils.dart';
 import '../../widgets/admin_scaffold.dart';
 
 /// Re-export so widgets in this file can reference AdminLoyaltyUser

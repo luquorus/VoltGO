@@ -6,6 +6,7 @@ import '../models/admin_issue.dart';
 import '../providers/issue_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Issues List Screen
 class IssuesListScreen extends ConsumerStatefulWidget {
@@ -25,17 +26,17 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
     return AdminScaffold(
       title: 'Reported Issues',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Filters
             _buildFilterPanel(theme, statusFilter),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
 
-            // Stats Row
+            // Stats Row - wrap on mobile
             _buildStatsRow(theme, issuesAsync),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
 
             // Issues Table
             Expanded(
@@ -70,42 +71,82 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
       ),
-      child: Row(
-        children: [
-          Text(
-            'Filter by Status:',
-            style: theme.textTheme.titleSmall,
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: DropdownButton<IssueStatus?>(
-              value: statusFilter,
-              underline: const SizedBox(),
-              isDense: true,
-              hint: const Text('All Statuses'),
-              items: [
-                const DropdownMenuItem<IssueStatus?>(
-                  value: null,
-                  child: Text('All Statuses'),
+      child: isMobile(context)
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filter by Status:',
+                  style: theme.textTheme.titleSmall,
                 ),
-                ...IssueStatus.values.map((status) => DropdownMenuItem<IssueStatus?>(
-                      value: status,
-                      child: Text(status.displayName),
-                    )),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: theme.colorScheme.outline),
+                  ),
+                  child: DropdownButton<IssueStatus?>(
+                    value: statusFilter,
+                    underline: const SizedBox(),
+                    isDense: true,
+                    isExpanded: true,
+                    hint: const Text('All Statuses'),
+                    items: [
+                      const DropdownMenuItem<IssueStatus?>(
+                        value: null,
+                        child: Text('All Statuses'),
+                      ),
+                      ...IssueStatus.values.map((status) => DropdownMenuItem<IssueStatus?>(
+                            value: status,
+                            child: Text(status.displayName),
+                          )),
+                    ],
+                    onChanged: (value) {
+                      ref.read(issueStatusFilterProvider.notifier).state = value;
+                    },
+                  ),
+                ),
               ],
-              onChanged: (value) {
-                ref.read(issueStatusFilterProvider.notifier).state = value;
-              },
+            )
+          : Row(
+              children: [
+                Text(
+                  'Filter by Status:',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: theme.colorScheme.outline),
+                  ),
+                  child: DropdownButton<IssueStatus?>(
+                    value: statusFilter,
+                    underline: const SizedBox(),
+                    isDense: true,
+                    hint: const Text('All Statuses'),
+                    items: [
+                      const DropdownMenuItem<IssueStatus?>(
+                        value: null,
+                        child: Text('All Statuses'),
+                      ),
+                      ...IssueStatus.values.map((status) => DropdownMenuItem<IssueStatus?>(
+                            value: status,
+                            child: Text(status.displayName),
+                          )),
+                    ],
+                    onChanged: (value) {
+                      ref.read(issueStatusFilterProvider.notifier).state = value;
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -120,45 +161,60 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
           'Rejected': issues.where((i) => i.status == IssueStatus.rejected).length,
         };
 
-        return Row(
-          children: stats.entries.map((entry) {
-            return Expanded(
-              child: Container(
-                margin: EdgeInsets.only(right: entry.key == 'Rejected' ? 0 : 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AdminTheme.surfaceLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AdminTheme.primaryTeal.withOpacity(0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.value.toString(),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AdminTheme.primaryTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      entry.key,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
+        return isMobile(context)
+            ? Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: stats.entries.map((entry) {
+                  return SizedBox(
+                    width: (MediaQuery.of(context).size.width - 60) / 2,
+                    child: _buildStatCard(theme, entry.key, entry.value),
+                  );
+                }).toList(),
+              )
+            : Row(
+                children: stats.entries.map((entry) {
+                  return Expanded(
+                    child: _buildStatCard(theme, entry.key, entry.value),
+                  );
+                }).toList(),
+              );
       },
       loading: () => const SizedBox(height: 80),
       error: (_, __) => const SizedBox(height: 80),
+    );
+  }
+
+  Widget _buildStatCard(ThemeData theme, String label, int value) {
+    return Container(
+      margin: EdgeInsets.only(right: label == 'Rejected' ? 0 : (isMobile(context) ? 0 : 16)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AdminTheme.primaryTeal.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value.toString(),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AdminTheme.primaryTeal,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -202,15 +258,18 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
               ),
             ),
           ),
-          child: Row(
-            children: [
-              Expanded(flex: 2, child: Text('Category', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
-              Expanded(flex: 3, child: Text('Station Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Reporter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('Created At', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
-              const SizedBox(width: 48), // For actions column
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                SizedBox(width: isMobile(context) ? 80 : null, child: Text('Category', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
+                SizedBox(width: isMobile(context) ? 80 : null, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
+                SizedBox(width: isMobile(context) ? 100 : null, child: Text('Station Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
+                SizedBox(width: isMobile(context) ? 100 : null, child: Text('Reporter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
+                SizedBox(width: isMobile(context) ? 80 : null, child: Text('Created At', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold))),
+                const SizedBox(width: 48),
+              ],
+            ),
           ),
         ),
         // Issues List

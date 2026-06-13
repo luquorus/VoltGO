@@ -8,6 +8,7 @@ import '../providers/change_request_providers.dart';
 import '../providers/battery_swap_cr_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Unified Change Requests Screen with subtabs for Charging and Battery Swap stations
 class UnifiedChangeRequestsScreen extends ConsumerStatefulWidget {
@@ -38,12 +39,12 @@ class _UnifiedChangeRequestsScreenState extends ConsumerState<UnifiedChangeReque
     return AdminScaffold(
       title: 'Change Requests',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSubtabBar(context),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -61,6 +62,7 @@ class _UnifiedChangeRequestsScreenState extends ConsumerState<UnifiedChangeReque
 
   Widget _buildSubtabBar(BuildContext context) {
     final theme = Theme.of(context);
+    final showLabels = !isMobile(context);
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -76,29 +78,33 @@ class _UnifiedChangeRequestsScreenState extends ConsumerState<UnifiedChangeReque
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
         unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: isMobile(context) ? 12 : 14),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: isMobile(context) ? 12 : 14),
         dividerColor: Colors.transparent,
-        tabs: const [
+        tabs: [
           Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.ev_station, size: 18),
-                SizedBox(width: 8),
-                Text('Charging Stations'),
-              ],
-            ),
+            child: showLabels
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.ev_station, size: 18),
+                      SizedBox(width: 8),
+                      Text('Charging Stations'),
+                    ],
+                  )
+                : const Icon(Icons.ev_station, size: 18),
           ),
           Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.battery_charging_full, size: 18),
-                SizedBox(width: 8),
-                Text('Battery Swap'),
-              ],
-            ),
+            child: showLabels
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.battery_charging_full, size: 18),
+                      SizedBox(width: 8),
+                      Text('Battery Swap'),
+                    ],
+                  )
+                : const Icon(Icons.battery_charging_full, size: 18),
           ),
         ],
       ),
@@ -115,14 +121,15 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
     final theme = Theme.of(context);
     final filters = ref.watch(changeRequestFiltersProvider);
     final changeRequestsAsync = ref.watch(changeRequestsProvider);
+    final pad = responsiveHPadding(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFilterPanel(context, theme, ref, filters),
-        const SizedBox(height: 24),
+        SizedBox(height: isMobile(context) ? 12 : 24),
         _buildStatsRow(context, theme, changeRequestsAsync),
-        const SizedBox(height: 24),
+        SizedBox(height: isMobile(context) ? 12 : 24),
         Expanded(
           child: Card(
             margin: EdgeInsets.zero,
@@ -212,6 +219,19 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
       }
     });
 
+    if (isMobile(context)) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+          _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+          _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+          _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+        ],
+      );
+    }
+
     return Row(
       children: [
         _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
@@ -226,6 +246,37 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
   }
 
   Widget _buildStatCard(ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
+    if (isMobile(context)) {
+      return SizedBox(
+        width: (MediaQuery.of(context).size.width - 48 - 24) / 2,
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Icon(icon, color: color, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Expanded(
       child: Card(
         margin: EdgeInsets.zero,
@@ -269,21 +320,43 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
 
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: BoxDecoration(
-            color: AdminTheme.surfaceLight,
-            border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
-          ),
-          child: Row(
-            children: [
-              Expanded(flex: 2, child: Text('Type', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-              Expanded(flex: 2, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-              Expanded(flex: 2, child: Text('Submitter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-              Expanded(flex: 2, child: Text('Risk Score', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-              Expanded(flex: 2, child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-              const SizedBox(width: 48),
-            ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: AdminTheme.surfaceLight,
+              border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: isMobile(context) ? 100 : null,
+                  child: Text('Type', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                SizedBox(width: isMobile(context) ? 12 : 0),
+                SizedBox(
+                  width: isMobile(context) ? 100 : null,
+                  child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                SizedBox(width: isMobile(context) ? 12 : 0),
+                SizedBox(
+                  width: isMobile(context) ? 120 : null,
+                  child: Text('Submitter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                SizedBox(width: isMobile(context) ? 12 : 0),
+                SizedBox(
+                  width: isMobile(context) ? 80 : null,
+                  child: Text('Risk', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                SizedBox(width: isMobile(context) ? 12 : 0),
+                SizedBox(
+                  width: isMobile(context) ? 100 : null,
+                  child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -300,41 +373,63 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
   Widget _buildChangeRequestRow(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
     return InkWell(
       onTap: () => context.push('/change-requests/${cr.id}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Expanded(flex: 2, child: Text(cr.type.displayName, style: theme.textTheme.bodyMedium)),
-            Expanded(flex: 2, child: StatusPill(
-              label: cr.status.displayName,
-              colorMapper: (label) {
-                switch (cr.status) {
-                  case ChangeRequestStatus.pending: return Colors.orange;
-                  case ChangeRequestStatus.approved: return Colors.green;
-                  case ChangeRequestStatus.rejected: return Colors.red;
-                  case ChangeRequestStatus.published: return AdminTheme.primaryTeal;
-                  case ChangeRequestStatus.draft: return Colors.grey;
-                }
-              },
-            )),
-            Expanded(flex: 2, child: Text(cr.submitterEmail ?? 'N/A', style: theme.textTheme.bodyMedium)),
-            Expanded(flex: 2, child: Row(children: [
-              if (cr.riskScore != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getRiskColor(cr.riskScore!).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _getRiskColor(cr.riskScore!), width: 1),
-                  ),
-                  child: Text('${cr.riskScore}', style: theme.textTheme.bodySmall?.copyWith(color: _getRiskColor(cr.riskScore!), fontWeight: FontWeight.w600)),
-                )
-              else
-                Text('N/A', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.4))),
-            ])),
-            Expanded(flex: 2, child: Text(cr.submittedAt != null ? _formatDateTime(cr.submittedAt!) : 'N/A', style: theme.textTheme.bodySmall)),
-            IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => context.push('/change-requests/${cr.id}')),
-          ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              SizedBox(
+                width: isMobile(context) ? 100 : null,
+                child: Text(cr.type.displayName, style: theme.textTheme.bodyMedium),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 100 : null,
+                child: StatusPill(
+                  label: cr.status.displayName,
+                  colorMapper: (label) {
+                    switch (cr.status) {
+                      case ChangeRequestStatus.pending: return Colors.orange;
+                      case ChangeRequestStatus.approved: return Colors.green;
+                      case ChangeRequestStatus.rejected: return Colors.red;
+                      case ChangeRequestStatus.published: return AdminTheme.primaryTeal;
+                      case ChangeRequestStatus.draft: return Colors.grey;
+                    }
+                  },
+                ),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 120 : null,
+                child: Text(cr.submitterEmail ?? 'N/A', style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 80 : null,
+                child: Row(children: [
+                  if (cr.riskScore != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getRiskColor(cr.riskScore!).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _getRiskColor(cr.riskScore!), width: 1),
+                      ),
+                      child: Text('${cr.riskScore}', style: theme.textTheme.bodySmall?.copyWith(color: _getRiskColor(cr.riskScore!), fontWeight: FontWeight.w600)),
+                    )
+                  else
+                    Text('N/A', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.4))),
+                ]),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 100 : null,
+                child: Text(cr.submittedAt != null ? _formatDateTime(cr.submittedAt!) : 'N/A', style: theme.textTheme.bodySmall),
+              ),
+              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => context.push('/change-requests/${cr.id}')),
+            ],
+          ),
         ),
       ),
     );
@@ -367,9 +462,9 @@ class _BatterySwapChangeRequestsTab extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFilterPanel(context, theme, ref, filters),
-        const SizedBox(height: 24),
+        SizedBox(height: isMobile(context) ? 12 : 24),
         _buildStatsRow(context, theme, crsAsync),
-        const SizedBox(height: 24),
+        SizedBox(height: isMobile(context) ? 12 : 24),
         Expanded(
           child: Card(
             margin: EdgeInsets.zero,
@@ -476,6 +571,20 @@ class _BatterySwapChangeRequestsTab extends ConsumerWidget {
       }
     });
 
+    if (isMobile(context)) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+          _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+          _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+          _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+          _buildStatCard(theme, icon: Icons.warning, label: 'High Risk', value: highRisk.toString(), color: Colors.deepOrange),
+        ],
+      );
+    }
+
     return Row(
       children: [
         _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
@@ -492,6 +601,37 @@ class _BatterySwapChangeRequestsTab extends ConsumerWidget {
   }
 
   Widget _buildStatCard(ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
+    if (isMobile(context)) {
+      return SizedBox(
+        width: (MediaQuery.of(context).size.width - 48 - 24) / 2,
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Icon(icon, color: color, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Expanded(
       child: Card(
         margin: EdgeInsets.zero,

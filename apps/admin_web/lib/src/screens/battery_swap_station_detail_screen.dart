@@ -8,6 +8,7 @@ import '../models/battery_swap_station.dart';
 import '../providers/battery_swap_station_providers.dart';
 import '../providers/battery_swap_trust_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Battery Swap Station Detail Screen
@@ -45,7 +46,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       BatterySwapStationDetail station) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -82,83 +83,106 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AdminTheme.primaryTeal.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.battery_charging_full,
-                    color: AdminTheme.primaryTeal,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            return isNarrow
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildHeaderContent(context, theme, station),
+                      const SizedBox(height: 16),
+                      _buildStatusChip(theme, station),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildHeaderContent(context, theme, station)),
+                      _buildStatusChip(theme, station),
+                    ],
+                  );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderContent(BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AdminTheme.primaryTeal.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.battery_charging_full,
+                color: AdminTheme.primaryTeal,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    station.name ?? 'Unnamed Station',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       Text(
-                        station.name ?? 'Unnamed Station',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        'ID: ${station.id.substring(0, 8)}...',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontFamily: 'monospace',
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            'ID: ${station.id.substring(0, 8)}...',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              fontFamily: 'monospace',
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 16),
+                        onPressed: () {
+                          Clipboard.setData(
+                              ClipboardData(text: station.id));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Station ID copied to clipboard'),
+                              duration: Duration(seconds: 2),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.copy, size: 16),
-                            onPressed: () {
-                              Clipboard.setData(
-                                  ClipboardData(text: station.id));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Station ID copied to clipboard'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                            tooltip: 'Copy ID',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            style: IconButton.styleFrom(
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        station.address ?? 'No address',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          );
+                        },
+                        tooltip: 'Copy ID',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        style: IconButton.styleFrom(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
                     ],
                   ),
-                ),
-                _buildStatusChip(theme, station),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    station.address ?? 'No address',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -196,7 +220,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -291,7 +315,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -347,7 +371,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -458,7 +482,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -551,7 +575,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       BuildContext context, ThemeData theme, WidgetRef ref, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

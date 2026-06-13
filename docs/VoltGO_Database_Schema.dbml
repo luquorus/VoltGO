@@ -1,0 +1,737 @@
+// VoltGO Database Schema - Generated from JPA Entities
+// Verified against codebase: Jun 2026
+// DB Engine: PostgreSQL 16 + PostGIS 3.4
+// dbdiagram.io / DBML syntax
+
+// ============================================================
+// GROUP 1: User / Authentication
+// ============================================================
+
+Table user_account {
+  id uuid [pk]
+  email varchar(255) [unique, not null]
+  name varchar(255) [not null]
+  phone varchar(20)
+  password_hash varchar(255) [not null]
+  role varchar(20) [not null]
+  status varchar(20) [not null]
+  created_at timestamptz [not null]
+}
+
+Table push_token {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  token text [not null]
+  device_type varchar(20) [not null]
+  is_active boolean [not null, default: true]
+  last_used_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table notification_preference {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  category varchar(50) [not null]
+  push_enabled boolean [not null, default: true]
+  email_enabled boolean [not null, default: true]
+  in_app_enabled boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ============================================================
+// GROUP 2: Collaborator
+// ============================================================
+
+Table collaborator_profile {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_account_id uuid [unique, not null]
+  full_name varchar(255)
+  phone varchar(20)
+  current_location geography(Point, 4326)
+  location_updated_at timestamptz
+  location_source varchar(20)
+  created_at timestamptz [not null]
+}
+
+Table contract {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  collaborator_id uuid [not null]
+  region varchar(100)
+  start_date date [not null]
+  end_date date [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+  terminated_at timestamptz
+  note text
+}
+
+Table collaborator_registration_request {
+  id uuid [pk]
+  email varchar(255) [not null]
+  full_name varchar(255) [not null]
+  phone varchar(20)
+  date_of_birth date
+  address text
+  id_card_number varchar(20)
+  bank_account_number varchar(50)
+  bank_name varchar(100)
+  contract_agreed_at timestamptz
+  status varchar(20) [not null]
+  rejection_reason text
+  submission_count int [not null, default: 1]
+  reviewed_by uuid
+  reviewed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+// ============================================================
+// GROUP 3: Station / Charging
+// ============================================================
+
+Table station {
+  id uuid [pk]
+  provider_id uuid [not null]
+  created_at timestamptz [not null]
+}
+
+Table station_version {
+  id uuid [pk]
+  station_id uuid [not null]
+  version_no int [not null]
+  workflow_status varchar(20) [not null]
+  name varchar(255) [not null]
+  address varchar(500) [not null]
+  location geography(Point, 4326) [not null]
+  operating_hours varchar(100)
+  parking varchar(20) [not null]
+  visibility varchar(20) [not null]
+  public_status varchar(20) [not null]
+  created_by uuid [not null]
+  created_at timestamptz [not null]
+  published_at timestamptz
+}
+
+Table station_service {
+  id uuid [pk]
+  station_version_id uuid [not null]
+  service_type varchar(20) [not null]
+  total_batteries int
+  avg_charge_power_kw decimal(6,2)
+}
+
+Table charging_port {
+  id uuid [pk]
+  station_service_id uuid [not null]
+  power_type varchar(20) [not null]
+  power_kw decimal(10,2) [not null]
+  port_count int [not null]
+}
+
+Table charger_unit {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [not null]
+  station_version_id uuid [not null]
+  power_type varchar(20) [not null]
+  power_kw decimal(10,2) [not null]
+  label varchar(100) [not null]
+  price_per_slot int [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+}
+
+// ============================================================
+// GROUP 4: Booking / Payment
+// ============================================================
+
+Table booking {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  station_id uuid [not null]
+  charger_unit_id uuid [not null]
+  start_time timestamptz [not null]
+  end_time timestamptz [not null]
+  status varchar(20) [not null, default: 'HOLD']
+  hold_expires_at timestamptz [not null]
+  price_snapshot jsonb [not null, default: '{}']
+  voucher_redemption_id uuid
+  created_at timestamptz [not null]
+}
+
+Table payment_intent {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  booking_id uuid [unique, not null]
+  amount int [not null]
+  currency varchar(3) [not null, default: 'VND']
+  status varchar(20) [not null, default: 'CREATED']
+  voucher_redemption_id uuid
+  discount_amount int
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+// ============================================================
+// GROUP 5: Battery Swap (Runtime State)
+// ============================================================
+
+Table battery_swap_station_state {
+  station_id uuid [pk]
+  total_batteries int [not null, default: 20]
+  available_batteries int [not null, default: 10]
+  avg_charge_power_kw decimal(6,2) [not null, default: 35.0]
+  updated_at timestamptz [not null]
+}
+
+Table swap_pile {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [not null]
+  pile_index int [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table battery_slot {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  pile_id uuid [not null]
+  slot_index int [not null]
+  battery_id uuid
+  battery_serial_number varchar(100)
+  battery_capacity_kwh decimal(6,2) [not null, default: 60.0]
+  battery_charge_percent int [not null, default: 100]
+  status varchar(20) [not null, default: 'AVAILABLE']
+  charging_started_at timestamptz
+  estimated_full_at timestamptz
+  updated_at timestamptz [not null]
+}
+
+Table battery_swap_reservation {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  station_id uuid [not null]
+  pile_id uuid
+  slot_id uuid
+  status varchar(20) [not null, default: 'RESERVED']
+  reserved_slot_at timestamptz
+  requested_battery_percent int [not null, default: 20]
+  battery_capacity_kwh decimal(6,2) [not null, default: 60.0]
+  estimated_ready_at timestamptz
+  note text
+  reserved_at timestamptz [not null]
+  started_at timestamptz
+  completed_at timestamptz
+  cancelled_at timestamptz
+  confirmed_arrival_at timestamptz
+  swap_code varchar(10)
+  swap_deadline_at timestamptz
+  base_price_vnd bigint [not null, default: 5000]
+  payment_status varchar(20) [not null, default: 'UNPAID']
+  updated_at timestamptz [not null]
+}
+
+Table swap_payment {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  reservation_id uuid [not null]
+  amount_vnd bigint [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  created_at timestamptz [not null]
+  paid_at timestamptz
+  refunded_at timestamptz
+  expired_at timestamptz
+}
+
+Table swap_session {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  reservation_id uuid [not null]
+  swap_code varchar(10) [unique, not null]
+  status varchar(20) [not null, default: 'PENDING']
+  expires_at timestamptz [not null]
+  started_at timestamptz
+  completed_at timestamptz
+  created_at timestamptz [not null]
+  created_by uuid
+  completed_by uuid
+}
+
+Table charging_session {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  battery_slot_id uuid [not null]
+  start_percent int [not null, default: 0]
+  end_percent int
+  start_kwh decimal(8,4)
+  end_kwh decimal(8,4)
+  status varchar(20) [not null, default: 'CHARGING']
+  started_at timestamptz [not null]
+  estimated_full_at timestamptz
+  completed_at timestamptz
+}
+
+Table battery_event {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  battery_slot_id uuid [not null]
+  event_type varchar(20) [not null]
+  old_state varchar(50)
+  new_state varchar(50)
+  old_percent int
+  new_percent int
+  metadata jsonb
+  created_at timestamptz [not null]
+  created_by uuid
+  actor_type varchar(20)
+}
+
+// ============================================================
+// GROUP 6: Battery Swap (Version / Template)
+// ============================================================
+
+Table battery_swap_station_version {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [not null]
+  version_no int [not null, default: 1]
+  workflow_status varchar(20) [not null, default: 'DRAFT']
+  total_batteries int [not null]
+  avg_charge_power_kw decimal(6,2) [not null]
+  operating_hours varchar(100) [not null]
+  parking_fee decimal(10,2)
+  note text
+  created_by uuid [not null]
+  created_at timestamptz [not null]
+  published_at timestamptz
+  submitted_at timestamptz
+}
+
+Table battery_swap_pile_template {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_version_id uuid [not null]
+  pile_index int [not null]
+  slots_per_pile int [not null, default: 6]
+}
+
+Table battery_swap_slot_template {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  pile_template_id uuid [not null]
+  slot_index int [not null]
+  battery_capacity_kwh decimal(6,2) [not null, default: 60.0]
+}
+
+Table battery_swap_station_device {
+  station_id uuid [pk]
+  device_key varchar(64) [unique, not null]
+  device_name varchar(100)
+  created_at timestamptz [not null]
+  last_seen_at timestamptz
+}
+
+// ============================================================
+// GROUP 7: Governance / Verification
+// ============================================================
+
+Table change_request {
+  id uuid [pk]
+  type varchar(20) [not null]
+  status varchar(20) [not null]
+  station_id uuid
+  proposed_station_version_id uuid [not null]
+  submitted_by uuid [not null]
+  risk_score int [not null, default: 0]
+  risk_reasons jsonb [not null, default: '[]']
+  admin_note text
+  created_at timestamptz [not null]
+  submitted_at timestamptz
+  decided_at timestamptz
+}
+
+Table battery_swap_change_request {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  type varchar(20) [not null]
+  status varchar(20) [not null, default: 'DRAFT']
+  station_id uuid
+  proposed_version_id uuid [not null]
+  submitted_by uuid [not null]
+  risk_score int [not null, default: 0]
+  risk_reasons text [not null, default: '[]']
+  admin_note text
+  created_at timestamptz [not null]
+  submitted_at timestamptz
+  decided_at timestamptz
+}
+
+Table report_issue {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [not null]
+  reporter_id uuid [not null]
+  category varchar(50) [not null]
+  description text [not null]
+  status varchar(20) [not null, default: 'OPEN']
+  created_at timestamptz [not null]
+  decided_at timestamptz
+  admin_note text
+}
+
+Table verification_task {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [not null]
+  change_request_id uuid
+  priority int [not null, default: 3]
+  sla_due_at timestamptz
+  assigned_to uuid
+  status varchar(20) [not null, default: 'OPEN']
+  verification_type varchar(20) [not null, default: 'CHARGING_STATION']
+  battery_swap_change_request_id uuid
+  battery_swap_station_snapshot jsonb
+  checklist_json jsonb
+  station_snapshot_json jsonb
+  created_at timestamptz [not null]
+}
+
+Table verification_checkin {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  task_id uuid [unique, not null]
+  checkin_lat decimal(10,7) [not null]
+  checkin_lng decimal(10,7) [not null]
+  checked_in_at timestamptz [not null]
+  distance_m int [not null]
+  device_note text
+  actual_total_batteries int
+  actual_available_batteries int
+  observed_avg_charge_power_kw decimal(6,2)
+  checklist_answers_json jsonb
+}
+
+Table verification_evidence {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  task_id uuid [not null]
+  photo_object_key text [not null]
+  note text
+  submitted_at timestamptz [not null]
+  submitted_by uuid [not null]
+}
+
+Table verification_review {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  task_id uuid [unique, not null]
+  result varchar(20) [not null]
+  admin_note text
+  reviewed_at timestamptz [not null]
+  reviewed_by uuid [not null]
+  swap_station_verified boolean
+  inventory_accurate boolean
+  resolution_note text
+}
+
+// ============================================================
+// GROUP 8: Trust / Loyalty / Audit
+// ============================================================
+
+Table station_trust {
+  station_id uuid [pk]
+  score int [not null]
+  breakdown jsonb [not null]
+  updated_at timestamptz [not null]
+}
+
+Table battery_swap_trust {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  station_id uuid [unique, not null]
+  score int [not null, default: 50]
+  breakdown jsonb [not null, default: '{}']
+  last_event_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table loyalty_user_profile {
+  user_id uuid [pk]
+  current_points int [not null, default: 0]
+  lifetime_points int [not null, default: 0]
+  total_ratings int [not null, default: 0]
+  total_bookings int [not null, default: 0]
+  total_swaps int [not null, default: 0]
+  total_contributions int [not null, default: 0]
+  last_activity_at timestamptz
+  level int [not null, default: 1]
+  updated_at timestamptz [not null]
+}
+
+Table loyalty_point_transaction {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  type varchar(20) [not null]
+  source varchar(50) [not null]
+  source_id uuid
+  points int [not null]
+  balance_after int [not null]
+  description varchar
+  metadata jsonb
+  created_at timestamptz [not null]
+}
+
+Table voucher_definition {
+  id uuid [pk]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
+  voucher_type varchar(20) [not null]
+  point_cost int [not null]
+  discount_percent int
+  max_value_vnd int
+  service_type varchar(20)
+  status varchar(20) [not null, default: 'ACTIVE']
+  start_date timestamptz
+  end_date timestamptz
+  validity_days int [not null, default: 30]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table voucher_redemption {
+  id uuid [pk]
+  user_id uuid [not null]
+  voucher_definition_id uuid [not null]
+  voucher_code varchar(50) [unique, not null]
+  status varchar(20) [not null, default: 'REDEEMED']
+  points_spent int [not null]
+  redeemed_at timestamptz [not null]
+  used_at timestamptz
+  expires_at timestamptz [not null]
+  metadata jsonb
+  booking_id uuid
+  service_type varchar(20)
+}
+
+Table station_rating {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  station_id uuid [not null]
+  rating int [not null]
+  comment text
+  eligibility_id uuid
+  is_verified boolean [not null, default: false]
+  helpful_count int [not null, default: 0]
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table referral {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  referrer_id uuid [not null]
+  referee_id uuid
+  referral_code varchar(50) [not null]
+  status varchar(20) [not null, default: 'PENDING']
+  referred_at timestamptz [not null]
+}
+
+Table loyalty_badge {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text
+  icon varchar(255)
+  tier varchar(20) [not null]
+  criteria_type varchar(20) [not null]
+  criteria_value int [not null]
+  points_bonus int [not null, default: 0]
+  created_at timestamptz [not null]
+}
+
+Table user_badge {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  badge_id uuid [not null]
+  earned_at timestamptz [not null]
+}
+
+Table rating_eligibility {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null]
+  station_id uuid [not null]
+  source_type varchar(20) [not null]
+  source_id uuid [not null]
+  eligible_at timestamptz [not null]
+  is_rated boolean [not null, default: false]
+  created_at timestamptz [not null]
+}
+
+Table audit_log {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  actor_id uuid [not null]
+  actor_role varchar(50) [not null]
+  action varchar(50) [not null]
+  entity_type varchar(100) [not null]
+  entity_id uuid
+  metadata jsonb [not null, default: '{}']
+  created_at timestamptz [not null]
+}
+
+// ============================================================
+// GROUP 9: Notifications
+// ============================================================
+
+Table ev_user_notification {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  recipient_id uuid [not null]
+  type varchar(20) [not null]
+  category varchar(50) [not null]
+  title varchar(255) [not null]
+  body text [not null]
+  data_json jsonb
+  is_read boolean [not null, default: false]
+  reference_id uuid
+  reference_type varchar(50)
+  created_at timestamptz [not null]
+}
+
+Table collaborator_notification {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  recipient_id uuid [not null]
+  type varchar(20) [not null]
+  category varchar(50) [not null]
+  title varchar(255) [not null]
+  body text [not null]
+  data_json jsonb
+  is_read boolean [not null, default: false]
+  reference_id uuid
+  reference_type varchar(50)
+  created_at timestamptz [not null]
+}
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+
+// user_account -> notifications
+Ref: user_account.id < push_token.user_id
+Ref: user_account.id < notification_preference.user_id
+Ref: user_account.id < ev_user_notification.recipient_id
+Ref: user_account.id < collaborator_notification.recipient_id
+
+// user_account -> collaborator
+Ref: user_account.id < collaborator_profile.user_account_id
+Ref: collaborator_profile.id < contract.collaborator_id
+Ref: user_account.id < collaborator_registration_request.reviewed_by
+
+// user_account -> station (provider)
+Ref: user_account.id < station.provider_id
+
+// user_account -> bookings / loyalty
+Ref: user_account.id < booking.user_id
+Ref: user_account.id < battery_swap_reservation.user_id
+Ref: user_account.id < loyalty_user_profile.user_id
+Ref: user_account.id < loyalty_point_transaction.user_id
+Ref: user_account.id < voucher_redemption.user_id
+Ref: user_account.id < station_rating.user_id
+Ref: user_account.id < referral.referrer_id
+Ref: user_account.id < referral.referee_id
+Ref: user_account.id < user_badge.user_id
+Ref: user_account.id < report_issue.reporter_id
+Ref: user_account.id < audit_log.actor_id
+
+// station -> station_version
+Ref: station.id < station_version.station_id
+Ref: station_version.id < station_service.station_version_id
+Ref: station_version.id < charger_unit.station_version_id
+Ref: station.id < charger_unit.station_id
+
+// station -> station_service -> charging_port
+Ref: station_service.id < charging_port.station_service_id
+
+// station -> runtime battery swap
+Ref: station.id < battery_swap_station_state.station_id
+Ref: station.id < swap_pile.station_id
+Ref: station.id < battery_swap_reservation.station_id
+Ref: station.id < battery_swap_trust.station_id
+Ref: station.id < station_trust.station_id
+Ref: station.id < station_rating.station_id
+Ref: station.id < report_issue.station_id
+Ref: station.id < verification_task.station_id
+
+// swap_pile -> battery_slot
+Ref: swap_pile.id < battery_slot.pile_id
+
+// battery_swap_reservation -> swap_pile / battery_slot
+Ref: swap_pile.id < battery_swap_reservation.pile_id
+Ref: battery_slot.id < battery_swap_reservation.slot_id
+Ref: battery_slot.id < charging_session.battery_slot_id
+Ref: battery_slot.id < battery_event.battery_slot_id
+
+// battery_swap_reservation -> swap_payment / swap_session
+Ref: battery_swap_reservation.id < swap_payment.reservation_id
+Ref: battery_swap_reservation.id < swap_session.reservation_id
+
+// booking -> payment_intent
+Ref: booking.id < payment_intent.booking_id
+Ref: booking.voucher_redemption_id > voucher_redemption.id
+
+// booking -> charger_unit
+Ref: charger_unit.id < booking.charger_unit_id
+
+// change_request -> station / station_version
+Ref: station.id < change_request.station_id
+Ref: station_version.id < change_request.proposed_station_version_id
+Ref: user_account.id < change_request.submitted_by
+
+// battery_swap_change_request -> station / battery_swap_station_version
+Ref: station.id < battery_swap_change_request.station_id
+Ref: battery_swap_station_version.id < battery_swap_change_request.proposed_version_id
+Ref: user_account.id < battery_swap_change_request.submitted_by
+
+// verification_task -> change_request / battery_swap_change_request
+Ref: change_request.id < verification_task.change_request_id
+Ref: battery_swap_change_request.id < verification_task.battery_swap_change_request_id
+Ref: collaborator_profile.id < verification_task.assigned_to
+
+// verification_task -> checkin / evidence / review
+Ref: verification_task.id < verification_checkin.task_id
+Ref: verification_task.id < verification_evidence.task_id
+Ref: verification_task.id < verification_review.task_id
+Ref: user_account.id < verification_review.reviewed_by
+Ref: user_account.id < verification_evidence.submitted_by
+
+// station_rating -> rating_eligibility
+Ref: rating_eligibility.id < station_rating.eligibility_id
+Ref: station.id < rating_eligibility.station_id
+Ref: user_account.id < rating_eligibility.user_id
+
+// voucher
+Ref: voucher_definition.id < voucher_redemption.voucher_definition_id
+
+// battery_swap_station_version -> templates
+Ref: battery_swap_station_version.id < battery_swap_pile_template.station_version_id
+Ref: battery_swap_pile_template.id < battery_swap_slot_template.pile_template_id
+
+// station_device
+Ref: station.id < battery_swap_station_device.station_id
+
+// loyalty
+Ref: loyalty_badge.id < user_badge.badge_id
+
+// UNIQUE CONSTRAINTS
+Unique: station_version.station_id, station_version.version_no
+Unique: swap_pile.station_id, swap_pile.pile_index
+Unique: battery_slot.pile_id, battery_slot.slot_index
+Unique: notification_preference.user_id, notification_preference.category
+Unique: referral.referrer_id, referral.referral_code
+Unique: user_badge.user_id, user_badge.badge_id
+Unique: rating_eligibility.user_id, rating_eligibility.station_id, rating_eligibility.source_type, rating_eligibility.source_id
+
+// INDEXES (selected important ones)
+Index: push_token.user_id [name: 'idx_push_token_user']
+Index: booking.user_id, booking.status [name: 'idx_booking_user_status']
+Index: booking.station_id [name: 'idx_booking_station_id']
+Index: booking.created_at [name: 'idx_booking_created_at']
+Index: battery_swap_reservation.user_id [name: 'idx_bsr_user']
+Index: battery_swap_reservation.station_id [name: 'idx_bsr_station']
+Index: battery_swap_reservation.status [name: 'idx_bsr_status']
+Index: battery_swap_reservation.swap_code [name: 'idx_bsr_swap_code']
+Index: swap_session.swap_code [name: 'idx_swap_session_code']
+Index: swap_session.expires_at [name: 'idx_swap_session_expires']
+Index: loyalty_point_transaction.user_id, loyalty_point_transaction.created_at [name: 'idx_lpt_user_created']
+Index: station_rating.station_id, station_rating.created_at [name: 'idx_sr_station']
+Index: audit_log.entity_type, audit_log.entity_id [name: 'idx_audit_log_entity']
+Index: audit_log.created_at [name: 'idx_audit_log_created']
+Index: collaborator_registration_request.email [name: 'idx_reg_req_email']
+Index: collaborator_registration_request.status [name: 'idx_reg_req_status']
+Index: loyalty_badge.criteria_type, loyalty_badge.criteria_value [name: 'idx_lb_criteria']
+Index: rating_eligibility.user_id, rating_eligibility.is_rated [name: 'idx_re_user']

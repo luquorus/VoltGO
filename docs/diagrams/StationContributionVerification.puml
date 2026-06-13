@@ -1,0 +1,67 @@
+@startuml StationContributionVerification
+!theme plain
+title Station Data Contribution and Verification — Business Process
+
+|#AntiqueWhite|① EV User / Collaborator|
+start
+:Submit station change request\n(CREATE or UPDATE)|
+|#LightYellow|② System|
+:Assess risk score|
+if (Risk >= 60?) then (High Risk)
+  :Flag: requiresVerification|
+else (Low/Medium)
+endif
+:Award +10 loyalty points|
+
+|#AntiqueWhite|② Admin|
+:Review → Approve or Reject|
+if (Rejected?) then (Yes)
+  :Notify user|
+  stop
+else (Approve)
+endif
+
+|#AntiqueWhite|② Admin|
+:Publish CR|
+if (High Risk?) then (Yes)
+  :Create VerificationTask|
+  detach
+else (No)
+  :→ Publish Success|
+  detach
+endif
+
+|#GhostWhite|④ Collaborator|
+:Receive task notification|
+:Check-in at station|
+|#LightYellow|② System|
+if (Within 200m?) is (No)
+  :Reject check-in|
+  stop
+else (Yes)
+endif
+:Submit evidence + photos|
+|#AntiqueWhite|② Admin|
+:Review evidence|
+if (PASS?) is (No)
+  :Flag for re-inspection|
+  stop
+else (Yes)
+endif
+
+|== PUBLISH SUCCESS ==|
+
+|#LightYellow|② System|
+:Publish new version|
+:Recalculate trust score|
+:Award +40 loyalty points|
+:Notify contributor|
+stop
+
+|#GhostWhite|④ Collaborator|
+note right
+Skip to Publish Success
+if low/medium risk
+end note
+
+@enduml

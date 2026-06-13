@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Loyalty Dashboard Screen - Overview of loyalty system stats from real data
 class LoyaltyDashboardScreen extends ConsumerWidget {
@@ -25,59 +26,104 @@ class LoyaltyDashboardScreen extends ConsumerWidget {
           ref.read(adminRatingsProvider.notifier).refresh();
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(responsivePadding(context)),
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Stats row
               dashboardAsync.when(
-                loading: () => Row(
-                  children: [
-                    for (int i = 0; i < 4; i++) ...[
-                      Expanded(
-                        child: Card(
-                          child: Container(
-                            height: 140,
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
+                loading: () => isMobile(context)
+                    ? Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: List.generate(4, (i) => SizedBox(
+                          width: (MediaQuery.of(context).size.width - 48 - 36) / 2,
+                          child: Card(
+                            child: Container(
+                              height: 140,
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  width: 60,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(4),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    width: 60,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  width: 100,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: 100,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        )),
+                      )
+                    : Row(
+                        children: [
+                          for (int i = 0; i < 4; i++) ...[
+                            Expanded(
+                              child: Card(
+                                child: Container(
+                                  height: 140,
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        width: 60,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        width: 100,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (i < 3) const SizedBox(width: 16),
+                          ],
+                        ],
                       ),
-                      if (i < 3) const SizedBox(width: 16),
-                    ],
-                  ],
-                ),
                 error: (e, _) => Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -92,173 +138,174 @@ class LoyaltyDashboardScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                data: (stats) => Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Total Points Issued',
-                        value: _formatNumber(stats.totalPointsIssued),
-                        icon: Icons.stars,
-                        color: AdminTheme.primaryTeal,
+                data: (stats) => isMobile(context)
+                    ? Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          _StatCard(
+                            title: 'Total Points Issued',
+                            value: _formatNumber(stats.totalPointsIssued),
+                            icon: Icons.stars,
+                            color: AdminTheme.primaryTeal,
+                          ),
+                          _StatCard(
+                            title: 'Active Users (30d)',
+                            value: _formatNumber(stats.activeUsers),
+                            icon: Icons.people,
+                            color: Colors.green,
+                          ),
+                          _StatCard(
+                            title: 'Active Ratings',
+                            value: _formatNumber(stats.totalRatings),
+                            icon: Icons.star,
+                            color: Colors.amber,
+                          ),
+                          _StatCard(
+                            title: 'Total Users',
+                            value: _formatNumber(usersState.users.length) + (usersState.hasMore ? '+' : ''),
+                            icon: Icons.person,
+                            color: Colors.blue,
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: _StatCard(title: 'Total Points Issued', value: _formatNumber(stats.totalPointsIssued), icon: Icons.stars, color: AdminTheme.primaryTeal)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _StatCard(title: 'Active Users (30d)', value: _formatNumber(stats.activeUsers), icon: Icons.people, color: Colors.green)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _StatCard(title: 'Active Ratings', value: _formatNumber(stats.totalRatings), icon: Icons.star, color: Colors.amber)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _StatCard(title: 'Total Users', value: _formatNumber(usersState.users.length) + (usersState.hasMore ? '+' : ''), icon: Icons.person, color: Colors.blue)),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Active Users (30d)',
-                        value: _formatNumber(stats.activeUsers),
-                        icon: Icons.people,
-                        color: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Active Ratings',
-                        value: _formatNumber(stats.totalRatings),
-                        icon: Icons.star,
-                        color: Colors.amber,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Total Users',
-                        value: _formatNumber(usersState.users.length) + (usersState.hasMore ? '+' : ''),
-                        //             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ int  + String
-                        icon: Icons.person,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 24),
               // Charts and tables row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Points trend placeholder (chart coming soon)
-                  Expanded(
-                    flex: 2,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              isMobile(context)
+                  ? Column(
+                      children: [
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Points Earned (Last 30 Days)',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    'Live',
-                                    style: TextStyle(
-                                      color: Colors.amber.shade700,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                Text('Points Earned (Last 30 Days)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 20),
+                                SizedBox(
+                                  height: 200,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.show_chart, size: 48, color: theme.colorScheme.onSurface.withOpacity(0.2)),
+                                        const SizedBox(height: 8),
+                                        Text('Chart coming soon', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                                      ],
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              height: 200,
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(Icons.show_chart, size: 48, color: theme.colorScheme.onSurface.withOpacity(0.2)),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Chart coming soon',
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                      ),
-                                    ),
+                                    Text('Top Users by Points', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                    TextButton(onPressed: () => context.go('/loyalty/users'), child: const Text('View All')),
                                   ],
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Top users
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Top Users by Points',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () => context.go('/loyalty/users'),
-                                  child: const Text('View All'),
-                                ),
+                                const SizedBox(height: 8),
+                                if (usersState.isLoading && usersState.users.isEmpty)
+                                  const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                                else if (usersState.users.isEmpty)
+                                  Center(child: Column(children: [Icon(Icons.people_outline, size: 40, color: Colors.grey[400]), const SizedBox(height: 8), Text('Chưa có user nào', style: TextStyle(color: Colors.grey[600]))]))
+                                else ...usersState.users.take(5).map((user) => Column(children: [_TopUserRow(rank: usersState.users.indexOf(user) + 1, email: user.userId.substring(0, 8) + '...', points: user.currentPoints, onTap: () => context.go('/loyalty/users/${user.userId}')), const Divider(height: 1)])),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            if (usersState.isLoading && usersState.users.isEmpty)
-                              const Center(child: Padding(
-                                padding: EdgeInsets.all(32),
-                                child: CircularProgressIndicator(),
-                              ))
-                            else if (usersState.users.isEmpty)
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Icon(Icons.people_outline, size: 40, color: Colors.grey[400]),
-                                      const SizedBox(height: 8),
-                                      Text('Chưa có user nào', style: TextStyle(color: Colors.grey[600])),
+                                      Text('Points Earned (Last 30 Days)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                        child: Text('Live', style: TextStyle(color: Colors.amber.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
                                     ],
                                   ),
-                                ),
-                              )
-                            else
-                              ...usersState.users.take(5).map((user) => Column(
-                                children: [
-                                  _TopUserRow(
-                                    rank: usersState.users.indexOf(user) + 1,
-                                    email: user.userId.substring(0, 8) + '...',
-                                    points: user.currentPoints,
-                                    onTap: () => context.go('/loyalty/users/${user.userId}'),
+                                  const SizedBox(height: 20),
+                                  SizedBox(
+                                    height: 200,
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.show_chart, size: 48, color: theme.colorScheme.onSurface.withOpacity(0.2)),
+                                          const SizedBox(height: 8),
+                                          Text('Chart coming soon', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                  const Divider(height: 1),
                                 ],
-                              )),
-                          ],
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Top Users by Points', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                      TextButton(onPressed: () => context.go('/loyalty/users'), child: const Text('View All')),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (usersState.isLoading && usersState.users.isEmpty)
+                                    const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                                  else if (usersState.users.isEmpty)
+                                    Center(child: Column(children: [Icon(Icons.people_outline, size: 40, color: Colors.grey[400]), const SizedBox(height: 8), Text('Chưa có user nào', style: TextStyle(color: Colors.grey[600]))]))
+                                  else ...usersState.users.take(5).map((user) => Column(children: [_TopUserRow(rank: usersState.users.indexOf(user) + 1, email: user.userId.substring(0, 8) + '...', points: user.currentPoints, onTap: () => context.go('/loyalty/users/${user.userId}')), const Divider(height: 1)])),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
               // Recent ratings
               Card(
@@ -270,37 +317,15 @@ class LoyaltyDashboardScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Recent Ratings',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => context.go('/loyalty/ratings'),
-                            child: const Text('Moderate All'),
-                          ),
+                          Text('Recent Ratings', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                          TextButton(onPressed: () => context.go('/loyalty/ratings'), child: const Text('Moderate All')),
                         ],
                       ),
                       const SizedBox(height: 16),
                       if (ratingsState.isLoading && ratingsState.ratings.isEmpty)
-                        const Center(child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(),
-                        ))
+                        const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
                       else if (ratingsState.ratings.isEmpty)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(Icons.rate_review_outlined, size: 40, color: Colors.grey[400]),
-                                const SizedBox(height: 8),
-                                Text('Chưa có rating nào', style: TextStyle(color: Colors.grey[600])),
-                              ],
-                            ),
-                          ),
-                        )
+                        Center(child: Column(children: [Icon(Icons.rate_review_outlined, size: 40, color: Colors.grey[400]), const SizedBox(height: 8), Text('Chưa có rating nào', style: TextStyle(color: Colors.grey[600]))]))
                       else
                         Column(
                           children: ratingsState.ratings.take(5).map((rating) {

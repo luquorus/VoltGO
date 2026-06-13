@@ -11,6 +11,7 @@ import '../providers/station_providers.dart';
 import '../providers/battery_swap_station_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Unified Stations List Screen with subtabs for Charging and Battery Swap stations
 class UnifiedStationsListScreen extends ConsumerStatefulWidget {
@@ -41,12 +42,12 @@ class _UnifiedStationsListScreenState extends ConsumerState<UnifiedStationsListS
     return AdminScaffold(
       title: 'Stations',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSubtabBar(context),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -64,6 +65,7 @@ class _UnifiedStationsListScreenState extends ConsumerState<UnifiedStationsListS
 
   Widget _buildSubtabBar(BuildContext context) {
     final theme = Theme.of(context);
+    final mobile = isMobile(context);
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -79,17 +81,19 @@ class _UnifiedStationsListScreenState extends ConsumerState<UnifiedStationsListS
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
         unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: mobile ? 12 : 14),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: mobile ? 12 : 14),
         dividerColor: Colors.transparent,
-        tabs: const [
+        tabs: [
           Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.ev_station, size: 18),
-                SizedBox(width: 8),
-                Text('Charging Stations'),
+                Icon(Icons.ev_station, size: mobile ? 16 : 18),
+                if (!mobile) ...[
+                  const SizedBox(width: 8),
+                  const Text('Charging Stations'),
+                ],
               ],
             ),
           ),
@@ -97,9 +101,11 @@ class _UnifiedStationsListScreenState extends ConsumerState<UnifiedStationsListS
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.battery_charging_full, size: 18),
-                SizedBox(width: 8),
-                Text('Battery Swap'),
+                Icon(Icons.battery_charging_full, size: mobile ? 16 : 18),
+                if (!mobile) ...[
+                  const SizedBox(width: 8),
+                  const Text('Battery Swap'),
+                ],
               ],
             ),
           ),
@@ -164,58 +170,86 @@ class _ChargingStationsTabState extends ConsumerState<_ChargingStationsTab> {
   }
 
   Widget _buildHeader(BuildContext context, ThemeData theme, AsyncValue<PaginationResponse<AdminStation>> stationsAsync) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        stationsAsync.when(
-          data: (response) => Row(
+    final mobile = isMobile(context);
+    return mobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AdminTheme.primaryTeal.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AdminTheme.primaryTeal.withOpacity(0.3), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.ev_station, size: 18, color: AdminTheme.primaryTeal),
-                    const SizedBox(width: 6),
-                    Text('${response.totalElements} stations',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AdminTheme.primaryTeal)),
-                  ],
-                ),
+              stationsAsync.when(
+                data: (response) => Text('Charging Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                loading: () => Text('Charging Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                error: (_, __) => Text('Charging Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/stations/import-csv'),
+                    icon: const Icon(Icons.upload_file, size: 16),
+                    label: const Text('Import'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/stations/create'),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Create'),
+                  ),
+                ],
               ),
             ],
-          ),
-          loading: () => Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-          error: (_, __) => Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-        ),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => context.push('/stations/import-csv'),
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Import CSV'),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/stations/create'),
-              icon: const Icon(Icons.add),
-              label: const Text('Create station'),
-            ),
-          ],
-        ),
-      ],
-    );
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              stationsAsync.when(
+                data: (response) => Row(
+                  children: [
+                    Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AdminTheme.primaryTeal.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AdminTheme.primaryTeal.withOpacity(0.3), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.ev_station, size: 18, color: AdminTheme.primaryTeal),
+                          const SizedBox(width: 6),
+                          Text('${response.totalElements} stations',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AdminTheme.primaryTeal)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                loading: () => Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                error: (_, __) => Text('Charging Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/stations/import-csv'),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import CSV'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/stations/create'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create station'),
+                  ),
+                ],
+              ),
+            ],
+          );
   }
 
   Widget _buildSearchBar(BuildContext context, WidgetRef ref, String? search) {
     return SizedBox(
-      width: 400,
+      width: isMobile(context) ? double.infinity : 400,
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
@@ -462,58 +496,86 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
   }
 
   Widget _buildHeader(BuildContext context, ThemeData theme, AsyncValue<PaginationResponse<BatterySwapStation>> stationsAsync) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        stationsAsync.when(
-          data: (response) => Row(
+    final mobile = isMobile(context);
+    return mobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AdminTheme.primaryTeal.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AdminTheme.primaryTeal.withOpacity(0.3), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.battery_charging_full, size: 18, color: AdminTheme.primaryTeal),
-                    const SizedBox(width: 6),
-                    Text('${response.totalElements} stations',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AdminTheme.primaryTeal)),
-                  ],
-                ),
+              stationsAsync.when(
+                data: (response) => Text('Battery Swap Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                loading: () => Text('Battery Swap Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                error: (_, __) => Text('Battery Swap Stations', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/battery-swap/stations/import-csv'),
+                    icon: const Icon(Icons.upload_file, size: 16),
+                    label: const Text('Import'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/battery-swap/stations/create'),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Create'),
+                  ),
+                ],
               ),
             ],
-          ),
-          loading: () => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-          error: (_, __) => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-        ),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => context.push('/battery-swap/stations/import-csv'),
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Import CSV'),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/battery-swap/stations/create'),
-              icon: const Icon(Icons.add),
-              label: const Text('Create Station'),
-            ),
-          ],
-        ),
-      ],
-    );
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              stationsAsync.when(
+                data: (response) => Row(
+                  children: [
+                    Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AdminTheme.primaryTeal.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AdminTheme.primaryTeal.withOpacity(0.3), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.battery_charging_full, size: 18, color: AdminTheme.primaryTeal),
+                          const SizedBox(width: 6),
+                          Text('${response.totalElements} stations',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: AdminTheme.primaryTeal)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                loading: () => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                error: (_, __) => Text('Battery Swap Stations', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/battery-swap/stations/import-csv'),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import CSV'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/battery-swap/stations/create'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Station'),
+                  ),
+                ],
+              ),
+            ],
+          );
   }
 
   Widget _buildSearchBar(BuildContext context, WidgetRef ref, String? search) {
     return SizedBox(
-      width: 400,
+      width: isMobile(context) ? double.infinity : 400,
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(

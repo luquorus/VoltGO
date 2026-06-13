@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../providers/profile_providers.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Profile Screen
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -35,10 +36,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return AdminScaffold(
       title: 'My Profile',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: BoxConstraints(maxWidth: isMobile(context) ? double.infinity : 600),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

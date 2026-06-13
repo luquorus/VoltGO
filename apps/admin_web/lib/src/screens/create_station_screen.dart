@@ -6,6 +6,7 @@ import '../models/admin_station.dart';
 import '../providers/station_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Create Station Screen
 class CreateStationScreen extends ConsumerStatefulWidget {
@@ -213,7 +214,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
     return AdminScaffold(
       title: _isEditMode ? 'Edit Station' : 'Create Station',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Form(
           key: _formKey,
           child: Column(
@@ -222,7 +223,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
               // Basic Info
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -230,9 +231,10 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                         'Basic Information',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
+                          fontSize: isMobile(context) ? 16 : null,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
@@ -265,50 +267,97 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _latController,
-                              decoration: const InputDecoration(
-                                labelText: 'Latitude *',
-                                border: OutlineInputBorder(),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth < 400) {
+                            return Column(
+                              children: [
+                                TextFormField(
+                                  controller: _latController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Latitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Latitude is required';
+                                    }
+                                    final lat = double.tryParse(value);
+                                    if (lat == null || lat < -90 || lat > 90) {
+                                      return 'Latitude must be between -90 and 90';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _lngController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Longitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Longitude is required';
+                                    }
+                                    final lng = double.tryParse(value);
+                                    if (lng == null || lng < -180 || lng > 180) {
+                                      return 'Longitude must be between -180 and 180';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _latController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Latitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Latitude is required';
+                                    }
+                                    final lat = double.tryParse(value);
+                                    if (lat == null || lat < -90 || lat > 90) {
+                                      return 'Latitude must be between -90 and 90';
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Latitude is required';
-                                }
-                                final lat = double.tryParse(value);
-                                if (lat == null || lat < -90 || lat > 90) {
-                                  return 'Latitude must be between -90 and 90';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _lngController,
-                              decoration: const InputDecoration(
-                                labelText: 'Longitude *',
-                                border: OutlineInputBorder(),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _lngController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Longitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Longitude is required';
+                                    }
+                                    final lng = double.tryParse(value);
+                                    if (lng == null || lng < -180 || lng > 180) {
+                                      return 'Longitude must be between -180 and 180';
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Longitude is required';
-                                }
-                                final lng = double.tryParse(value);
-                                if (lng == null || lng < -180 || lng > 180) {
-                                  return 'Longitude must be between -180 and 180';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -323,12 +372,12 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: isMobile(context) ? 16 : 24),
 
               // Settings
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -336,9 +385,10 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                         'Settings',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
+                          fontSize: isMobile(context) ? 16 : null,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       DropdownButtonFormField<ParkingType>(
                         value: _parking,
                         decoration: const InputDecoration(
@@ -421,19 +471,20 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
               // Charging Ports
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Charging ports',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      Text(
+                        'Charging ports',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile(context) ? 16 : null,
+                        ),
+                      ),
                           ElevatedButton.icon(
                             onPressed: _addPort,
                             icon: const Icon(Icons.add),
@@ -464,7 +515,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
 
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -472,6 +523,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
                         'Battery swap service',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
+                          fontSize: isMobile(context) ? 16 : null,
                         ),
                       ),
                       const SizedBox(height: 8),

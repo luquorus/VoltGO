@@ -7,6 +7,7 @@ import '../models/registration_request.dart';
 import '../providers/registration_request_providers.dart';
 import '../providers/contract_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 class RegistrationRequestDetailScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,7 @@ class _RegistrationRequestDetailScreenState
     return AdminScaffold(
       title: 'Registration Request Details',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: requestAsync.when(
           data: (request) => _buildContent(theme, request),
           loading: () => const Center(child: CircularProgressIndicator()),

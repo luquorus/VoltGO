@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_api/shared_api.dart';
 import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
+import '../../utils/responsive_utils.dart';
 import '../../widgets/admin_scaffold.dart';
 
 /// Rating Moderation Screen - View and moderate user ratings with real data

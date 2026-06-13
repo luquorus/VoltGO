@@ -4,6 +4,7 @@ import 'package:shared_api/shared_api.dart';
 import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Admin redemptions screen providers
 final adminRedemptionsProvider = FutureProvider.family<Map<String, dynamic>, String?>((ref, status) async {
@@ -28,6 +29,7 @@ class _VoucherRedemptionsScreenState extends ConsumerState<VoucherRedemptionsScr
   @override
   Widget build(BuildContext context) {
     final redemptionsAsync = ref.watch(adminRedemptionsProvider(_statusFilter));
+    final mobile = isMobile(context);
 
     return AdminScaffold(
       title: 'Danh sách Redemption',
@@ -35,34 +37,29 @@ class _VoucherRedemptionsScreenState extends ConsumerState<VoucherRedemptionsScr
         children: [
           // Filter chips
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('Tất cả'),
-                  selected: _statusFilter == null,
-                  onSelected: (_) => setState(() => _statusFilter = null),
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Chưa dùng'),
-                  selected: _statusFilter == 'REDEEMED',
-                  onSelected: (_) => setState(() { _statusFilter = 'REDEEMED'; }),
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Đã dùng'),
-                  selected: _statusFilter == 'USED',
-                  onSelected: (_) => setState(() { _statusFilter = 'USED'; }),
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Hết hạn'),
-                  selected: _statusFilter == 'EXPIRED',
-                  onSelected: (_) => setState(() { _statusFilter = 'EXPIRED'; }),
-                ),
-              ],
-            ),
+            padding: EdgeInsets.all(responsiveHPadding(context)),
+            child: mobile
+                ? Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilterChip(label: const Text('Tất cả'), selected: _statusFilter == null, onSelected: (_) => setState(() => _statusFilter = null)),
+                      FilterChip(label: const Text('Chưa dùng'), selected: _statusFilter == 'REDEEMED', onSelected: (_) => setState(() { _statusFilter = 'REDEEMED'; })),
+                      FilterChip(label: const Text('Đã dùng'), selected: _statusFilter == 'USED', onSelected: (_) => setState(() { _statusFilter = 'USED'; })),
+                      FilterChip(label: const Text('Hết hạn'), selected: _statusFilter == 'EXPIRED', onSelected: (_) => setState(() { _statusFilter = 'EXPIRED'; })),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      FilterChip(label: const Text('Tất cả'), selected: _statusFilter == null, onSelected: (_) => setState(() => _statusFilter = null)),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('Chưa dùng'), selected: _statusFilter == 'REDEEMED', onSelected: (_) => setState(() { _statusFilter = 'REDEEMED'; })),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('Đã dùng'), selected: _statusFilter == 'USED', onSelected: (_) => setState(() { _statusFilter = 'USED'; })),
+                      const SizedBox(width: 8),
+                      FilterChip(label: const Text('Hết hạn'), selected: _statusFilter == 'EXPIRED', onSelected: (_) => setState(() { _statusFilter = 'EXPIRED'; })),
+                    ],
+                  ),
           ),
           Expanded(
             child: redemptionsAsync.when(
@@ -90,8 +87,8 @@ class _VoucherRedemptionsScreenState extends ConsumerState<VoucherRedemptionsScr
                   );
                 }
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                return Padding(
+                  padding: EdgeInsets.all(responsiveHPadding(context)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

@@ -5,6 +5,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/battery_swap_change_request.dart';
 import '../providers/battery_swap_cr_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Battery Swap Change Requests List Screen
@@ -27,7 +28,7 @@ class _BatterySwapCRListScreenState
     return AdminScaffold(
       title: 'Battery Swap Change Requests',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

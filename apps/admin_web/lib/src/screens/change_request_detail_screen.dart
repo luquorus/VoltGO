@@ -7,6 +7,7 @@ import 'package:shared_api/shared_api.dart';
 import '../models/admin_change_request.dart';
 import '../providers/change_request_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 import 'create_task_modal.dart';
 
@@ -45,7 +46,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       AdminChangeRequest cr) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -257,10 +258,10 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRiskSection(ThemeData theme, AdminChangeRequest cr) {
+  Widget _buildRiskSection(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -381,7 +382,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
   Widget _buildStationDataSection(BuildContext context, ThemeData theme, StationData stationData) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -469,7 +470,7 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -500,10 +501,10 @@ class ChangeRequestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAuditLogsSection(ThemeData theme, List<AuditLog> auditLogs) {
+  Widget _buildAuditLogsSection(BuildContext context, ThemeData theme, List<AuditLog> auditLogs) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

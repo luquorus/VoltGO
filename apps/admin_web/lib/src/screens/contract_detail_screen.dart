@@ -7,6 +7,7 @@ import 'package:shared_api/shared_api.dart';
 import '../models/contract.dart';
 import '../providers/contract_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Contract Detail Screen
@@ -48,104 +49,37 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
 
   Widget _buildContent(BuildContext context, ThemeData theme, Contract contract) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AdminTheme.primaryTeal,
-                              AdminTheme.primaryTealLight,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.description,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Contract',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'ID: ${contract.id.substring(0, 8)}...',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      StatusPill(
-                        label: contract.status.displayName,
-                        colorMapper: (label) {
-                          switch (contract.status) {
-                            case ContractStatus.active:
-                              return Colors.green;
-                            case ContractStatus.terminated:
-                              return Colors.red;
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Actions
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      if (contract.status == ContractStatus.active) ...[
-                        ElevatedButton.icon(
-                          onPressed: () => _showEditDialog(context, ref, contract),
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AdminTheme.primaryTeal,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () => _showTerminateDialog(context, ref, contract),
-                          icon: const Icon(Icons.close),
-                          label: const Text('Terminate'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                      OutlinedButton.icon(
-                        onPressed: () => context.go('/collaborators/${contract.collaboratorId}'),
-                        icon: const Icon(Icons.person),
-                        label: const Text('View Collaborator'),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 500;
+                      return isNarrow
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildContractHeader(context, theme, contract),
+                                const SizedBox(height: 16),
+                                _buildContractActions(context, ref, contract),
+                              ],
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: _buildContractHeader(context, theme, contract)),
+                                _buildContractActions(context, ref, contract),
+                              ],
+                            );
+                    },
                   ),
                 ],
               ),
@@ -164,10 +98,102 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
     );
   }
 
+  Widget _buildContractHeader(BuildContext context, ThemeData theme, Contract contract) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AdminTheme.primaryTeal,
+                AdminTheme.primaryTealLight,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(
+            Icons.description,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Contract',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ID: ${contract.id.substring(0, 8)}...',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+        StatusPill(
+          label: contract.status.displayName,
+          colorMapper: (label) {
+            switch (contract.status) {
+              case ContractStatus.active:
+                return Colors.green;
+              case ContractStatus.terminated:
+                return Colors.red;
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContractActions(BuildContext context, WidgetRef ref, Contract contract) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        if (contract.status == ContractStatus.active) ...[
+          ElevatedButton.icon(
+            onPressed: () => _showEditDialog(context, ref, contract),
+            icon: const Icon(Icons.edit),
+            label: const Text('Edit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminTheme.primaryTeal,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _showTerminateDialog(context, ref, contract),
+            icon: const Icon(Icons.close),
+            label: const Text('Terminate'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+        OutlinedButton.icon(
+          onPressed: () => context.go('/collaborators/${contract.collaboratorId}'),
+          icon: const Icon(Icons.person),
+          label: const Text('View Collaborator'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildContractInfoSection(BuildContext context, ThemeData theme, Contract contract) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -251,7 +277,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   Widget _buildDatesSection(BuildContext context, ThemeData theme, Contract contract) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

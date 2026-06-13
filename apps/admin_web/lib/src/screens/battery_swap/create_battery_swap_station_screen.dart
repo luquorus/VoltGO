@@ -5,6 +5,7 @@ import 'package:shared_api/shared_api.dart';
 import '../../providers/battery_swap_station_providers.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Create Battery Swap Station Screen
 class CreateBatterySwapStationScreen extends ConsumerStatefulWidget {
@@ -120,7 +121,7 @@ class _CreateBatterySwapStationScreenState
     return AdminScaffold(
       title: 'Create Battery Swap Station',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Form(
           key: _formKey,
           child: Column(
@@ -129,7 +130,7 @@ class _CreateBatterySwapStationScreenState
               // Basic Info
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -172,54 +173,71 @@ class _CreateBatterySwapStationScreenState
                         },
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _latController,
-                              decoration: const InputDecoration(
-                                labelText: 'Latitude *',
-                                border: OutlineInputBorder(),
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Latitude is required';
-                                }
-                                final lat = double.tryParse(value);
-                                if (lat == null || lat < -90 || lat > 90) {
-                                  return 'Must be between -90 and 90';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _lngController,
-                              decoration: const InputDecoration(
-                                labelText: 'Longitude *',
-                                border: OutlineInputBorder(),
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Longitude is required';
-                                }
-                                final lng = double.tryParse(value);
-                                if (lng == null || lng < -180 || lng > 180) {
-                                  return 'Must be between -180 and 180';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth < 400) {
+                            return Column(
+                              children: [
+                                TextFormField(
+                                  controller: _latController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Latitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) return 'Latitude is required';
+                                    final lat = double.tryParse(value);
+                                    if (lat == null || lat < -90 || lat > 90) return 'Must be between -90 and 90';
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _lngController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Longitude *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) return 'Longitude is required';
+                                    final lng = double.tryParse(value);
+                                    if (lng == null || lng < -180 || lng > 180) return 'Must be between -180 and 180';
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(child: TextFormField(
+                                controller: _latController,
+                                decoration: const InputDecoration(labelText: 'Latitude *', border: OutlineInputBorder()),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return 'Latitude is required';
+                                  final lat = double.tryParse(value);
+                                  if (lat == null || lat < -90 || lat > 90) return 'Must be between -90 and 90';
+                                  return null;
+                                },
+                              )),
+                              const SizedBox(width: 16),
+                              Expanded(child: TextFormField(
+                                controller: _lngController,
+                                decoration: const InputDecoration(labelText: 'Longitude *', border: OutlineInputBorder()),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return 'Longitude is required';
+                                  final lng = double.tryParse(value);
+                                  if (lng == null || lng < -180 || lng > 180) return 'Must be between -180 and 180';
+                                  return null;
+                                },
+                              )),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -230,7 +248,7 @@ class _CreateBatterySwapStationScreenState
               // Operating Info
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -278,7 +296,7 @@ class _CreateBatterySwapStationScreenState
               // Battery Info
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -336,7 +354,7 @@ class _CreateBatterySwapStationScreenState
               // Note
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

@@ -6,10 +6,12 @@ import '../providers/registration_request_providers.dart';
 
 class AdminSidebar extends ConsumerWidget {
   final String currentRoute;
+  final bool isCollapsed;
 
   const AdminSidebar({
     super.key,
     required this.currentRoute,
+    this.isCollapsed = false,
   });
 
   @override
@@ -20,9 +22,11 @@ class AdminSidebar extends ConsumerWidget {
       data: (count) => count,
       orElse: () => 0,
     );
-    
+
+    final sidebarWidth = isCollapsed ? 72.0 : 260.0;
+
     return Container(
-      width: 260,
+      width: sidebarWidth,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -37,7 +41,7 @@ class AdminSidebar extends ConsumerWidget {
         children: [
           // Logo/Header
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isCollapsed ? 12 : 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -48,32 +52,47 @@ class AdminSidebar extends ConsumerWidget {
                 ],
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+            child: isCollapsed
+                ? Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.electric_bolt,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.electric_bolt,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'VoltGo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.electric_bolt,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'VoltGo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
           ),
 
           // Navigation Items
@@ -84,6 +103,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.dashboard_rounded,
                   label: 'Dashboard',
                   route: '/home',
@@ -92,6 +112,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.analytics,
                   label: 'Analytics',
                   route: '/dashboard',
@@ -100,6 +121,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.description_rounded,
                   label: 'Change Requests',
                   route: '/change-requests',
@@ -108,6 +130,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.report_problem_rounded,
                   label: 'Issue Reports',
                   route: '/issues',
@@ -116,15 +139,27 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.ev_station,
-                  label: 'Stations',
+                  label: 'Charging Stations',
                   route: '/stations',
                   isActive: currentRoute.startsWith('/stations') &&
-                      !currentRoute.startsWith('/stations/trust'),
+                      !currentRoute.startsWith('/stations/trust') &&
+                      !currentRoute.startsWith('/battery-swap'),
                 ),
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
+                  icon: Icons.battery_charging_full,
+                  label: 'Battery Swap Stations',
+                  route: '/battery-swap/stations',
+                  isActive: currentRoute.startsWith('/battery-swap/stations'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.verified_user_rounded,
                   label: 'Trust Dashboard',
                   route: '/stations/trust',
@@ -133,6 +168,7 @@ class AdminSidebar extends ConsumerWidget {
                 _SidebarNavItem(
                   context: context,
                   theme: theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.people_rounded,
                   label: 'Collaborators',
                   route: '/collaborators',
@@ -143,6 +179,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.trending_up,
                   label: 'Collaborator Performance',
                   route: '/collaborators/performance',
@@ -151,6 +188,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.assignment_rounded,
                   label: 'Verification Tasks',
                   route: '/verification-tasks',
@@ -159,15 +197,17 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.history_rounded,
                   label: 'Audit Logs',
                   route: '/audit',
                   isActive: currentRoute.startsWith('/audit'),
                 ),
-                const Divider(height: 32, indent: 16, endIndent: 16),
+                Divider(height: 32, indent: isCollapsed ? 8 : 16, endIndent: isCollapsed ? 8 : 16),
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.card_giftcard,
                   label: 'Loyalty',
                   route: '/loyalty',
@@ -176,6 +216,7 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.local_offer,
                   label: 'Quản lý Voucher',
                   route: '/loyalty/vouchers',
@@ -184,15 +225,17 @@ class AdminSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.receipt_long,
                   label: 'Redemptions',
                   route: '/loyalty/vouchers/redemptions',
                   isActive: currentRoute == '/loyalty/vouchers/redemptions',
                 ),
-                const Divider(height: 32, indent: 16, endIndent: 16),
+                Divider(height: 32, indent: isCollapsed ? 8 : 16, endIndent: isCollapsed ? 8 : 16),
                 _buildNavItem(
                   context,
                   theme,
+                  isCollapsed: isCollapsed,
                   icon: Icons.person_rounded,
                   label: 'My Profile',
                   route: '/profile',
@@ -204,7 +247,7 @@ class AdminSidebar extends ConsumerWidget {
 
           // Footer
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isCollapsed ? 8 : 16),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
@@ -213,43 +256,58 @@ class AdminSidebar extends ConsumerWidget {
                 ),
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AdminTheme.primaryTeal.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.admin_panel_settings_rounded,
-                    color: AdminTheme.primaryTeal,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: isCollapsed
+                ? Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AdminTheme.primaryTeal.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: AdminTheme.primaryTeal,
+                        size: 20,
+                      ),
+                    ),
+                  )
+                : Row(
                     children: [
-                      Text(
-                        'Admin Portal',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AdminTheme.primaryTeal.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.admin_panel_settings_rounded,
+                          color: AdminTheme.primaryTeal,
+                          size: 20,
                         ),
                       ),
-                      Text(
-                        'v1.0.0',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          fontSize: 11,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Admin Portal',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'v1.0.0',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -263,16 +321,17 @@ class AdminSidebar extends ConsumerWidget {
     required String label,
     required String route,
     required bool isActive,
+    bool isCollapsed = false,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: EdgeInsets.symmetric(horizontal: isCollapsed ? 8 : 12, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => context.go(route),
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 16, vertical: 14),
             decoration: BoxDecoration(
               color: isActive
                   ? AdminTheme.primaryTeal.withOpacity(0.1)
@@ -285,38 +344,63 @@ class AdminSidebar extends ConsumerWidget {
                     )
                   : null,
             ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: isActive
-                      ? AdminTheme.primaryTeal
-                      : theme.colorScheme.onSurface.withOpacity(0.6),
-                  size: 22,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                      color: isActive
-                          ? AdminTheme.primaryTeal
-                          : theme.colorScheme.onSurface.withOpacity(0.8),
-                    ),
+            child: isCollapsed
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        color: isActive
+                            ? AdminTheme.primaryTeal
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                        size: 22,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label.split(' ').first,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: isActive
+                              ? AdminTheme.primaryTeal
+                              : theme.colorScheme.onSurface.withOpacity(0.8),
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color: isActive
+                            ? AdminTheme.primaryTeal
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            color: isActive
+                                ? AdminTheme.primaryTeal
+                                : theme.colorScheme.onSurface.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                      if (isActive)
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AdminTheme.primaryTeal,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                if (isActive)
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AdminTheme.primaryTeal,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
-            ),
           ),
         ),
       ),
@@ -328,6 +412,7 @@ class AdminSidebar extends ConsumerWidget {
 class _SidebarNavItem extends StatelessWidget {
   final BuildContext context;
   final ThemeData theme;
+  final bool isCollapsed;
   final IconData icon;
   final String label;
   final String route;
@@ -337,6 +422,7 @@ class _SidebarNavItem extends StatelessWidget {
   const _SidebarNavItem({
     required this.context,
     required this.theme,
+    required this.isCollapsed,
     required this.icon,
     required this.label,
     required this.route,
@@ -347,14 +433,14 @@ class _SidebarNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: EdgeInsets.symmetric(horizontal: isCollapsed ? 8 : 12, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => GoRouter.of(context).go(route),
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 16, vertical: 14),
             decoration: BoxDecoration(
               color: isActive
                   ? AdminTheme.primaryTeal.withOpacity(0.1)
@@ -367,56 +453,108 @@ class _SidebarNavItem extends StatelessWidget {
                     )
                   : null,
             ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: isActive
-                      ? AdminTheme.primaryTeal
-                      : theme.colorScheme.onSurface.withOpacity(0.6),
-                  size: 22,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                      color: isActive
-                          ? AdminTheme.primaryTeal
-                          : theme.colorScheme.onSurface.withOpacity(0.8),
-                    ),
-                  ),
-                ),
-                if (badgeCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(minWidth: 18),
-                    child: Text(
-                      badgeCount > 99 ? '99+' : badgeCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+            child: isCollapsed
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            icon,
+                            color: isActive
+                                ? AdminTheme.primaryTeal
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
+                            size: 22,
+                          ),
+                          if (badgeCount > 0)
+                            Positioned(
+                              right: -6,
+                              top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                constraints: const BoxConstraints(minWidth: 14),
+                                child: Text(
+                                  badgeCount > 9 ? '9+' : badgeCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label.split(' ').first,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: isActive
+                              ? AdminTheme.primaryTeal
+                              : theme.colorScheme.onSurface.withOpacity(0.8),
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   )
-                else if (isActive)
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: AdminTheme.primaryTeal,
-                      shape: BoxShape.circle,
-                    ),
+                : Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color: isActive
+                            ? AdminTheme.primaryTeal
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            color: isActive
+                                ? AdminTheme.primaryTeal
+                                : theme.colorScheme.onSurface.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                      if (badgeCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(minWidth: 18),
+                          child: Text(
+                            badgeCount > 99 ? '99+' : badgeCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else if (isActive)
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: AdminTheme.primaryTeal,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
                   ),
-              ],
-            ),
           ),
         ),
       ),

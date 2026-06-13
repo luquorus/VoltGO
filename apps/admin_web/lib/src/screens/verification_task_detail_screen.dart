@@ -10,6 +10,7 @@ import '../providers/battery_swap_trust_providers.dart';
 import '../providers/file_viewer_providers.dart';
 import '../services/file_viewer_service.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 import 'assign_task_modal.dart';
 
@@ -49,7 +50,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       AdminVerificationTask task) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -209,13 +210,13 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusTimeline(ThemeData theme, AdminVerificationTask task) {
+  Widget _buildStatusTimeline(BuildContext context, ThemeData theme, AdminVerificationTask task) {
     final statuses = VerificationTaskStatus.values;
     final currentIndex = statuses.indexOf(task.status);
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -296,7 +297,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, AdminVerificationTask task) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -347,7 +348,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -475,7 +476,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildCheckinSection(BuildContext context, ThemeData theme, CheckinInfo checkin) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -528,7 +529,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -723,7 +724,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildEvidencesSection(BuildContext context, ThemeData theme, WidgetRef ref, List<Evidence> evidences) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1033,10 +1034,10 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildReviewSection(ThemeData theme, Review review) {
+  Widget _buildReviewSection(BuildContext context, ThemeData theme, Review review) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

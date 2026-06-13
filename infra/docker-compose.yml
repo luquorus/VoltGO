@@ -69,11 +69,14 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       MINIO_URL: ${MINIO_URL:-http://minio:9000}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://192.168.0.106:9000}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-voltgo}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "8080:8080"
     depends_on:

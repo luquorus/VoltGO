@@ -6,6 +6,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/audit_log.dart';
 import '../providers/audit_log_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Change Request Audit Screen
@@ -58,163 +59,172 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
     return AdminScaffold(
       title: 'Change Request Audit Logs',
       body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            // Main content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Change Request ID Input
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Change Request ID (UUID)',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _changeRequestIdController,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Enter change request UUID',
-                                      prefixIcon: Icon(Icons.description),
-                                    ),
-                                    validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
-                                        return 'Please enter a change request ID';
-                                      }
-                                      // Basic UUID validation
-                                      final uuidRegex = RegExp(
-                                        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-                                        caseSensitive: false,
-                                      );
-                                      if (!uuidRegex.hasMatch(value.trim())) {
-                                        return 'Please enter a valid UUID';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                OutlinedButton.icon(
-                                  onPressed: _currentChangeRequestId != null
-                                      ? _handleClear
-                                      : null,
-                                  icon: const Icon(Icons.clear),
-                                  label: const Text('Clear'),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  onPressed: _handleLoadAuditLogs,
-                                  icon: const Icon(Icons.search),
-                                  label: const Text('Load Audit Logs'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AdminTheme.primaryTeal,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_currentChangeRequestId != null) ...[
-                              const SizedBox(height: 16),
-                              Text(
-                                'Note: To view a different change request, clear the current ID first.',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+        padding: EdgeInsets.all(responsivePadding(context)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 800;
+            return isNarrow
+                ? Column(
+                    children: [
+                      _buildFormCard(theme),
+                      const SizedBox(height: 16),
+                      Expanded(child: _buildAuditContent(theme)),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(flex: 2, child: _buildFormCard(theme)),
+                      const SizedBox(width: 16),
+                      Expanded(flex: 3, child: _buildAuditContent(theme)),
+                    ],
+                  );
+          },
+        ),
+      ),
+    );
+  }
 
-                  // Audit Logs Table
-                  if (_currentChangeRequestId != null)
-                    Expanded(
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        child: ref
-                            .watch(changeRequestAuditLogsProvider(_currentChangeRequestId!))
-                            .when(
-                          data: (logs) => _buildAuditLogsTable(theme, logs),
-                          loading: () => LoadingState(
-                            message: 'Loading audit logs...',
-                          ),
-                          error: (error, stack) => ErrorState(
-                            title: 'Could not load audit log',
-                            message: formatApiError(error),
-                            code: extractErrorCode(error),
-                            traceId: extractTraceId(error),
-                            onRetry: () {
-                              ref.invalidate(
-                                changeRequestAuditLogsProvider(_currentChangeRequestId!),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.description_outlined,
-                                size: 64,
-                                color: theme.colorScheme.onSurface.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Enter a change request ID to view audit logs',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+  Widget _buildFormCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        child: Form(
+          key: _formKey,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Change Request ID (UUID)',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
             ),
-
-            // Metadata Drawer
-            if (_selectedLog != null)
-              Container(
-                width: 400,
-                margin: const EdgeInsets.only(left: 16),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: _buildMetadataDrawer(theme, _selectedLog!),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _changeRequestIdController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter change request UUID',
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a change request ID';
+                      }
+                      // Basic UUID validation
+                      final uuidRegex = RegExp(
+                        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                        caseSensitive: false,
+                      );
+                      if (!uuidRegex.hasMatch(value.trim())) {
+                        return 'Please enter a valid UUID';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                OutlinedButton.icon(
+                  onPressed: _currentChangeRequestId != null
+                      ? _handleClear
+                      : null,
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Clear'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _handleLoadAuditLogs,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Load Audit Logs'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AdminTheme.primaryTeal,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            if (_currentChangeRequestId != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Note: To view a different change request, clear the current ID first.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAuditLogsTable(ThemeData theme, List<AuditLogResponse> logs) {
+  Widget _buildAuditContent(ThemeData theme) {
+    if (_currentChangeRequestId == null) {
+      return Card(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.description_outlined,
+                size: 64,
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Enter a change request ID to view audit logs',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: ref
+                .watch(changeRequestAuditLogsProvider(_currentChangeRequestId!))
+                .when(
+              data: (logs) => _buildAuditLogsTable(context, theme, logs),
+              loading: () => LoadingState(
+                message: 'Loading audit logs...',
+              ),
+              error: (error, stack) => ErrorState(
+                title: 'Could not load audit log',
+                message: formatApiError(error),
+                code: extractErrorCode(error),
+                traceId: extractTraceId(error),
+                onRetry: () {
+                  ref.invalidate(
+                    changeRequestAuditLogsProvider(_currentChangeRequestId!),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        if (_selectedLog != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            height: 300,
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: _buildMetadataDrawer(theme, _selectedLog!),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAuditLogsTable(BuildContext context, ThemeData theme, List<AuditLogResponse> logs) {
     if (logs.isEmpty) {
       return EmptyState(
         icon: Icons.history_outlined,

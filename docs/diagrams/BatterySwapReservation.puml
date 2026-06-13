@@ -1,0 +1,93 @@
+@startuml BatterySwapReservation
+!theme plain
+title Battery Swap Reservation and Swap Service — Business Process
+
+|== PHASE 1: DISCOVERY ==|
+
+|#AntiqueWhite|① EV User|
+:Search nearby swap stations|
+|#LightYellow|② System|
+:Query stations by location\nReturn: stations + availability + price|
+
+|== PHASE 2: RESERVATION ==|
+
+|#AntiqueWhite|① EV User|
+:Reserve a slot at station|
+|#LightYellow|② System|
+:Allocate available slot|
+:Create reservation (UNPAID)|
+:Update slot status → RESERVED|
+
+|== PHASE 3: PAYMENT ==|
+
+|#AntiqueWhite|① EV User|
+:Make payment|
+|#LightYellow|② System|
+:Confirm payment → PAID|
+
+|== PHASE 4: ARRIVAL ==|
+
+|#AntiqueWhite|① EV User|
+:Confirm arrival at station|
+|#LightYellow|② System|
+:Start 15-minute hold timer|
+
+|== PHASE 5: SWAP START ==|
+
+|#AntiqueWhite|① EV User|
+:Request to start swap|
+|#LightYellow|② System|
+if (Payment done\n+ arrived on time?) is (No)
+  :Reject request|
+  stop
+else (Yes)
+endif
+:Generate swap code|
+:Broadcast code to Hardware Simulator|
+:Reservation status → SWAPPING|
+
+|== PHASE 6: PHYSICAL SWAP ==|
+
+|#AntiqueWhite|① EV User|
+:Present code at station|
+
+|#GhostWhite|③ Station Operator|
+:Verify code + perform battery swap|
+
+|#GhostWhite|③ Station Operator|
+:Confirm swap completion|
+|#LightYellow|② System|
+:Validate code|
+if (Code valid?) is (No)
+  :Reject|
+  stop
+else (Yes)
+endif
+:Swap batteries\n(swap out depleted → charge\nassign fresh → user)|
+:Complete reservation|
+:Award loyalty points (+50)|
+:Mark eligible for rating|
+
+|#AntiqueWhite|① EV User|
+:Swap complete notification|
+
+stop
+
+|== CANCELLATION ==|
+
+|#AntiqueWhite|① EV User|
+:Cancel reservation|
+|#LightYellow|② System|
+:Release slot|
+:Refund if paid|
+:Update status → CANCELLED|
+stop
+
+|== EXPIRATION (Background) ==|
+
+|#LightYellow|② System|
+:Background jobs expire:\n• Unpaid reservations (30 min)\n• Unclaimed slots (15 min hold)\n• Expired swap codes (30 min)|
+:Release slot + update status → EXPIRED|
+stop
+
+@enduml

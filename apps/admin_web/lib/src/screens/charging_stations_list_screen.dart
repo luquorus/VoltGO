@@ -1,0 +1,409 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_api/shared_api.dart';
+import 'package:shared_ui/shared_ui.dart';
+import '../models/admin_station.dart';
+import '../models/pagination_response.dart';
+import '../providers/station_providers.dart';
+import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
+
+/// Charging Stations List Screen
+class ChargingStationsListScreen extends ConsumerStatefulWidget {
+  const ChargingStationsListScreen({super.key});
+
+  @override
+  ConsumerState<ChargingStationsListScreen> createState() =>
+      _ChargingStationsListScreenState();
+}
+
+class _ChargingStationsListScreenState
+    extends ConsumerState<ChargingStationsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final page = ref.watch(stationsPageProvider);
+    final pageSize = ref.watch(stationsPageSizeProvider);
+    final search = ref.watch(stationsSearchProvider);
+    final stationsAsync =
+        ref.watch(stationsProvider((page: page, size: pageSize, search: search)));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, theme, stationsAsync),
+        const SizedBox(height: 16),
+        _buildSearchBar(context, ref, search),
+        const SizedBox(height: 24),
+        Expanded(
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: stationsAsync.when(
+              data: (response) =>
+                  _buildStationsTable(context, theme, ref, response),
+              loading: () =>
+                  const LoadingState(message: 'Loading stations...'),
+              error: (error, stack) => ErrorState(
+                title: 'Could not load stations',
+                message: formatApiError(error),
+                code: extractErrorCode(error),
+                traceId: extractTraceId(error),
+                onRetry: () {
+                  ref.invalidate(
+                      stationsProvider((page: page, size: pageSize, search: search)));
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(
+      BuildContext context,
+      ThemeData theme,
+      AsyncValue<PaginationResponse<AdminStation>> stationsAsync) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        stationsAsync.when(
+          data: (response) => Row(
+            children: [
+              Text('Charging Stations',
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 16),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AdminTheme.primaryTeal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AdminTheme.primaryTeal.withOpacity(0.3),
+                      width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.ev_station,
+                        size: 18, color: AdminTheme.primaryTeal),
+                    const SizedBox(width: 6),
+                    Text('${response.totalElements} stations',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AdminTheme.primaryTeal)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          loading: () => Text('Charging Stations',
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          error: (_, __) => Text('Charging Stations',
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+        ),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => context.push('/charging-stations/import-csv'),
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Import CSV'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/charging-stations/create'),
+              icon: const Icon(Icons.add),
+              label: const Text('Create station'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar(
+      BuildContext context, WidgetRef ref, String? search) {
+    return SizedBox(
+      width: 400,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by name or ID...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: search != null && search.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(stationsSearchProvider.notifier).state = null;
+                    ref.read(stationsPageProvider.notifier).state = 0;
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        onChanged: (value) {
+          ref.read(stationsSearchProvider.notifier).state =
+              value.isEmpty ? null : value;
+          ref.read(stationsPageProvider.notifier).state = 0;
+        },
+        onSubmitted: (_) {
+          ref.read(stationsPageProvider.notifier).state = 0;
+        },
+      ),
+    );
+  }
+
+  Widget _buildStationsTable(BuildContext context, ThemeData theme,
+      WidgetRef ref, PaginationResponse<AdminStation> response) {
+    if (response.content.isEmpty) {
+      return EmptyState(
+        icon: Icons.ev_station,
+        title: 'No charging stations yet',
+        message:
+            'Create a new station or import data from CSV to get started.',
+        action: ElevatedButton.icon(
+          onPressed: () => context.push('/charging-stations/create'),
+          icon: const Icon(Icons.add),
+          label: const Text('Create new station'),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Name')),
+                DataColumn(label: Text('Address')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Trust Score')),
+                DataColumn(label: Text('Versions')),
+                DataColumn(label: Text('Bookings')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: response.content.map((station) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(station.name ?? 'N/A')),
+                    DataCell(SizedBox(
+                        width: 200,
+                        child: Text(station.address ?? 'N/A',
+                            overflow: TextOverflow.ellipsis))),
+                    DataCell(_buildStatusChip(theme, station)),
+                    DataCell(Text(station.trustScore?.toString() ?? 'N/A',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _getTrustScoreColor(
+                                theme, station.trustScore)))),
+                    DataCell(Text(station.totalVersions.toString())),
+                    DataCell(Text(station.activeBookings.toString(),
+                        style: TextStyle(
+                            color: station.hasActiveBookings
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onSurface))),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                            icon: const Icon(Icons.visibility, size: 20),
+                            onPressed: () => context
+                                .push('/charging-stations/${station.stationId}'),
+                            tooltip: 'View Details'),
+                        IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            onPressed: () => context
+                                .push('/charging-stations/${station.stationId}'),
+                            tooltip: 'View/Edit'),
+                        IconButton(
+                            icon: const Icon(Icons.delete, size: 20),
+                            onPressed: station.hasActiveBookings
+                                ? null
+                                : () =>
+                                    _showDeleteDialog(context, theme, ref, station),
+                            tooltip: station.hasActiveBookings
+                                ? 'Cannot delete: has active bookings'
+                                : 'Delete',
+                            color: station.hasActiveBookings
+                                ? theme.colorScheme.error.withOpacity(0.5)
+                                : theme.colorScheme.error),
+                      ],
+                    )),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        if (response.totalPages > 1)
+          _buildPagination(context, theme, ref, response),
+      ],
+    );
+  }
+
+  Widget _buildPagination(BuildContext context, ThemeData theme,
+      WidgetRef ref, PaginationResponse<AdminStation> response) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          border:
+              Border(top: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+              'Page ${response.page + 1} of ${response.totalPages} (${response.totalElements} total)',
+              style: theme.textTheme.bodySmall),
+          Row(
+            children: [
+              IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: response.first
+                      ? null
+                      : () => ref.read(stationsPageProvider.notifier).state--),
+              Text('${response.page + 1}'),
+              IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: response.last
+                      ? null
+                      : () => ref.read(stationsPageProvider.notifier).state++),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(ThemeData theme, AdminStation station) {
+    if (station.workflowStatus == null) {
+      return Chip(
+          label: const Text('No Version'),
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          labelStyle: theme.textTheme.labelSmall);
+    }
+    final status = station.workflowStatus!;
+    Color backgroundColor, textColor;
+    switch (status) {
+      case WorkflowStatus.published:
+        backgroundColor = theme.colorScheme.primaryContainer;
+        textColor = theme.colorScheme.onPrimaryContainer;
+        break;
+      case WorkflowStatus.draft:
+        backgroundColor = theme.colorScheme.surfaceContainerHighest;
+        textColor = theme.colorScheme.onSurfaceVariant;
+        break;
+      case WorkflowStatus.pending:
+        backgroundColor = theme.colorScheme.tertiaryContainer;
+        textColor = theme.colorScheme.onTertiaryContainer;
+        break;
+      case WorkflowStatus.rejected:
+        backgroundColor = theme.colorScheme.errorContainer;
+        textColor = theme.colorScheme.onErrorContainer;
+        break;
+      case WorkflowStatus.archived:
+        backgroundColor = theme.colorScheme.surfaceContainerHighest;
+        textColor = theme.colorScheme.onSurfaceVariant;
+        break;
+    }
+    return Chip(
+        label: Text(status.name.toUpperCase()),
+        backgroundColor: backgroundColor,
+        labelStyle:
+            theme.textTheme.labelSmall?.copyWith(color: textColor));
+  }
+
+  Color _getTrustScoreColor(ThemeData theme, int? score) {
+    if (score == null) return theme.colorScheme.onSurfaceVariant;
+    if (score >= 80) return theme.colorScheme.primary;
+    if (score >= 60) return theme.colorScheme.tertiary;
+    return theme.colorScheme.error;
+  }
+
+  void _showDeleteDialog(
+      BuildContext context, ThemeData theme, WidgetRef ref, AdminStation station) async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Station'),
+        content: Text(
+            'Are you sure you want to delete station "${station.name}"? This will archive all versions.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final factory = ref.read(apiClientFactoryProvider);
+                if (factory == null) throw Exception('API client not initialized');
+                await factory.admin.deleteStation(station.stationId);
+                ref.invalidate(stationsProvider(
+                    (page: ref.read(stationsPageProvider),
+                        size: ref.read(stationsPageSizeProvider),
+                        search: ref.read(stationsSearchProvider))));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Station deleted successfully'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } catch (e) {
+                String errorMessage = 'Error deleting station';
+                if (e is DioException && e.response?.data is Map<String, dynamic>) {
+                  errorMessage =
+                      (e.response!.data as Map<String, dynamic>)['message']
+                              as String? ??
+                          'Server error: ${e.response!.statusCode}';
+                } else if (e is DioException) {
+                  errorMessage = 'Connection error: ${e.message}';
+                } else {
+                  errorMessage = 'Error: $e';
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(children: [
+                        const Icon(Icons.error_outline, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: Text(errorMessage,
+                                style:
+                                    const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}

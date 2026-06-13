@@ -7,6 +7,7 @@ import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
 import '../providers/collaborator_performance_providers.dart';
 import '../models/collaborator_performance.dart';
+import '../utils/responsive_utils.dart';
 
 class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
   final String collaboratorId;
@@ -56,21 +57,21 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
 
   Widget _buildContent(BuildContext context, CollaboratorPerformanceDetail detail) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Profile Header
           _buildProfileHeader(context, detail),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile(context) ? 20 : 32),
 
           // KPIs
           _buildKpiCards(context, detail),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile(context) ? 20 : 32),
 
           // Monthly Breakdown Chart
           _buildMonthlyChart(context, detail),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile(context) ? 20 : 32),
 
           // Task History
           _buildTaskHistory(context, detail),
@@ -87,42 +88,94 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
         side: BorderSide(color: AdminTheme.outlineLight),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: AdminTheme.primaryTeal.withOpacity(0.1),
-              child: Text(
-                detail.fullName.isNotEmpty ? detail.fullName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AdminTheme.primaryTeal,
-                ),
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 400) {
+              return Column(
                 children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AdminTheme.primaryTeal.withOpacity(0.1),
+                    child: Text(
+                      detail.fullName.isNotEmpty ? detail.fullName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AdminTheme.primaryTeal,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     detail.fullName.isNotEmpty ? detail.fullName : 'Unknown Collaborator',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'ID: ${detail.collaboratorId}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AdminTheme.primaryTeal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle, size: 16, color: AdminTheme.primaryTeal),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${detail.passRate.toStringAsFixed(0)}% Pass Rate',
+                          style: TextStyle(color: AdminTheme.primaryTeal, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                CircleAvatar(
+                  radius: isMobile(context) ? 32 : 40,
+                  backgroundColor: AdminTheme.primaryTeal.withOpacity(0.1),
+                  child: Text(
+                    detail.fullName.isNotEmpty ? detail.fullName[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      fontSize: isMobile(context) ? 24 : 32,
+                      fontWeight: FontWeight.bold,
+                      color: AdminTheme.primaryTeal,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        detail.fullName.isNotEmpty ? detail.fullName : 'Unknown Collaborator',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile(context) ? 16 : null,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${detail.collaboratorId}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -132,28 +185,21 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: AdminTheme.primaryTeal,
-                            ),
+                            Icon(Icons.check_circle, size: 16, color: AdminTheme.primaryTeal),
                             const SizedBox(width: 4),
                             Text(
                               '${detail.passRate.toStringAsFixed(0)}% Pass Rate',
-                              style: TextStyle(
-                                color: AdminTheme.primaryTeal,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: TextStyle(color: AdminTheme.primaryTeal, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

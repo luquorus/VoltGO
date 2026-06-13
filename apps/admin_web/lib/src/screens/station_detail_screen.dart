@@ -8,6 +8,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../models/admin_station.dart';
 import '../providers/station_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Station Detail Screen
@@ -45,110 +46,34 @@ class StationDetailScreen extends ConsumerWidget {
   Widget _buildContent(
       BuildContext context, ThemeData theme, WidgetRef ref, AdminStation station) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
+              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 500;
+                  return isNarrow
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              station.name ?? 'Unnamed Station',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  'ID: ${station.stationId}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(Icons.copy, size: 18),
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: station.stationId));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Station ID copied to clipboard'),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
-                                  tooltip: 'Copy ID',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  style: IconButton.styleFrom(
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            _buildStationHeader(context, theme, station),
+                            const SizedBox(height: 16),
+                            _buildStationActions(context, theme, ref, station),
                           ],
-                        ),
-                      ),
-                      if (station.workflowStatus != null)
-                        StatusPill(
-                          label: station.workflowStatus!.name.toUpperCase(),
-                          colorMapper: (label) {
-                            switch (station.workflowStatus!) {
-                              case WorkflowStatus.published:
-                                return Colors.green;
-                              case WorkflowStatus.draft:
-                                return Colors.grey;
-                              case WorkflowStatus.pending:
-                                return Colors.orange;
-                              case WorkflowStatus.rejected:
-                                return Colors.red;
-                              case WorkflowStatus.archived:
-                                return Colors.grey;
-                            }
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Actions
-                  Wrap(
-                    spacing: 12,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          context.push('/stations/create', extra: station);
-                        },
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Edit'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: station.hasActiveBookings
-                            ? null
-                            : () {
-                                _showDeleteDialog(context, theme, ref, station);
-                              },
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildStationHeader(context, theme, station)),
+                            _buildStationActions(context, theme, ref, station),
+                          ],
+                        );
+                },
               ),
             ),
           ),
@@ -157,7 +82,7 @@ class StationDetailScreen extends ConsumerWidget {
           // Station Info
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -191,7 +116,7 @@ class StationDetailScreen extends ConsumerWidget {
           if (station.services.isNotEmpty)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(responsivePadding(context) * 0.8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -229,6 +154,98 @@ class StationDetailScreen extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStationHeader(BuildContext context, ThemeData theme, AdminStation station) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          station.name ?? 'Unnamed Station',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              'ID: ${station.stationId}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.copy, size: 18),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: station.stationId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Station ID copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              tooltip: 'Copy ID',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+        if (station.workflowStatus != null) ...[
+          const SizedBox(height: 12),
+          StatusPill(
+            label: station.workflowStatus!.name.toUpperCase(),
+            colorMapper: (label) {
+              switch (station.workflowStatus!) {
+                case WorkflowStatus.published:
+                  return Colors.green;
+                case WorkflowStatus.draft:
+                  return Colors.grey;
+                case WorkflowStatus.pending:
+                  return Colors.orange;
+                case WorkflowStatus.rejected:
+                  return Colors.red;
+                case WorkflowStatus.archived:
+                  return Colors.grey;
+              }
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStationActions(BuildContext context, ThemeData theme, WidgetRef ref, AdminStation station) {
+    return Wrap(
+      spacing: 12,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () {
+            context.push('/stations/create', extra: station);
+          },
+          icon: const Icon(Icons.edit),
+          label: const Text('Edit'),
+        ),
+        OutlinedButton.icon(
+          onPressed: station.hasActiveBookings
+              ? null
+              : () {
+                  _showDeleteDialog(context, theme, ref, station);
+                },
+          icon: const Icon(Icons.delete),
+          label: const Text('Delete'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.error,
+          ),
+        ),
+      ],
     );
   }
 

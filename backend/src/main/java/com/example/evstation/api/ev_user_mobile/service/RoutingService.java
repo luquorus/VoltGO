@@ -27,7 +27,7 @@ public class RoutingService {
     private static final int MAX_RETRIES = 1;
     private static final int MIN_POLYLINE_POINTS = 2;
 
-    @Value("${app.routing.default-station-limit:3}")
+    @Value("${app.routing.default-station-limit:10}")
     private int defaultStationLimit;
 
     @Value("${app.routing.corridor-buffer-meters:1000}")

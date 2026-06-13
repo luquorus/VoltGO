@@ -1,12 +1,11 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_api/shared_api.dart';
 import '../../providers/battery_swap_station_providers.dart';
-import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
+import '../../utils/responsive_utils.dart';
 
 /// CSV Import Screen for Battery Swap Stations
 class BatterySwapCsvImportScreen extends ConsumerStatefulWidget {
@@ -34,9 +33,9 @@ class _BatterySwapCsvImportScreenState
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.single;
-        if (file.bytes == null && file.xFile != null) {
+        if (file.bytes == null) {
           try {
-            final bytes = await file.xFile.readAsBytes();
+            await file.xFile.readAsBytes();
             setState(() {
               _pickedFile = result;
               _importResult = null;
@@ -203,7 +202,7 @@ class _BatterySwapCsvImportScreenState
     return AdminScaffold(
       title: 'Import Battery Swap Stations from CSV',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -252,6 +251,43 @@ class _BatterySwapCsvImportScreenState
                       '• parkingFee: Numeric, e.g. 5000 (optional)\n'
                       '• note: Any notes (optional)',
                       style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200, width: 1),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.auto_awesome, size: 18, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Auto-Publish Behavior',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '• Imported stations will be published immediately after import.\n'
+                            '• Battery slots are automatically created to full capacity (6 slots per pile).\n'
+                            '• Trust score is initialized at 50.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

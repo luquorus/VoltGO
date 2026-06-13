@@ -1,0 +1,1 @@
+{"traceId":"5f9ddcac-4041-4388-91af-217cb3d113be","code":"EVS-0002","message":"Invalid request body: Required request body is missing: public org.springframework.http.ResponseEntity<com.example.evstation.auth.api.dto.AuthResponse> com.example.evstation.auth.api.AuthController.login(com.example.evstation.auth.api.dto.LoginRequest)","timestamp":"2026-06-13T11:51:18.542194939Z"}

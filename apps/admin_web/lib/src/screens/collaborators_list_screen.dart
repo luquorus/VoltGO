@@ -7,6 +7,7 @@ import '../models/collaborator_profile.dart';
 import '../models/pagination_response.dart';
 import '../providers/collaborator_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Collaborators List Screen
@@ -28,7 +29,7 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
     return AdminScaffold(
       title: 'Collaborators',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

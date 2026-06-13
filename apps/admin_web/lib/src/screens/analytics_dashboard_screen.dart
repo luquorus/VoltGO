@@ -7,6 +7,7 @@ import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
 import '../providers/dashboard_providers.dart';
 import '../models/dashboard_stats.dart';
+import '../utils/responsive_utils.dart';
 
 class AnalyticsDashboardScreen extends ConsumerWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -22,7 +23,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
           ref.invalidate(issueStatsProvider);
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(responsivePadding(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

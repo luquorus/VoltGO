@@ -43,6 +43,7 @@ public class BatterySwapStationAdminService {
     private final BatterySwapChangeRequestJpaRepository crRepository;
     private final BatterySwapTrustJpaRepository trustRepository;
     private final BatterySwapPileTemplateJpaRepository pileTemplateRepository;
+    private final BatterySwapSlotTemplateJpaRepository slotTemplateRepository;
     private final SwapStationStateApplyService swapStationStateApplyService;
     private final BatterySwapTrustScoringService trustScoringService;
     private final AuditLogJpaRepository auditLogRepository;
@@ -163,6 +164,14 @@ public class BatterySwapStationAdminService {
 
         bsVersionRepository.save(newBsVersion);
         log.info("Created battery swap station version: {}, status={}", newBsVersion.getId(), workflowStatus);
+
+        // Explicitly persist pile templates and slot templates to ensure they are saved
+        for (BatterySwapPileTemplateEntity pile : newPiles) {
+            pileTemplateRepository.save(pile);
+            for (BatterySwapSlotTemplateEntity slot : pile.getSlotTemplates()) {
+                slotTemplateRepository.save(slot);
+            }
+        }
 
         // 3. Create StationVersionEntity (base station info)
         Point location = createPoint(data.getLocation().getLng(), data.getLocation().getLat());

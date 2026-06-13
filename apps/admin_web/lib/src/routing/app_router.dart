@@ -20,7 +20,6 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/collaborator_management_screen.dart';
 import '../screens/collaborator_detail_screen.dart';
 import '../screens/contract_detail_screen.dart';
-import '../screens/unified_stations_list_screen.dart';
 import '../screens/station_detail_screen.dart';
 import '../screens/create_station_screen.dart';
 import '../screens/csv_import_screen.dart';
@@ -40,6 +39,8 @@ import '../screens/loyalty/voucher_management_screen.dart';
 import '../screens/loyalty/voucher_redemptions_screen.dart';
 import '../screens/battery_swap/create_battery_swap_station_screen.dart';
 import '../screens/battery_swap/battery_swap_csv_import_screen.dart';
+import '../screens/charging_stations_screen.dart';
+import '../screens/battery_swap_stations_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -106,17 +107,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/stations',
-        builder: (_, __) => const UnifiedStationsListScreen(),
+        builder: (_, __) => const ChargingStationsScreen(),
       ),
       GoRoute(
-        path: '/stations/trust',
-        builder: (context, state) {
-          final stationId = state.uri.queryParameters['stationId'];
-          return UnifiedTrustDashboardScreen(stationId: stationId);
-        },
+        path: '/charging-stations',
+        builder: (_, __) => const ChargingStationsScreen(),
       ),
       GoRoute(
         path: '/stations/create',
+        builder: (context, state) {
+          final station = state.extra as AdminStation?;
+          return CreateStationScreen(station: station);
+        },
+      ),
+      GoRoute(
+        path: '/charging-stations/create',
         builder: (context, state) {
           final station = state.extra as AdminStation?;
           return CreateStationScreen(station: station);
@@ -127,10 +132,72 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const CsvImportScreen(),
       ),
       GoRoute(
+        path: '/charging-stations/import-csv',
+        builder: (_, __) => const CsvImportScreen(),
+      ),
+      GoRoute(
         path: '/stations/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return StationDetailScreen(id: id);
+        },
+      ),
+      GoRoute(
+        path: '/charging-stations/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return StationDetailScreen(id: id);
+        },
+      ),
+      // Battery Swap Stations (slash pattern) — parent so static children match before :id
+      GoRoute(
+        path: '/battery-swap/stations',
+        builder: (_, __) => const BatterySwapStationsScreen(),
+        routes: [
+          GoRoute(
+            path: 'create',
+            builder: (_, __) => const CreateBatterySwapStationScreen(),
+          ),
+          GoRoute(
+            path: 'import-csv',
+            builder: (_, __) => const BatterySwapCsvImportScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return BatterySwapStationDetailScreen(id: id);
+            },
+          ),
+        ],
+      ),
+      // Battery Swap Stations (hyphen pattern) — parent so static children match before :id
+      GoRoute(
+        path: '/battery-swap-stations',
+        builder: (_, __) => const BatterySwapStationsScreen(),
+        routes: [
+          GoRoute(
+            path: 'create',
+            builder: (_, __) => const CreateBatterySwapStationScreen(),
+          ),
+          GoRoute(
+            path: 'import-csv',
+            builder: (_, __) => const BatterySwapCsvImportScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return BatterySwapStationDetailScreen(id: id);
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/stations/trust',
+        builder: (context, state) {
+          final stationId = state.uri.queryParameters['stationId'];
+          return UnifiedTrustDashboardScreen(stationId: stationId);
         },
       ),
       GoRoute(
@@ -183,28 +250,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ContractDetailScreen(id: id);
         },
       ),
-      // Battery Swap routes (detail screens remain, list is under unified screens)
+      // Battery Swap routes
       GoRoute(
         path: '/battery-swap/change-requests/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return BatterySwapCRDetailScreen(id: id);
         },
-      ),
-      GoRoute(
-        path: '/battery-swap/stations/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return BatterySwapStationDetailScreen(id: id);
-        },
-      ),
-      GoRoute(
-        path: '/battery-swap/stations/create',
-        builder: (_, __) => const CreateBatterySwapStationScreen(),
-      ),
-      GoRoute(
-        path: '/battery-swap/stations/import-csv',
-        builder: (_, __) => const BatterySwapCsvImportScreen(),
       ),
       // Battery Swap Trust (individual station via query param)
       GoRoute(

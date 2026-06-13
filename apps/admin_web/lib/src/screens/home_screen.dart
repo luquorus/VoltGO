@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_auth/shared_auth.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -16,7 +17,7 @@ class HomeScreen extends ConsumerWidget {
     return AdminScaffold(
       title: 'Dashboard',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -31,7 +32,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               child: Container(
-                padding: const EdgeInsets.all(32),
+                padding: EdgeInsets.all(isMobile(context) ? 20 : 32),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   gradient: LinearGradient(
@@ -43,39 +44,39 @@ class HomeScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AdminTheme.primaryTeal,
-                            AdminTheme.primaryTealLight,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AdminTheme.primaryTeal.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.dashboard_rounded,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth < 500) {
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AdminTheme.primaryTeal,
+                                  AdminTheme.primaryTealLight,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AdminTheme.primaryTeal.withOpacity(0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.dashboard_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Text(
                             'Welcome back!',
                             style: theme.textTheme.bodyLarge?.copyWith(
@@ -84,10 +85,10 @@ class HomeScreen extends ConsumerWidget {
                               fontSize: 15,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           Text(
                             authState.email ?? 'Administrator',
-                            style: theme.textTheme.headlineMedium?.copyWith(
+                            style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AdminTheme.primaryTealDark,
                             ),
@@ -101,13 +102,75 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AdminTheme.primaryTeal,
+                                AdminTheme.primaryTealLight,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AdminTheme.primaryTeal.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.dashboard_rounded,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome back!',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color:
+                                      theme.colorScheme.onSurface.withOpacity(0.6),
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                authState.email ?? 'Administrator',
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AdminTheme.primaryTealDark,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Ready to manage the system',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color:
+                                      theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: isMobile(context) ? 20 : 32),
 
             // Quick Actions
             Text(
@@ -115,6 +178,7 @@ class HomeScreen extends ConsumerWidget {
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AdminTheme.primaryTealDark,
+                fontSize: isMobile(context) ? 16 : null,
               ),
             ),
             const SizedBox(height: 20),
@@ -218,6 +282,7 @@ class HomeScreen extends ConsumerWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final isMobileCard = isMobile(context);
     return SizedBox(
       width: width,
       child: Material(
@@ -226,8 +291,7 @@ class HomeScreen extends ConsumerWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            height: 240,
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobileCard ? 16 : 24),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
@@ -245,9 +309,10 @@ class HomeScreen extends ConsumerWidget {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: EdgeInsets.all(isMobileCard ? 10 : 14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -262,28 +327,30 @@ class HomeScreen extends ConsumerWidget {
                   child: Icon(
                     icon,
                     color: color,
-                    size: 28,
+                    size: isMobileCard ? 22 : 28,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(
                   title,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AdminTheme.primaryTealDark,
+                    fontSize: isMobileCard ? 14 : null,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                     height: 1.4,
+                    fontSize: isMobileCard ? 11 : null,
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const Spacer(),
+                SizedBox(height: isMobileCard ? 12 : 16),
                 Row(
                   children: [
                     Text(

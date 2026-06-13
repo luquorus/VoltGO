@@ -6,6 +6,7 @@ import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
 import '../providers/collaborator_performance_providers.dart';
 import '../models/collaborator_performance.dart';
+import '../utils/responsive_utils.dart';
 
 class CollaboratorPerformanceScreen extends ConsumerStatefulWidget {
   const CollaboratorPerformanceScreen({super.key});
@@ -39,7 +40,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
           ref.invalidate(aggregatedPerformanceStatsProvider);
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(responsivePadding(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -95,9 +96,24 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
                 const SizedBox(height: 20),
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final itemWidth = constraints.maxWidth > 600 
-                        ? (constraints.maxWidth - 48) / 3 
-                        : constraints.maxWidth;
+                    final isWide = constraints.maxWidth > 600;
+
+                    if (!isWide) {
+                      // On narrow screens, show cards stacked vertically
+                      return Column(
+                        children: top3.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final collab = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _buildLeaderboardCard(collab, index),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }
 
                     return Wrap(
                       spacing: 24,
@@ -105,7 +121,10 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
                       children: top3.asMap().entries.map((entry) {
                         final index = entry.key;
                         final collab = entry.value;
-                        return _buildLeaderboardCard(collab, index);
+                        return SizedBox(
+                          width: (constraints.maxWidth - 48) / 3,
+                          child: _buildLeaderboardCard(collab, index),
+                        );
                       }).toList(),
                     );
                   },
@@ -140,7 +159,6 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
     final medal = medals[rank.clamp(0, 2)];
 
     return Container(
-      width: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(

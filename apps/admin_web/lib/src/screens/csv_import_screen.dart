@@ -8,6 +8,7 @@ import 'package:shared_api/shared_api.dart';
 import '../providers/station_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// CSV Import Screen
 class CsvImportScreen extends ConsumerStatefulWidget {
@@ -299,7 +300,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
     return AdminScaffold(
       title: 'Import Stations from CSV',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -361,6 +362,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
                             icon: const Icon(Icons.upload_file),
                             label: Text(
                               _pickedFile?.files.single.name ?? 'Choose CSV File',
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),

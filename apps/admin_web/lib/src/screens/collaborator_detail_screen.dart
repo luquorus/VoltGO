@@ -9,6 +9,7 @@ import '../models/contract.dart';
 import '../providers/collaborator_providers.dart';
 import '../providers/contract_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Collaborator Detail Screen
@@ -49,95 +50,38 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
 
   Widget _buildContent(BuildContext context, ThemeData theme, CollaboratorProfile collaborator) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 400;
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildProfileHeader(context, theme, collaborator),
+                        const SizedBox(height: 16),
+                        if (collaborator.hasActiveContract == true)
+                          _buildActiveContractBadge(context, theme),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AdminTheme.primaryTeal,
-                              AdminTheme.primaryTealLight,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              collaborator.fullName ?? 'N/A',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'ID: ${collaborator.id.substring(0, 8)}...',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildProfileHeader(context, theme, collaborator),
+                      const Spacer(),
                       if (collaborator.hasActiveContract == true)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.green,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Active Contract',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildActiveContractBadge(context, theme),
                     ],
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -155,6 +99,88 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
 
           // Contracts Section
           _buildContractsSection(context, theme, collaborator),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, ThemeData theme, CollaboratorProfile collaborator) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AdminTheme.primaryTeal,
+                AdminTheme.primaryTealLight,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(
+            Icons.person,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                collaborator.fullName ?? 'N/A',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ID: ${collaborator.id.substring(0, 8)}...',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveContractBadge(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.green,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle,
+            color: Colors.green,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Active Contract',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.green,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -281,54 +307,88 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 300;
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    value,
-                    style: theme.textTheme.bodyMedium,
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
-                if (copyable) ...[
-                  const SizedBox(width: 8),
-                  Tooltip(
-                    message: 'Copy to clipboard',
-                    child: IconButton(
-                      icon: const Icon(Icons.copy, size: 18),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: value));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('$label copied to clipboard'),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      iconSize: 18,
-                      color: theme.colorScheme.primary,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: theme.textTheme.bodyMedium,
+                      ),
                     ),
-                  ),
-                ],
+                    if (copyable) _buildCopyButton(context, theme, value),
+                  ],
+                ),
               ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 140,
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    if (copyable) ...[
+                      const SizedBox(width: 8),
+                      _buildCopyButton(context, theme, value),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCopyButton(BuildContext context, ThemeData theme, String value) {
+    return Tooltip(
+      message: 'Copy to clipboard',
+      child: IconButton(
+        icon: const Icon(Icons.copy, size: 18),
+        onPressed: () {
+          Clipboard.setData(ClipboardData(text: value));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Copied to clipboard'),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-        ],
+          );
+        },
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        iconSize: 18,
+        color: theme.colorScheme.primary,
       ),
     );
   }

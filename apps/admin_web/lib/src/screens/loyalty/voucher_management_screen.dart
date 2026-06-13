@@ -4,6 +4,7 @@ import 'package:shared_api/shared_api.dart';
 import '../../providers/loyalty_providers.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_scaffold.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Admin voucher management providers
 final adminVouchersProvider = FutureProvider<List<VoucherDefinition>>((ref) async {
@@ -87,24 +88,27 @@ class VoucherManagementScreen extends ConsumerWidget {
         data: (vouchers) {
           if (vouchers.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.card_giftcard, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text('Chưa có voucher nào'),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => _showCreateDialog(context, ref),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Tạo Voucher'),
-                  ),
-                ],
+              child: Padding(
+                padding: EdgeInsets.all(responsivePadding(context)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.card_giftcard, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    const Text('Chưa có voucher nào'),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _showCreateDialog(context, ref),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Tạo Voucher'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+          return Padding(
+            padding: EdgeInsets.all(responsivePadding(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

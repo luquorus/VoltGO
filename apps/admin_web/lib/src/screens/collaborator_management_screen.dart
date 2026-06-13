@@ -10,6 +10,7 @@ import '../providers/registration_request_providers.dart';
 import '../providers/contract_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 export '../providers/contract_providers.dart' show CollaboratorWithContracts, NoContractReason;
 
@@ -60,6 +61,7 @@ class _CollaboratorManagementScreenState extends ConsumerState<CollaboratorManag
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final pendingCount = ref.watch(pendingRequestsCountProvider);
+    final mobile = isMobile(context);
 
     return AdminScaffold(
       title: 'Collaborator Management',
@@ -80,12 +82,12 @@ class _CollaboratorManagementScreenState extends ConsumerState<CollaboratorManag
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: EdgeInsets.fromLTRB(mobile ? 16 : 24, 16, mobile ? 16 : 24, 0),
                   child: Row(
                     children: [
                       Text(
                         'Collaborator Management',
-                        style: theme.textTheme.headlineSmall?.copyWith(
+                        style: (mobile ? theme.textTheme.titleLarge : theme.textTheme.headlineSmall)?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AdminTheme.primaryTealDark,
                         ),
@@ -96,7 +98,7 @@ class _CollaboratorManagementScreenState extends ConsumerState<CollaboratorManag
                 ),
                 TabBar(
                   controller: _tabController,
-                  isScrollable: false,
+                  isScrollable: mobile,
                   labelColor: AdminTheme.primaryTeal,
                   unselectedLabelColor: Colors.grey[600],
                   indicatorColor: AdminTheme.primaryTeal,
@@ -104,52 +106,62 @@ class _CollaboratorManagementScreenState extends ConsumerState<CollaboratorManag
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelStyle: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
+                    fontSize: mobile ? 12 : null,
+                  ),
+                  unselectedLabelStyle: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: mobile ? 12 : null,
                   ),
                   tabs: [
                     // Tab 1: Registration Requests with pending badge
                     Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.pending_actions_rounded, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('Registration Requests'),
-                          const SizedBox(width: 8),
-                          pendingCount.when(
-                            data: (count) => count > 0
-                                ? _Badge(
-                                    count: count,
-                                    color: Colors.red,
-                                  )
-                                : const SizedBox.shrink(),
-                            loading: () => const SizedBox.shrink(),
-                            error: (_, __) => const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
+                      child: mobile
+                          ? const Icon(Icons.pending_actions_rounded, size: 20)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.pending_actions_rounded, size: 20),
+                                const SizedBox(width: 8),
+                                const Text('Registration Requests'),
+                                const SizedBox(width: 8),
+                                pendingCount.when(
+                                  data: (count) => count > 0
+                                      ? _Badge(
+                                          count: count,
+                                          color: Colors.red,
+                                        )
+                                      : const SizedBox.shrink(),
+                                  loading: () => const SizedBox.shrink(),
+                                  error: (_, __) => const SizedBox.shrink(),
+                                ),
+                              ],
+                            ),
                     ),
                     // Tab 2: Active Contracts
-                    const Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.description_rounded, size: 20),
-                          SizedBox(width: 8),
-                          Text('Active Contracts'),
-                        ],
-                      ),
+                    Tab(
+                      child: mobile
+                          ? const Icon(Icons.description_rounded, size: 20)
+                          : const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.description_rounded, size: 20),
+                                SizedBox(width: 8),
+                                Text('Active Contracts'),
+                              ],
+                            ),
                     ),
                     // Tab 3: No Contract
                     Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.warning_amber_rounded, size: 20, color: Colors.orange[700]),
-                          const SizedBox(width: 8),
-                          const Text('No Contract'),
-                        ],
-                      ),
+                      child: mobile
+                          ? Icon(Icons.warning_amber_rounded, size: 20, color: Colors.orange[700])
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.warning_amber_rounded, size: 20, color: Colors.orange[700]),
+                                const SizedBox(width: 8),
+                                const Text('No Contract'),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -239,7 +251,7 @@ class _RegistrationRequestsTabState extends ConsumerState<_RegistrationRequestsT
     final requestsAsync = ref.watch(registrationRequestsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         children: [
           // Search and Filter Row
@@ -382,22 +394,43 @@ class _RegistrationRequestsTabState extends ConsumerState<_RegistrationRequestsT
   }
 
   Widget _buildTableHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: AdminTheme.surfaceLight,
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
-      ),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 1, child: Text('Phone', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 1, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 1, child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          const SizedBox(width: 48),
-          const SizedBox(width: 48),
-        ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AdminTheme.surfaceLight,
+          border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 140 : null,
+              child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Text('Phone', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 96),
+          ],
+        ),
       ),
     );
   }
@@ -405,51 +438,58 @@ class _RegistrationRequestsTabState extends ConsumerState<_RegistrationRequestsT
   Widget _buildRequestRow(ThemeData theme, RegistrationRequest request) {
     return InkWell(
       onTap: () => context.push('/registration-requests/${request.id}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Text(request.fullName, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(request.email, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
-            ),
-            Expanded(
-              flex: 1,
-              child: Text(request.phone ?? 'N/A', style: theme.textTheme.bodyMedium),
-            ),
-            Expanded(
-              flex: 1,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: request.status.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  request.status.displayName,
-                  style: theme.textTheme.bodySmall?.copyWith(color: request.status.color, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              SizedBox(
+                width: isMobile(context) ? 100 : null,
+                child: Text(request.fullName, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 140 : null,
+                child: Text(request.email, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 80 : null,
+                child: Text(request.phone ?? 'N/A', style: theme.textTheme.bodyMedium),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 80 : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: request.status.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    request.status.displayName,
+                    style: theme.textTheme.bodySmall?.copyWith(color: request.status.color, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Text(_formatDate(request.createdAt), style: theme.textTheme.bodySmall),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => context.push('/registration-requests/${request.id}'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () => _showDeleteRequestDialog(theme, request),
-              tooltip: 'Delete request',
-            ),
-          ],
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 80 : null,
+                child: Text(_formatDate(request.createdAt), style: theme.textTheme.bodySmall),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => context.push('/registration-requests/${request.id}'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => _showDeleteRequestDialog(theme, request),
+                tooltip: 'Delete request',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -585,7 +625,7 @@ class _ActiveContractsTabState extends ConsumerState<_ActiveContractsTab> {
     final allCollabAsync = ref.watch(allCollaboratorsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         children: [
           // Search Row
@@ -673,22 +713,43 @@ class _ActiveContractsTabState extends ConsumerState<_ActiveContractsTab> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: AdminTheme.surfaceLight,
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
-      ),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Region', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Contract Period', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 1, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          const SizedBox(width: 48),
-          const SizedBox(width: 48),
-        ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AdminTheme.surfaceLight,
+          border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 140 : null,
+              child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Text('Region', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 120 : null,
+              child: Text('Period', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 60 : null,
+              child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 96),
+          ],
+        ),
       ),
     );
   }
@@ -697,45 +758,53 @@ class _ActiveContractsTabState extends ConsumerState<_ActiveContractsTab> {
     final activeContract = collab.latestActiveContract;
     return InkWell(
       onTap: () => context.push('/collaborators/${collab.profile.id}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Text(collab.profile.fullName ?? 'N/A', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(collab.profile.email ?? 'N/A', style: theme.textTheme.bodyMedium),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(activeContract?.region ?? 'N/A', style: theme.textTheme.bodyMedium),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                activeContract?.startDate != null && activeContract?.endDate != null
-                    ? '${_fmt(activeContract!.startDate!)} - ${_fmt(activeContract.endDate!)}'
-                    : 'N/A',
-                style: theme.textTheme.bodySmall,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              SizedBox(
+                width: isMobile(context) ? 100 : null,
+                child: Text(collab.profile.fullName ?? 'N/A', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
               ),
-            ),
-            Expanded(
-              flex: 1,
-              child: _buildStatusPill(theme, 'Active', Colors.green),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => context.push('/collaborators/${collab.profile.id}'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () => _showDeleteDialog(context, collab),
-              tooltip: 'Delete collaborator',
-            ),
-          ],
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 140 : null,
+                child: Text(collab.profile.email ?? 'N/A', style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 80 : null,
+                child: Text(activeContract?.region ?? 'N/A', style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 120 : null,
+                child: Text(
+                  activeContract?.startDate != null && activeContract?.endDate != null
+                      ? '${_fmt(activeContract!.startDate!)} - ${_fmt(activeContract.endDate!)}'
+                      : 'N/A',
+                  style: theme.textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: isMobile(context) ? 12 : 0),
+              SizedBox(
+                width: isMobile(context) ? 60 : null,
+                child: _buildStatusPill(theme, 'Active', Colors.green),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => context.push('/collaborators/${collab.profile.id}'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => _showDeleteDialog(context, collab),
+                tooltip: 'Delete collaborator',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -837,7 +906,7 @@ class _NoContractTabState extends ConsumerState<_NoContractTab> {
     final allCollabAsync = ref.watch(allCollaboratorsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         children: [
           // Search Row
@@ -975,22 +1044,38 @@ class _NoContractTabState extends ConsumerState<_NoContractTab> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: AdminTheme.surfaceLight,
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
-      ),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 1, child: Text('Phone', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Reason', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          Expanded(flex: 2, child: Text('Last Contract', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-          const SizedBox(width: 120),
-          const SizedBox(width: 48),
-        ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AdminTheme.surfaceLight,
+          border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: Text('Full Name', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 140 : null,
+              child: Text('Email', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Text('Reason', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: Text('Last Contract', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 168),
+          ],
+        ),
       ),
     );
   }
@@ -1000,72 +1085,75 @@ class _NoContractTabState extends ConsumerState<_NoContractTab> {
     final latest = collab.latestContract;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: InkWell(
-              onTap: () => context.push('/collaborators/${collab.profile.id}'),
-              child: Text(collab.profile.fullName ?? 'N/A', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500, color: AdminTheme.primaryTeal)),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(collab.profile.email ?? 'N/A', style: theme.textTheme.bodyMedium),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(collab.profile.phone ?? 'N/A', style: theme.textTheme.bodyMedium),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: (reason?.color ?? Colors.grey).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: reason?.color ?? Colors.grey),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: InkWell(
+                onTap: () => context.push('/collaborators/${collab.profile.id}'),
+                child: Text(collab.profile.fullName ?? 'N/A', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500, color: AdminTheme.primaryTeal)),
               ),
-              child: Text(
-                reason?.label ?? 'Unknown',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: reason?.color ?? Colors.grey,
-                  fontWeight: FontWeight.w600,
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 140 : null,
+              child: Text(collab.profile.email ?? 'N/A', style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+            ),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 80 : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (reason?.color ?? Colors.grey).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: reason?.color ?? Colors.grey),
                 ),
-                textAlign: TextAlign.center,
+                child: Text(
+                  reason?.label ?? 'Unknown',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: reason?.color ?? Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              latest != null
-                  ? '${_fmt(latest.startDate ?? latest.createdAt!)} - ${latest.endDate != null ? _fmt(latest.endDate!) : ' ongoing'}'
-                      '\n${latest.status.displayName}'
-                  : 'Never',
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            child: ElevatedButton.icon(
-              onPressed: () => _showCreateContractDialog(context, collab),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Create Contract'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AdminTheme.primaryTeal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                textStyle: const TextStyle(fontSize: 12),
+            SizedBox(width: isMobile(context) ? 12 : 0),
+            SizedBox(
+              width: isMobile(context) ? 100 : null,
+              child: Text(
+                latest != null
+                    ? '${_fmt(latest.startDate ?? latest.createdAt!)} - ${latest.endDate != null ? _fmt(latest.endDate!) : ' ongoing'}'
+                    : 'Never',
+                style: theme.textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
-            onPressed: () => _showDeleteDialogNoContract(context, ref, collab),
-            tooltip: 'Delete collaborator',
-          ),
-        ],
+            SizedBox(
+              width: isMobile(context) ? 120 : 120,
+              child: ElevatedButton.icon(
+                onPressed: () => _showCreateContractDialog(context, collab),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Create Contract'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AdminTheme.primaryTeal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () => _showDeleteDialogNoContract(context, ref, collab),
+              tooltip: 'Delete collaborator',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../models/admin_station.dart';
 import '../models/pagination_response.dart';
 import '../providers/station_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// Stations List Screen
@@ -38,7 +39,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
     return AdminScaffold(
       title: 'Charging Stations',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

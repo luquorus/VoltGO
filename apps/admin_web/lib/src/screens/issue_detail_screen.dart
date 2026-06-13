@@ -7,6 +7,7 @@ import 'package:shared_api/shared_api.dart';
 import '../models/admin_issue.dart';
 import '../providers/issue_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 import 'create_task_modal.dart';
 
@@ -44,102 +45,20 @@ class IssueDetailScreen extends ConsumerWidget {
 
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref, AdminIssue issue) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                _buildCategoryPill(theme, issue.category),
-                                const SizedBox(width: 12),
-                                StatusPill(
-                                  label: issue.status.displayName,
-                                  colorMapper: (label) => _getStatusColor(issue.status),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              issue.stationName ?? 'Unknown Station',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Issue ID: ${issue.id.substring(0, 8)}...',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Actions
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      if (issue.canAcknowledge)
-                        ElevatedButton.icon(
-                          onPressed: () => _showAcknowledgeDialog(context, ref, issue),
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Acknowledge'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      if (issue.canResolve)
-                        ElevatedButton.icon(
-                          onPressed: () => _showResolveDialog(context, ref, issue),
-                          icon: const Icon(Icons.verified),
-                          label: const Text('Resolve'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      if (issue.canReject)
-                        ElevatedButton.icon(
-                          onPressed: () => _showRejectDialog(context, ref, issue),
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Reject'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      Tooltip(
-                        message: 'Create a verification task for this station',
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showCreateTaskModal(context, ref, issue),
-                          icon: const Icon(Icons.add_task),
-                          label: const Text('Create Verification Task'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AdminTheme.primaryTeal,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildIssueHeader(context, theme, issue),
+                  const SizedBox(height: 16),
+                  _buildIssueActions(context, ref, issue),
                 ],
               ),
             ),
@@ -162,10 +81,94 @@ class IssueDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildIssueHeader(BuildContext context, ThemeData theme, AdminIssue issue) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            _buildCategoryPill(theme, issue.category),
+            StatusPill(
+              label: issue.status.displayName,
+              colorMapper: (label) => _getStatusColor(issue.status),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          issue.stationName ?? 'Unknown Station',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Issue ID: ${issue.id.substring(0, 8)}...',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIssueActions(BuildContext context, WidgetRef ref, AdminIssue issue) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        if (issue.canAcknowledge)
+          ElevatedButton.icon(
+            onPressed: () => _showAcknowledgeDialog(context, ref, issue),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Acknowledge'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        if (issue.canResolve)
+          ElevatedButton.icon(
+            onPressed: () => _showResolveDialog(context, ref, issue),
+            icon: const Icon(Icons.verified),
+            label: const Text('Resolve'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        if (issue.canReject)
+          ElevatedButton.icon(
+            onPressed: () => _showRejectDialog(context, ref, issue),
+            icon: const Icon(Icons.cancel_outlined),
+            label: const Text('Reject'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        Tooltip(
+          message: 'Create a verification task for this station',
+          child: ElevatedButton.icon(
+            onPressed: () => _showCreateTaskModal(context, ref, issue),
+            icon: const Icon(Icons.add_task),
+            label: const Text('Create Verification Task'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminTheme.primaryTeal,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -189,10 +192,10 @@ class IssueDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDescriptionSection(ThemeData theme, AdminIssue issue) {
+  Widget _buildDescriptionSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -227,7 +230,7 @@ class IssueDetailScreen extends ConsumerWidget {
   Widget _buildAdminSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

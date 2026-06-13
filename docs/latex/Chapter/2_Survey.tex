@@ -1,0 +1,422 @@
+\documentclass[../Main.tex]{subfiles}
+\begin{document}
+Chương này có độ dài từ 9 đến 11 trang.
+
+Với phương pháp phân tích thiết kế hướng đối tượng, sinh viên sử dụng biểu đồ use case theo hướng dẫn của template này. Với các phương pháp khác, sinh viên trao đổi với giáo viên hướng dẫn để đổi tên và sắp xếp lại đề mục cho phù hợp. Ví dụ, thay vì sử dụng biểu đồ use case, sinh viên đi theo hướng tiếp cận Agile có thể dùng User Story.
+
+
+\textbf{Lưu ý}: Mỗi chương nên có thêm 1 đoạn mở đầu chương và kết thúc chương, mở đầu giới thiệu những nội dung sẽ trình bày trong chương, kết thúc tổng kết lại các nội dung đã trình bày.
+
+VoltGO targets three distinct user groups with different needs and privileges. EV drivers require a reliable way to find and use charging infrastructure. Collaborators need tools to register stations, respond to verification tasks, and manage their portfolio. Administrators must govern the platform by approving registrations, monitoring quality, and resolving issues. This chapter surveys the functional requirements that emerged from those needs. Section \ref{section:2.1} examines comparable systems already in the market. Section \ref{section:2.2} presents a high-level functional overview through use case diagrams and business processes. Section \ref{section:2.3} provides detailed specifications for six representative use cases. Section \ref{section:2.4} documents the non-functional constraints that shaped the design.
+
+\section{Status survey}
+\label{section:2.1}
+Thông thường, khảo sát chi tiết về hiện trạng và yêu cầu của phần mềm sẽ được lấy từ ba nguồn chính, đó là (i) người dùng/khách hàng, (ii) các hệ thống đã có, (iii) và các ứng dụng tương tự.
+Sinh viên cần tiến hành phân tích, so sánh, đánh giá chi tiết ưu nhược điểm của các sản phẩm/nghiên cứu hiện có. Sinh viên có thể lập bảng so sánh nếu cần thiết. Kết hợp với khảo sát người dùng/khách hàng (nếu có), sinh viên nêu và mô tả sơ lược các tính năng phần mềm quan trọng cần phát triển.
+
+\section{Functional Overview}
+\label{section:2.2}
+Following the market survey in Section \ref{section:2.1}, this section maps the functional requirements to a structured model of actors, use cases, and business processes. VoltGO serves three distinct user groups with different roles and access privileges. EV drivers interact with the platform to discover nearby stations, book charging slots, reserve battery swaps, and manage loyalty rewards. Field collaborators maintain station data by submitting registrations and responding to GPS-based verification tasks assigned by administrators. Administrators oversee the entire ecosystem: they approve or reject station registrations, manage verification workflows, monitor trust scores, handle reported issues, and govern the loyalty program. A fourth actor, the hardware simulator, acts as a stand-in for physical battery swap equipment, receiving real-time swap codes via WebSocket and confirming the completion of physical swaps.
+
+The subsections that follow present the functional model at three levels of detail. Subsection \ref{subsection:2.2.1} introduces the high-level use case diagram with a narrative analysis of each actor and their primary interactions with the system. Subsection \ref{subsection:2.2.2} decomposes the use cases into four functional domains and presents a detailed diagram for each. Subsection \ref{subsection:2.2.3} describes three cross-cutting business processes that span multiple actors, illustrated with activity diagrams.
+
+\subsection{General Use Case Diagram}
+\label{subsection:2.2.1}
+Figure \ref{fig:usecase_general} presents the high-level use case diagram for VoltGO. Four actors interact with the system boundary. The EV Driver actor drives the discovery, booking, and loyalty-rewards dimension of the platform. The Collaborator actor handles station registration, field verification, and portfolio management. The Administrator actor governs the platform through approval, monitoring, and enforcement functions. The Hardware Simulator actor participates only in the battery swap flow, acting as a passive receiver of swap codes until it triggers the completion confirmation. Use cases in the diagram are grouped by functional domain to reflect the module boundaries in the underlying backend architecture.
+
+The EV Driver interacts with eleven high-level use cases. Account management covers registration with an optional referral code, login with email and password, and profile editing. Station discovery provides map browsing, name-based search, and filtering by distance and service type. Charging slot reservation allows the driver to select a time window at a station and create a booking that enters a temporary hold state. Battery swap reservation follows a separate workflow in which the driver reserves a battery slot, travels to the station, confirms arrival, and initiates the physical swap process. Booking management lets the driver view active and historical reservations, confirm a held booking to trigger payment, or cancel a booking before use. Change request submission enables any platform user to propose edits to published station data. Issue reporting lets drivers flag discrepancies such as broken chargers or incorrect addresses. Station rating lets drivers submit a 1-to-5 star review with an optional written comment after a completed booking. Loyalty management covers points balance, tier progression, voucher redemption, referral code generation, and badge collection. AI recommendations return personalized station suggestions ranked by a composite match score derived from travel time, charging time, and trust score.
+
+The Collaborator actor participates in five use case groups. Registration request management handles the application to become a verified collaborator, including ID card information and supporting documents. Station management lets collaborators register new charging or battery swap stations and submit them for admin review. Field verification allows collaborators to accept assigned tasks, check in via GPS at the station location, capture evidence photos, and submit the verification for admin approval. Contract management lets collaborators view active and historical agreements with the platform. Account management provides profile viewing and notification access.
+
+The Administrator actor covers eight functional domains. Collaborator registration approval lets admins review incoming applications, activate approved accounts, or reject with a reason. Change request review handles the evaluation of pending station registrations and updates, producing a risk score that informs the approve-or-reject decision. Verification task management covers task creation, collaborator assignment, and evidence review. Trust score management presents score breakdowns for both charging and battery swap stations and supports manual recalculation. Issue management lets admins view reported issues by category, respond to reporters, and mark issues as resolved. Loyalty administration lets admins create voucher campaigns, define badge tiers, moderate user ratings, and adjust loyalty points manually. Audit log access provides a searchable record of all administrative actions. Battery swap station management provides full CRUD operations on battery swap stations alongside the change request workflow. Dashboard access aggregates platform-wide statistics including total stations, active bookings, open issues, and trust score averages.
+
+The Hardware Simulator actor participates in three use cases. Display connection establishes a WebSocket session with the server using a station-specific device key. Swap code reception displays real-time codes and slot status as they are generated during the battery swap flow. Swap completion confirmation notifies the server when the physical swap has finished so that the reservation can be finalized.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{General use case diagram of VoltGO}
+    \label{fig:usecase_general}
+\end{figure}
+
+\subsection{Detailed Use Case Decomposition}
+\label{subsection:2.2.2}
+The general diagram above is decomposed into four functional domains, each illustrated with a detailed use case diagram and described in prose. Use case names in the diagrams correspond directly to the detailed specifications in Section \ref{section:2.3}.
+
+\subsubsection{Station Discovery and Booking}
+\label{subsubsection:2.2.2.1}
+Figure \ref{fig:usecase_station_booking} decomposes the discovery and booking domain into specific interactions. Discover Nearby Stations refines the generic station discovery by sorting results by Haversine distance within a configurable radius and filtering by service type. Get Station Availability returns a 30-minute slot grid per charger unit, marking each slot as available, occupied, or out of service based on existing bookings. Create Charging Booking is the core reservation operation, including optional voucher application and the hold-state lifecycle. Confirm Booking Payment simulates payment success and transitions the booking from HOLD to CONFIRMED. Cancel Booking releases the reserved slot and updates the booking status. Reserve Battery Swap Slot covers the entire swap reservation lifecycle: reserve, confirm arrival, start swap, pay, and complete. Get Swap Station Availability returns the current number of available batteries and slot occupancy per pile. Start Swap and Receive Code generates a time-limited 4-digit code and broadcasts it to the hardware simulator via WebSocket. Confirm Swap Completion is triggered by the hardware simulator to finalize the swap session. Get AI Recommendations applies heuristic scoring across travel time, charging time, and trust score to rank nearby stations. Get Smart Charging Time analyzes historical booking patterns over the past 30 days and suggests off-peak hours to reduce wait time.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Detailed use case diagram: Station Discovery and Booking}
+    \label{fig:usecase_station_booking}
+\end{figure}
+
+The diagram in Figure \ref{fig:usecase_station_booking} groups charging and swap use cases together because they share the same EV Driver actor and both feed into the loyalty reward system. The separation between charging and battery swap into distinct sub-flows reflects the fundamentally different availability models: charging slots are time-based and booked in advance, whereas battery swap slots are resource-based and reserved for a physical battery. The AI recommendation use cases extend station discovery rather than booking because they operate before the driver commits to a specific station, serving as a decision-support function rather than a transactional one.
+
+\subsubsection{Station Management and Change Requests}
+\label{subsubsection:2.2.2.2}
+Figure \ref{fig:usecase_station_management} illustrates the station governance domain. Submit Change Request encompasses creating a draft, editing station data, and submitting for admin review, which automatically triggers risk scoring. Review Change Request extends submission and lets the admin evaluate the request alongside its risk score and factor breakdown, then approve or reject. Calculate Risk Score is included within the submission flow and evaluates the proposed data against the current published version to produce a numeric score. View Trust Score extends both Discover Stations for drivers and Submit Change Request for collaborators, presenting the multi-factor trust score. Recalculate Trust Score extends review and issue resolution, and administrators may also trigger it manually from the trust management screen. Publish Station extends the review action by creating or updating the published station version after approval.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Detailed use case diagram: Station Management and Change Requests}
+    \label{fig:usecase_station_management}
+\end{figure}
+
+The design choice to compute risk scoring at submission time rather than at review time reflects a pragmatic division of labor: the risk engine runs automatically on the server side without requiring admin attention, allowing the review screen to surface risk information without additional computation. The factor-level breakdown stored in the change request entity means that even if the station data changes between submission and review, the risk snapshot remains consistent for auditing purposes.
+
+\subsubsection{GPS Verification}
+\label{subsubsection:2.2.2.3}
+Figure \ref{fig:usecase_verification} covers the end-to-end GPS-based verification workflow. Create Verification Task extends the change request review and results from a published station needing field confirmation. Accept Verification Task lets the assigned collaborator pick up the task from their mobile app. GPS Check-in is a sub-flow of acceptance in which the collaborator captures GPS coordinates and the server validates them against the station location using the Haversine formula; check-in succeeds only within 200 meters of the published station coordinates. Upload Evidence Photos extends the check-in step and lets the collaborator capture and upload evidence photos categorized as exterior, charger, or signage. Submit Verification extends GPS Check-in and transitions the task to admin review. Review Verification extends task creation and lets the admin examine the check-in location, Haversine distance, and evidence photos before approving or rejecting.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Detailed use case diagram: GPS Verification}
+    \label{fig:usecase_verification}
+\end{figure}
+
+The verification diagram reflects the asymmetric trust model between platform and collaborator: the 200-meter radius is a deliberate security threshold that makes casual GPS spoofing impractical while remaining achievable with consumer-grade smartphones in dense urban areas. The inclusion of photo evidence alongside GPS coordinates creates a second verification layer that makes it difficult to complete a task without physical presence, even if the collaborator is willing to travel to the location.
+
+\subsubsection{Loyalty and Rewards}
+\label{subsubsection:2.2.2.4}
+Figure \ref{fig:usecase_loyalty} decomposes the loyalty ecosystem. View Loyalty Profile serves as the entry point for the EV driver's loyalty experience, displaying points balance, current tier, earned badges, and progress toward the next tier. Redeem Voucher extends the profile view and lets the user spend loyalty points to obtain a voucher with a unique code and validity period. Apply Voucher to Booking and Apply Voucher to Swap extend the respective booking flows, linking the redeemed voucher to the transaction. Generate Referral Code extends the profile view and creates a shareable code; both referrer and referee earn bonus points when the referee completes their first booking. Apply Referral Code extends the account registration flow and establishes the referral relationship. Submit Station Rating extends the charging booking flow and lets users who have completed a booking rate the station with stars and an optional comment. Moderate Rating extends submission and lets the admin approve or hide ratings. Manage Voucher Campaign, Manage Badge Definitions, and Adjust Points Manually are admin-facing extensions of the loyalty profile that let administrators configure the reward ecosystem.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Detailed use case diagram: Loyalty and Rewards}
+    \label{fig:usecase_loyalty}
+\end{figure}
+
+The loyalty use cases are intentionally intertwined with the charging and swap flows rather than isolated in a separate module. This tight coupling reflects the gamification strategy: earning points should feel immediate and connected to real actions, not buried in a separate rewards screen. The badge system, in particular, is checked after every qualifying activity by a dedicated `BadgeService` so that users receive recognition as close in time to the triggering action as possible.
+
+\subsection{Business Processes}
+\label{subsection:2.2.3}
+VoltGO has three primary business processes that span multiple actors and use cases. Each process is illustrated with an activity diagram and accompanied by a narrative that explains the sequence of states and decisions.
+
+\subsubsection{Station Lifecycle Process}
+\label{subsubsection:2.2.3.1}
+Figure \ref{fig:process_station_lifecycle} illustrates the end-to-end journey of a station from initial registration to ongoing operation. The process begins when a collaborator fills out the station registration form with location data, service types, pricing, and charging port configurations. The system captures GPS coordinates and stores the data as a draft change request. When the collaborator submits the draft, the system automatically calculates a risk score. If the score exceeds a threshold, the change request is flagged for mandatory admin review. The request enters the PENDING state and the administrator is notified.
+
+The administrator reviews the submitted data, evaluates the risk breakdown, and has two options. Approving the request creates or updates the published station version and transitions the station to PUBLISHED status. Rejecting the request returns it with a reason and keeps the station in PENDING status. Once published, the administrator may optionally create a verification task to dispatch a collaborator for physical verification. Upon successful verification and admin approval, the station's trust score is recalculated. The station then enters normal operation and becomes visible to EV drivers on the map.
+
+During operation, any platform user may submit a change request to update station details such as operating hours, pricing, or port configuration. This triggers a new risk assessment and restarts the review cycle. Issues reported by EV drivers also trigger trust score recalculation upon resolution, creating a feedback loop that continuously refines station quality data.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Business process: Station Lifecycle}
+    \label{fig:process_station_lifecycle}
+\end{figure}
+
+The station lifecycle process embeds risk scoring as a gatekeeper between the draft and pending states, which serves two purposes. First, it gives administrators an objective signal to prioritize high-risk submissions. Second, it creates an auditable record of the risk assessment that can be reviewed later if a station's quality degrades unexpectedly.
+
+\subsubsection{Battery Swap Flow Process}
+\label{subsubsection:2.2.3.2}
+Figure \ref{fig:process_battery_swap} covers the real-time battery swap reservation and physical swap workflow. An EV driver opens the app and views nearby battery swap stations with current availability information: total battery count, available battery count, and base price. The driver selects a station and reserves a slot. The system finds an available battery slot, creates a reservation record in RESERVED status with a 30-minute expiry, and marks the slot as RESERVED.
+
+The driver travels to the station and confirms arrival in the app. The system records the arrival timestamp and updates the reservation. The driver then presses Start Swap in the app. The system generates a random 4-digit numeric swap code, creates a swap session with a 30-minute expiry, broadcasts the code to the hardware simulator via WebSocket, and updates the reservation status to SWAPPING.
+
+The hardware simulator displays the swap code on screen. The operator visually confirms the code matches the driver's app display, then physically swaps the depleted battery with a charged one. The operator presses Confirm Swap on the hardware simulator, which sends a completion notification to the server. The system updates the swap session to COMPLETED, marks the battery slot as AVAILABLE, updates the reservation status to COMPLETED, and awards loyalty points to the driver.
+
+The driver then initiates payment in the app. The system records a successful mock payment, awards additional loyalty points, and the swap is fully concluded.
+
+If the driver does not confirm arrival within the 30-minute reservation window, the slot is released automatically and the reservation is marked as EXPIRED. Similarly, if the swap session is not completed within 30 minutes of code generation, it is expired and the slot is released.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Business process: Battery Swap Flow}
+    \label{fig:process_battery_swap}
+\end{figure}
+
+The battery swap process is designed around a human-in-the-loop security model at the physical layer. The 4-digit code bridges the digital reservation system with the physical battery swap operation: the code is short enough to be verbally communicated and visually verified by a station operator but provides enough entropy to prevent accidental completion of the wrong swap. The two separate 30-minute expiry timers (reservation window and swap session) allow the system to distinguish between a driver who has not yet arrived and one who has arrived but is waiting for battery availability, releasing slots appropriately in each case.
+
+\subsubsection{GPS Verification Workflow Process}
+\label{subsubsection:2.2.3.3}
+Figure \ref{fig:process_gps_verification} covers the collaborative verification of station data accuracy in the field. The administrator selects a published station and creates a verification task specifying the station, an SLA deadline, and an assigned collaborator. The collaborator receives a task notification and opens the task in the mobile app, which displays the station's expected location on a map alongside the collaborator's current position.
+
+The collaborator physically travels to the station. Upon arrival, the collaborator taps Check In in the app. The app captures the current GPS coordinates and sends them to the server. The server calculates the Haversine distance between the check-in location and the station's published coordinates. If the distance exceeds 200 meters, the check-in is rejected and the collaborator is prompted to try again from a closer position. If within range, the check-in is recorded with the exact distance and the task transitions to CHECKED_IN status.
+
+The collaborator then captures evidence photos: the station exterior, the charging equipment, and the signage or pricing display. Each photo is uploaded to object storage via a presigned URL and associated with the task as evidence records. The collaborator may add optional notes and submit the verification. The task transitions to SUBMITTED status and the administrator is notified.
+
+The administrator reviews the submission in the web portal. The check-in location is plotted on a map alongside the station marker, the Haversine distance is displayed, and each evidence photo is viewable in full size. The administrator approves or rejects the task with comments. Upon approval, the system triggers trust score recalculation for the station, incorporating the positive verification result. Upon rejection, the station's trust score may decrease and a new verification task may be created.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Figure/Figure_Placeholder.png}
+    \caption{Business process: GPS Verification Workflow}
+    \label{fig:process_gps_verification}
+\end{figure}
+
+The verification workflow treats GPS coordinates and photo evidence as complementary rather than redundant signals. GPS proves approximate physical presence at the right location; photos prove the station equipment actually exists and matches the registered description. Together they raise the cost of fraudulent verification well above what a colluding collaborator could achieve without visiting the site in person.
+\section{Functional description}
+\label{section:2.3}
+Six use cases were selected for detailed specification based on their centrality to the platform's core value proposition. These cover the charging booking workflow, the battery swap reservation lifecycle, the AI recommendation engine, the change request review process, the GPS-based field verification, and the trust score calculation. Each description follows the standard use-case specification format.
+
+\subsection{UC-BOOK-001: Create Charging Booking}
+\label{subsection:2.3.1}
+
+\begin{table}[H]
+\caption{UC-BOOK-001: Create Charging Booking}
+\label{table:uc-book-001}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-BOOK-001 \\ \hline
+\textbf{Use Case Name} & Create Charging Booking \\ \hline
+\textbf{Priority} & High \\ \hline
+\textbf{Participating Actors} & EV Driver (primary), Administrator (payment review) \\ \hline
+\textbf{Trigger} & The EV Driver selects a time slot at a charging station and taps Book \\ \hline
+\textbf{Pre-condition} & The EV Driver is authenticated with a valid JWT token. The target station is in PUBLISHED status and has at least one available charging port for the selected service type and time slot. \\ \hline
+\textbf{Post-condition} & A Booking entity is persisted with status HOLD and a PaymentIntent entity is created with status PENDING. The reserved time slot is no longer available to other users. If the driver completes payment, the booking transitions to CONFIRMED. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The EV Driver opens the station detail screen and selects a charger unit type such as AC Normal or DC Fast. The system fetches the availability calendar for the chosen date and displays a 30-minute slot grid for each charger unit, marking each slot as AVAILABLE, OCCUPIED, or OUT\_OF\_SERVICE based on existing bookings. The EV Driver selects a start time and end time. If the driver enters a voucher code, the system validates it and calculates the discount before returning the adjusted price. The system creates a Booking entity with status HOLD and holdExpiresAt set to the current time plus 15 minutes, and simultaneously creates a PaymentIntent entity with status PENDING. The reserved slot becomes unavailable to other users. The system returns the booking confirmation with the hold expiry time and total price.
+
+The EV Driver confirms payment in the app. The system calls the payment simulation endpoint, which updates the PaymentIntent status to SUCCEEDED and the Booking status to CONFIRMED. Loyalty points are awarded to the EV Driver and the driver receives a booking confirmation notification.
+
+\textbf{Alternative Flow 1 (Slot conflict).} If the selected time slot has already been booked by another user between the slot selection and booking creation steps, the system returns a 409 Conflict error and the EV Driver must select a different slot.
+
+\textbf{Alternative Flow 2 (Hold expiry).} If the EV Driver does not confirm payment within the 15-minute hold window, the scheduled ExpireBookingJob cancels the booking, releases the slot, and sets the Booking status to EXPIRED.
+
+\textbf{Alternative Flow 3 (Payment failure).} If the payment simulation returns a failure response, the PaymentIntent status is set to FAILED and the Booking is marked CANCELLED.
+
+\textbf{Alternative Flow 4 (Voucher invalid).} If the voucher code entered is invalid or expired, the system ignores it and creates the booking at full price.
+
+\textbf{Alternative Flow 5 (Station unpublished).} If the target station is not in PUBLISHED status, the system returns a 400 error.
+
+\subsection{UC-BOOK-002: Reserve Battery Swap Slot}
+\label{subsection:2.3.2}
+
+\begin{table}[H]
+\caption{UC-BOOK-002: Reserve Battery Swap Slot}
+\label{table:uc-book-002}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-BOOK-002 \\ \hline
+\textbf{Use Case Name} & Reserve Battery Swap Slot \\ \hline
+\textbf{Priority} & High \\ \hline
+\textbf{Participating Actors} & EV Driver (primary), Hardware Simulator (swap completion confirmation) \\ \hline
+\textbf{Trigger} & The EV Driver selects a battery swap station and taps Reserve Swap \\ \hline
+\textbf{Pre-condition} & The EV Driver is authenticated. The target swap station has at least one AVAILABLE battery slot. \\ \hline
+\textbf{Post-condition} & A BatterySwapReservation entity is persisted with status RESERVED and expiresAt set to the current time plus 30 minutes. The assigned battery slot is marked RESERVED. Upon full completion, the reservation transitions through SWAPPING to COMPLETED and loyalty points are awarded. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The EV Driver opens the battery swap station detail screen, which displays total battery count, available battery count, base price, and operating hours. The driver taps Reserve Swap. The system finds an AVAILABLE battery slot at the station, assigns it to the reservation, and creates a BatterySwapReservation entity with status RESERVED and a SwapPayment entity with status PENDING. The slot status transitions to RESERVED. The reservation has an expiresAt timestamp set to 30 minutes from creation.
+
+The EV Driver travels to the station. Upon arrival, the driver taps Confirm Arrival. The system records the confirmedArrivalAt timestamp and the reservation remains in RESERVED status. The driver then taps Start Swap. The system generates a random 4-digit numeric swap code via SwapCodeService.generateSwapCodeInternal, creates a SwapSession entity with status PENDING and expiresAt set to the current time plus 30 minutes, updates the reservation status to SWAPPING, and broadcasts the swap code to the hardware simulator via WebSocket.
+
+The hardware simulator displays the swap code on screen. The operator visually confirms the code matches the driver's app display, physically swaps the depleted battery with a charged one, and presses Confirm Swap on the simulator. The system updates the SwapSession status to COMPLETED, marks the battery slot as AVAILABLE, updates the reservation status to COMPLETED, and awards loyalty points to the EV Driver. The driver then completes the mock payment and the SwapPayment status transitions to PAID.
+
+\textbf{Alternative Flow 1 (No available slots).} If all battery slots are OCCUPIED or RESERVED, the system returns a 409 Conflict error and the EV Driver must try another station or wait for availability.
+
+\textbf{Alternative Flow 2 (Reservation expiry).} If the EV Driver does not confirm arrival within 30 minutes of reservation creation, ExpireBatterySwapReservationsJob cancels the reservation, releases the slot, and sets the reservation status to EXPIRED.
+
+\textbf{Alternative Flow 3 (Swap session expiry).} If the swap is not completed within 30 minutes of code generation, SwapCodeService.expirePendingSessions expires the session, releases the battery slot, and the reservation remains in SWAPPING status until cancelled manually by an administrator.
+
+\textbf{Alternative Flow 4 (Driver cancels).} The EV Driver may cancel at any time before tapping Start Swap. The system releases the reserved slot and marks the reservation CANCELLED.
+
+\subsection{UC-AI-003: Smart Charging Recommendations}
+\label{subsection:2.3.3}
+
+\begin{table}[H]
+\caption{UC-AI-003: Smart Charging Recommendations}
+\label{table:uc-ai-003}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-AI-003 \\ \hline
+\textbf{Use Case Name} & Smart Charging Recommendations \\ \hline
+\textbf{Priority} & Medium \\ \hline
+\textbf{Participating Actors} & EV Driver (primary) \\ \hline
+\textbf{Trigger} & The EV Driver enters current battery level, target level, and location in the recommendation screen \\ \hline
+\textbf{Pre-condition} & The EV Driver is authenticated and has provided a valid GPS location, current battery level, and target battery level. \\ \hline
+\textbf{Post-condition} & The system returns a ranked list of station recommendations with estimated travel time, charging time, total time, trust score, and a composite match score. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The EV Driver enters the current battery level as a percentage, the target battery level, and optionally selects a preferred power type. The system captures the current GPS location from the device. The system queries PostGIS for all PUBLISHED stations within the default radius of 10 kilometers, sorted by Haversine distance.
+
+For each returned station, up to 5 candidates to limit external API calls, the system calls the OSRM routing service to compute the driving route and obtain travel distance and duration. For each candidate, the system estimates charging time using the formula neededKWh equals (targetLevel minus currentLevel) divided by 100 multiplied by vehicleCapacityKWh, then estimatedChargeMinutes equals neededKWh divided by maxPowerKw multiplied by 60. A default vehicle capacity of 50 kWh is used when not provided. The system looks up the station's trust score and checks for available charger units matching the preferred power type.
+
+The system computes a composite match score for each candidate using the formula matchScore equals (100 minus distanceFactor times 0.3) plus (100 minus totalTimeFactor times 0.4) plus trustFactor times 0.3, where distanceFactor is distance in kilometers, totalTimeFactor is total minutes (travel plus charge), and trustFactor is the trust score, all normalized to a 0-to-100 scale. The system returns the ranked list sorted by match score in descending order, along with the recommended time slot for each station.
+
+As a supplementary feature, the system analyzes the booking history for the past 30 days and suggests off-peak hours where wait times are expected to be shorter. The smart time suggestions also apply a preference bonus if the suggested time matches the user's preferred operating hour.
+
+\textbf{Alternative Flow 1 (No stations in radius).} If no PUBLISHED stations exist within the configured radius, the system returns an empty list and prompts the EV Driver to increase the search radius.
+
+\textbf{Alternative Flow 2 (OSRM unreachable).} If the OSRM service does not respond, the system falls back to Haversine distance for travel time estimation using a fixed average speed assumption rather than routing data.
+
+\textbf{Alternative Flow 3 (No available ports).} Stations with no AVAILABLE charger units matching the preferred power type are excluded from the primary results but may appear in a secondary list with a warning flag.
+
+\subsection{UC-CHANGE-004: Approve or Reject Change Request}
+\label{subsection:2.3.4}
+
+\begin{table}[H]
+\caption{UC-CHANGE-004: Approve or Reject Change Request}
+\label{table:uc-change-004}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-CHANGE-004 \\ \hline
+\textbf{Use Case Name} & Approve or Reject Change Request \\ \hline
+\textbf{Priority} & High \\ \hline
+\textbf{Participating Actors} & Administrator (primary) \\ \hline
+\textbf{Trigger} & The Administrator selects a pending change request from the review queue and examines its details \\ \hline
+\textbf{Pre-condition} & The Administrator is authenticated and has ADMIN role. A change request exists with status PENDING. \\ \hline
+\textbf{Post-condition} & The change request transitions to either APPROVED or REJECTED with a reason. The station's published version is created or updated if approved. Trust scores are recalculated upon approval. All actions are recorded in the audit log. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The Administrator opens the Change Requests screen in the admin web portal. The system displays all PENDING requests sorted by submission date. The Administrator selects a request. The system loads the full request details: the submitter's profile, the current published station data, the proposed data, and the risk score with its factor breakdown. The Administrator evaluates the request and has two possible actions.
+
+When the Administrator approves the request, the system updates the change request status to APPROVED. For a CREATE_STATION request, the system creates a new station and a new station_version with status PUBLISHED. For an UPDATE_STATION request, the system creates a new station_version with the proposed data and status PUBLISHED. The Trust Scoring Service is triggered to recalculate the affected station's trust score. The audit log records the approval with the administrator's ID, timestamp, and action details.
+
+When the Administrator rejects the request, the system updates the change request status to REJECTED and stores the rejection reason. The audit log records the rejection. The system notifies the collaborator via push notification or email about the outcome. The system redirects the Administrator back to the Change Requests list.
+
+\textbf{Alternative Flow 1 (High risk flag).} If the risk score exceeds 50, which corresponds to HIGH risk level, the system flags the request prominently in the review screen to prompt the Administrator to pay extra attention before deciding.
+
+\textbf{Alternative Flow 2 (Missing information).} The Administrator may request additional information from the collaborator. The system adds an audit log entry recording this action but does not change the request status.
+
+\textbf{Alternative Flow 3 (Station has conflicting requests).} If the same station has another pending change request, the system displays a warning and allows the Administrator to resolve the conflict manually.
+
+\subsection{UC-VERIFY-005: Collaborator GPS Check-in and Submit Evidence}
+\label{subsection:2.3.5}
+
+\begin{table}[H]
+\caption{UC-VERIFY-005: Collaborator GPS Check-in and Submit Evidence}
+\label{table:uc-verify-005}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-VERIFY-005 \\ \hline
+\textbf{Use Case Name} & Collaborator GPS Check-in and Submit Evidence \\ \hline
+\textbf{Priority} & High \\ \hline
+\textbf{Participating Actors} & Collaborator (primary), Administrator (review) \\ \hline
+\textbf{Trigger} & The Collaborator accepts a verification task assigned by the Administrator \\ \hline
+\textbf{Pre-condition} & The Collaborator is authenticated with COLLABORATOR role. A VerificationTask exists with status ASSIGNED and is assigned to this Collaborator. The SLA deadline (slaDueAt) has not passed. \\ \hline
+\textbf{Post-condition} & The VerificationTask transitions to SUBMITTED. The evidence photos are stored in object storage via MinIO presigned URLs. The system awaits Administrator review. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The Collaborator opens the My Tasks screen in the mobile app. The system fetches all ASSIGNED tasks via the task API. The Collaborator selects a verification task. The app displays the station's name, address, and published coordinates on a map alongside the Collaborator's current GPS location.
+
+The Collaborator physically travels to the station. Upon arrival, the Collaborator taps Check In. The app captures the current GPS coordinates using the device geolocator and sends them to the server. The system loads the station's published coordinates from the station_version entity and computes the Haversine distance between the check-in location and the station location. If the distance is within 200 meters, the system records a VerificationCheckin with the GPS coordinates, timestamp, and distance. The VerificationTask status transitions to CHECKED_IN. If the distance exceeds 200 meters, the check-in is rejected and the Collaborator is prompted to move closer.
+
+The Collaborator captures evidence photos categorized as exterior, charger, and signage. Each photo is uploaded to MinIO via a presigned URL and the system creates a VerificationEvidence record for each photo with its category. The Collaborator adds optional notes and taps Submit. The system updates the VerificationTask status to SUBMITTED and the Administrator receives a notification.
+
+The Administrator reviews the submission in the web portal. The check-in location is plotted on a map alongside the station marker, the Haversine distance is displayed numerically, and each evidence photo is viewable in full size. The Administrator approves or rejects the task with comments.
+
+\textbf{Alternative Flow 1 (Outside proximity).} If the Haversine distance exceeds 200 meters, the system rejects the check-in with an error message showing the actual distance. The Collaborator may attempt check-in again from a closer position.
+
+\textbf{Alternative Flow 2 (GPS permission denied).} If the app cannot obtain GPS coordinates because the user denied location permission, the system displays a guidance prompt directing the user to enable location services. The check-in cannot proceed until location data is available.
+
+\textbf{Alternative Flow 3 (SLA expired).} If the SLA deadline has passed before the Collaborator submits, the task is marked EXPIRED and the Collaborator is notified. A new task must be created by the Administrator.
+
+\textbf{Alternative Flow 4 (Photo upload fails).} If any photo upload fails, the system retains already-uploaded evidence and prompts the Collaborator to retry the failed photo before allowing submission.
+
+\textbf{Alternative Flow 5 (Admin rejects).} The Administrator rejects the verification with a reason. The system updates the VerificationTask status to REJECTED and the Collaborator is notified. The station's trust score may decrease as a result.
+
+\subsection{UC-TRUST-006: Station Trust Scoring}
+\label{subsection:2.3.6}
+
+\begin{table}[H]
+\caption{UC-TRUST-006: Station Trust Scoring}
+\label{table:uc-trust-006}
+\begin{tabular}{|p{3.5cm}|p{12cm}|}
+\hline
+\textbf{Use Case ID} & UC-TRUST-006 \\ \hline
+\textbf{Use Case Name} & Station Trust Scoring \\ \hline
+\textbf{Priority} & High \\ \hline
+\textbf{Participating Actors} & Administrator (primary trigger), EV Driver (indirect, ratings), Collaborator (indirect, verifications) \\ \hline
+\textbf{Trigger} & An Administrator navigates to the Trust Scores management screen, or a trust recalculation is triggered automatically by verification approval, issue resolution, or change request approval \\ \hline
+\textbf{Pre-condition} & The station exists and has at least one published version. Sufficient data exists to compute each factor. \\ \hline
+\textbf{Post-condition} & The StationTrust entity is updated with the new composite score and per-factor breakdown. EV Drivers see the updated trust score on the map marker and station detail screen. \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Main Flow.} The Trust Scoring Service initiates recalculation for a specific station. It retrieves all verification tasks and their associated reviews for the station. The service computes five factors, each contributing up to 20 points to the composite score.
+
+The Accuracy Factor is derived from verification results: each VERIFIED task adds 5 points and each REJECTED task subtracts 10 points, capped at a minimum of 0 and a maximum of 20. The Uptime Factor reflects operational reliability: it is computed as the ratio of completed bookings without issues to total bookings, multiplied by 20. The Issue Rate Factor penalizes open issues: it equals the maximum of 0 and (20 minus openIssueCount times 2), so a station with no open issues scores the full 20 points. The Rating Factor uses the average of all PUBLISHED ratings multiplied by 4, meaning a 5-star average yields a full score of 20. The Verification Factor is the fraction of successful verifications relative to total assigned tasks, multiplied by 20.
+
+The service sums all five factors to produce the composite trust score on a scale of 0 to 100. It updates the StationTrust entity with the composite score and each individual factor value. The system displays the trust score on the map marker using a color code (green for high, orange for medium, red for low) and on the station detail screen with a factor breakdown chart.
+
+A separate Battery Swap Trust score is computed using six risk categories from the battery swap risk engine: Location Risk, Data Accuracy Risk, Operation Risk, Financial Risk, Safety Risk, and Provider Trust Risk. Each category contributes a weighted penalty to the composite score, which is also normalized to a 0-to-100 scale. The composite score is derived as 100 minus the sum of all triggered risk categories. The resulting risk score determines the trust level: MINIMAL when below 10, LOW between 10 and 30, MEDIUM between 30 and 50, and HIGH at 50 or above.
+
+\textbf{Alternative Flow 1 (Insufficient data).} If no verification tasks, ratings, or bookings exist for a new station, the trust score defaults to 50.0, reflecting the absence of evidence in either direction.
+
+\textbf{Alternative Flow 2 (Manual override).} Administrators may manually set the trust score for a station if automated calculation produces an unjustifiable result. A mandatory reason field must be provided and is logged in the audit trail.
+
+\textbf{Alternative Flow 3 (Battery swap trust levels).} Battery swap trust is classified into four levels based on the risk score: MINIMAL (risk score below 10), LOW (10 to 30), MEDIUM (30 to 50), and HIGH (50 or above).
+
+\section{Non-functional requirement}
+\label{section:2.4}
+The platform must satisfy a set of non-functional requirements covering performance, security, scalability, and operational constraints.
+
+\subsection{Performance Constraints}
+\label{subsection:2.4.1}
+Table \ref{table:nfr_performance} summarizes the performance-related constraints identified for VoltGO.
+
+\begin{table}[H]
+\centering
+\caption{Performance constraints}
+\label{table:nfr_performance}
+\begin{tabular}{lp{8cm}c}
+    \hline
+    \textbf{Constraint} & \textbf{Description} & \textbf{Value} \\ \hline
+    API response timeout & Spring Boot server default timeout & 30 seconds \\
+    Default page size & Pagination for list endpoints & 20 items per page \\
+    Maximum page size & Upper bound for pagination requests & 100 items \\
+    Image upload limit & Maximum file size per upload & 10 MB per file \\
+    JWT token expiry & Bearer token validity period & 24 hours \\
+    Booking hold duration & Time window for payment confirmation & 15 minutes \\
+    Battery swap reservation expiry & Time to arrive at swap station & 30 minutes \\
+    Swap session expiry & Time to complete physical swap & 30 minutes \\
+    Check-in proximity radius & Maximum Haversine distance for check-in acceptance & 200 meters \\
+    Station search radius & Default geo-query radius & 10 km \\
+    Battery charging simulation & Scheduled job interval for battery charge simulation & Every 30 seconds \\
+    Booking expiry job & Scheduled job interval for hold expiration check & Every 60 seconds \\
+    \hline
+\end{tabular}
+\end{table}
+
+The PostGIS spatial index on the station\_version.location column ensures that nearby-station queries operate in $O(\log n)$ time rather than scanning all records. A PostgreSQL exclusion constraint on the booking table guarantees that no two simultaneous requests can double-book the same time slot, eliminating race conditions at the database level. The recommendation engine limits OSRM API calls to the top 5 candidate stations per query to control latency and external service dependency.
+
+\subsection{Security Measures}
+\label{subsection:2.4.2}
+Authentication is implemented via JWT Bearer tokens generated using the HMAC-SHA256 algorithm (jjwt library, version 0.12.5). Tokens carry user identity, role, and account status. All passwords are hashed with BCrypt before storage. Role-based access control (RBAC) is enforced at the Spring Security layer: EV\_USER role can access station browsing and booking endpoints; COLLABORATOR role additionally accesses verification and station management endpoints; ADMIN role additionally accesses all administrative endpoints. Input validation using Jakarta Bean Validation annotations (\verb|@NotNull|, \verb|@NotBlank|, \verb|@Email|, \verb|@Pattern|) guards against malformed requests at the controller boundary. File uploads are restricted to image MIME types (\verb|image/jpeg|, \verb|image/png|, \verb|image/webp|) with a 10 MB size cap. SQL injection is prevented by Spring Data JPA's use of parameterized queries throughout all repository implementations.
+
+All admin actions are recorded in the audit\_log table with the entity type, action, actor ID, timestamp, IP address, and a JSON blob of details. This enables post-incident investigation and accountability.
+
+CSRF protection is disabled because the API is entirely stateless and does not use browser-based session cookies.
+
+\subsection{Scalability Approach}
+\label{subsection:2.4.3}
+The backend is designed to scale horizontally. Because JWT tokens are stateless, any Spring Boot instance can validate incoming requests without session affinity to a specific server. The HikariCP connection pool is configured with a maximum of 10 connections, which is appropriate for a single-instance deployment and can be increased per instance in a multi-instance setup behind a load balancer.
+
+File uploads bypass the API server through MinIO presigned URLs. Clients upload directly to MinIO using a server-generated, time-limited URL, reducing API server load for binary operations. The Redis instance is used for pub/sub-based WebSocket fan-out for the battery swap broadcast service, though session caching and rate limiting via Redis remain configured for future use.
+
+Deployment is containerized via Docker Compose, which ensures a reproducible environment from development through testing. No Kubernetes manifests or CI/CD pipelines are defined in the current build.
+
+\subsection{Technology Constraints}
+\label{subsection:2.4.4}
+The following technology constraints are imposed by the project's dependencies. Java 17 or higher is required, as Spring Boot 3.2.0 mandates it. Flutter 3.x is required for all client applications. PostgreSQL 16 with the PostGIS 3.4 extension is required for geospatial queries; standard PostgreSQL or an earlier version may not support the required \verb|GEOGRAPHY(POINT, 4326)| column type. The PostGIS dialect (\verb|PostgisPG10Dialect|) must be explicitly configured in Hibernate settings.
+
+MinIO is used for object storage because it is self-hosted and requires no cloud vendor integration. Production deployments must provision MinIO separately; local development may use a MinIO Docker container.
+
+The Open Source Routing Machine (OSRM) public demo instance at \verb|router.project-osrm.org| is used for route calculation. This instance is free but subject to rate limits and availability guarantees that differ from a self-hosted OSRM deployment.
+
+\section*{Chapter Summary}
+\addcontentsline{toc}{section}{Chapter Summary}
+This chapter has presented the functional model and non-functional constraints for VoltGO. The general and detailed use case diagrams identified four actors and 11 high-level functional domains. Three cross-cutting business processes were described: the station lifecycle, the battery swap flow, and the GPS verification workflow. Six use cases were selected for detailed specification: charging booking, battery swap reservation, AI recommendations, change request approval, GPS check-in with evidence submission, and trust scoring. These six use cases collectively exercise the platform's core value propositions: real-time availability management, anti-fraud verification, and explainable quality scoring.
+
+The functional specifications established in this chapter drive the design decisions in the next chapter, where each technology choice is explicitly justified against the requirements identified here.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}

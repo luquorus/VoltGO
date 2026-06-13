@@ -8,6 +8,7 @@ import '../models/battery_swap_change_request.dart';
 import '../providers/battery_swap_cr_providers.dart';
 import '../providers/battery_swap_trust_providers.dart';
 import '../theme/admin_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/admin_scaffold.dart';
 import 'create_task_modal.dart';
 
@@ -46,7 +47,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       BatterySwapChangeRequest cr) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(responsivePadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -213,7 +214,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -303,10 +304,10 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRiskSection(ThemeData theme, BatterySwapChangeRequest cr) {
+  Widget _buildRiskSection(BuildContext context, ThemeData theme, BatterySwapChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -412,7 +413,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
   Widget _buildVersionSection(BuildContext context, ThemeData theme, BatterySwapChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -455,7 +456,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
   Widget _buildPileLayoutSection(BuildContext context, ThemeData theme, BatterySwapChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -568,7 +569,7 @@ class BatterySwapCRDetailScreen extends ConsumerWidget {
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, BatterySwapChangeRequest cr) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

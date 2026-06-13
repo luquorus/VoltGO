@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import '../providers/profile_providers.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Edit Profile Screen
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -134,10 +135,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return AdminScaffold(
       title: 'Edit Profile',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: BoxConstraints(maxWidth: isMobile(context) ? double.infinity : 600),
             child: Form(
               key: _formKey,
               child: Column(
@@ -146,7 +147,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   // Profile Information Card
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -228,7 +229,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   // Change Password Card
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

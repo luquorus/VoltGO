@@ -8,6 +8,7 @@ import '../models/pagination_response.dart';
 import '../providers/audit_log_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 import 'dart:convert';
 
 /// Audit Query Screen
@@ -128,23 +129,17 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
     final theme = Theme.of(context);
     final filters = ref.watch(auditQueryFiltersProvider);
     final auditLogsAsync = ref.watch(auditLogsQueryProvider(filters));
+    final mobile = isMobile(context);
 
     return AdminScaffold(
       title: 'Audit Logs',
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            // Main content
-            Expanded(
+      body: mobile
+          ? Padding(
+              padding: EdgeInsets.all(responsivePadding(context)),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Filter Panel
                   _buildFilterPanel(theme),
                   const SizedBox(height: 24),
-
-                  // Audit Logs Table
                   Expanded(
                     child: Card(
                       margin: EdgeInsets.zero,
@@ -165,21 +160,50 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
                   ),
                 ],
               ),
-            ),
-
-            // Metadata Drawer
-            if (_selectedLog != null)
-              Container(
-                width: 400,
-                margin: const EdgeInsets.only(left: 16),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: _buildMetadataDrawer(theme, _selectedLog!),
-                ),
+            )
+          : Padding(
+              padding: EdgeInsets.all(responsivePadding(context)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFilterPanel(theme),
+                        const SizedBox(height: 24),
+                        Expanded(
+                          child: Card(
+                            margin: EdgeInsets.zero,
+                            child: auditLogsAsync.when(
+                              data: (pagination) => _buildAuditLogsTable(theme, pagination),
+                              loading: () => LoadingState(message: 'Loading audit logs...'),
+                              error: (error, stack) => ErrorState(
+                                title: 'Could not load audit log',
+                                message: formatApiError(error),
+                                code: extractErrorCode(error),
+                                traceId: extractTraceId(error),
+                                onRetry: () {
+                                  ref.invalidate(auditLogsQueryProvider(filters));
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_selectedLog != null)
+                    Container(
+                      width: 400,
+                      margin: const EdgeInsets.only(left: 16),
+                      child: Card(
+                        margin: EdgeInsets.zero,
+                        child: _buildMetadataDrawer(theme, _selectedLog!),
+                      ),
+                    ),
+                ],
               ),
-          ],
-        ),
-      ),
+            ),
     );
   }
 

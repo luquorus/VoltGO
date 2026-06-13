@@ -173,13 +173,13 @@ public class SwapStationStateApplyService {
             BatterySwapStationStateEntity state = BatterySwapStationStateEntity.builder()
                     .stationId(stationId)
                     .totalBatteries(totalSlots)
-                    .availableBatteries(0)
+                    .availableBatteries(totalSlots)
                     .avgChargePowerKw(version.getAvgChargePowerKw())
                     .updatedAt(now)
                     .build();
             stationStateRepository.save(state);
-            log.info("Created battery_swap_station_state for station={} (total={}, avgPower={})",
-                    stationId, totalSlots, version.getAvgChargePowerKw());
+            log.info("Created battery_swap_station_state for station={} (total={}, available={}, avgPower={})",
+                    stationId, totalSlots, totalSlots, version.getAvgChargePowerKw());
         } else {
             BatterySwapStationStateEntity state = existingState.get();
             state.setTotalBatteries(totalSlots);

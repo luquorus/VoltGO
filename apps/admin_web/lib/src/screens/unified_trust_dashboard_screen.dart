@@ -12,6 +12,7 @@ import '../providers/station_trust_providers.dart';
 import '../providers/battery_swap_trust_providers.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_scaffold.dart';
+import '../utils/responsive_utils.dart';
 
 /// Unified Trust Dashboard Screen with subtabs for Charging and Battery Swap stations
 class UnifiedTrustDashboardScreen extends ConsumerStatefulWidget {
@@ -63,12 +64,12 @@ class _UnifiedTrustDashboardScreenState extends ConsumerState<UnifiedTrustDashbo
     return AdminScaffold(
       title: 'Trust Dashboard',
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(responsivePadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSubtabBar(context),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile(context) ? 16 : 24),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -92,6 +93,7 @@ class _UnifiedTrustDashboardScreenState extends ConsumerState<UnifiedTrustDashbo
 
   Widget _buildSubtabBar(BuildContext context) {
     final theme = Theme.of(context);
+    final mobile = isMobile(context);
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -107,17 +109,19 @@ class _UnifiedTrustDashboardScreenState extends ConsumerState<UnifiedTrustDashbo
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
         unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: mobile ? 12 : 14),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: mobile ? 12 : 14),
         dividerColor: Colors.transparent,
-        tabs: const [
+        tabs: [
           Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.ev_station, size: 18),
-                SizedBox(width: 8),
-                Text('Charging Stations'),
+                Icon(Icons.ev_station, size: mobile ? 16 : 18),
+                if (!mobile) ...[
+                  const SizedBox(width: 8),
+                  const Text('Charging Stations'),
+                ],
               ],
             ),
           ),
@@ -125,9 +129,11 @@ class _UnifiedTrustDashboardScreenState extends ConsumerState<UnifiedTrustDashbo
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.battery_charging_full, size: 18),
-                SizedBox(width: 8),
-                Text('Battery Swap'),
+                Icon(Icons.battery_charging_full, size: mobile ? 16 : 18),
+                if (!mobile) ...[
+                  const SizedBox(width: 8),
+                  const Text('Battery Swap'),
+                ],
               ],
             ),
           ),
@@ -484,13 +490,21 @@ class _ChargingStationTrustTabState extends ConsumerState<_ChargingStationTrustT
       data: (summary) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _buildOverviewStatCard(theme, icon: Icons.electric_bolt, label: 'Total Stations', value: summary.totalStations.toString(), color: AdminTheme.primaryTeal),
-              const SizedBox(width: 16),
-              _buildOverviewStatCard(theme, icon: Icons.trending_up, label: 'Average Score', value: summary.averageScore.toStringAsFixed(1), color: Colors.blue),
-            ],
-          ),
+          isMobile(context)
+              ? Column(
+                  children: [
+                    _buildOverviewStatCard(theme, icon: Icons.electric_bolt, label: 'Total Stations', value: summary.totalStations.toString(), color: AdminTheme.primaryTeal),
+                    const SizedBox(height: 12),
+                    _buildOverviewStatCard(theme, icon: Icons.trending_up, label: 'Average Score', value: summary.averageScore.toStringAsFixed(1), color: Colors.blue),
+                  ],
+                )
+              : Row(
+                  children: [
+                    _buildOverviewStatCard(theme, icon: Icons.electric_bolt, label: 'Total Stations', value: summary.totalStations.toString(), color: AdminTheme.primaryTeal),
+                    const SizedBox(width: 16),
+                    _buildOverviewStatCard(theme, icon: Icons.trending_up, label: 'Average Score', value: summary.averageScore.toStringAsFixed(1), color: Colors.blue),
+                  ],
+                ),
           const SizedBox(height: 24),
           Card(
             child: Padding(
@@ -506,14 +520,22 @@ class _ChargingStationTrustTabState extends ConsumerState<_ChargingStationTrustT
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildTopStationsCard(theme, summary.topStations, true)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildTopStationsCard(theme, summary.bottomStations, false)),
-            ],
-          ),
+          isMobile(context)
+              ? Column(
+                  children: [
+                    _buildTopStationsCard(theme, summary.topStations, true),
+                    const SizedBox(height: 16),
+                    _buildTopStationsCard(theme, summary.bottomStations, false),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildTopStationsCard(theme, summary.topStations, true)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildTopStationsCard(theme, summary.bottomStations, false)),
+                  ],
+                ),
         ],
       ),
       loading: () => const Center(child: Padding(padding: EdgeInsets.all(48), child: LoadingState(message: 'Loading summary...'))),
