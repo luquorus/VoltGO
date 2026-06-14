@@ -19,4 +19,13 @@ public class CollaboratorPerformanceDTO {
     private double avgCompletionTimeHours;
     private double avgDistanceMeters;
     private double slaComplianceRate;
+
+    /** Tổng số Change Request mà collaborator đã gửi (charging + battery swap). */
+    private long totalChangeRequests;
+    /** Số CR đã được publish (tính cả charging + battery swap). */
+    private long publishedChangeRequests;
+    /** Số CR đã bị admin từ chối. */
+    private long rejectedChangeRequests;
+    /** Tỉ lệ publish = published / total (0 nếu total = 0). Đơn vị: %. */
+    private double changeRequestPublishRate;
 }

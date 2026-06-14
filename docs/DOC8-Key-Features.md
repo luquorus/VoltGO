@@ -264,7 +264,11 @@ Station Risk Assessment Engine (Standard + Battery Swap)
 
 ### User-Facing Behavior
 
-A user or collaborator submits a change request (e.g., updates station hours or adds a charging port). The system immediately calculates a risk score. Low-risk changes (score < 30) can be auto-approved by admin review. High-risk changes (score >= 50) require thorough investigation. The risk score and breakdown are visible to the admin in the change request review screen.
+A user or **collaborator** submits a change request (e.g., updates station hours or adds a charging port). The system immediately calculates a risk score. Low-risk changes (score < 30) can be auto-approved by admin review. High-risk changes (score >= 50) require thorough investigation. The risk score and breakdown are visible to the admin in the change request review screen.
+
+> **2026-06 update:** Collaborators can now create and submit change requests for both charging and battery-swap stations through a new *Requests* tab in the collaborator mobile app. Each CR passes through the same risk engine and notifies the submitter on every admin decision (approve / reject / publish).
+>
+> **2026-06-14 update:** The Create-CR form now supports *station search & auto-fill* — collaborators type a station name and pick a match to pre-populate name/address/GPS/hours/ports (and battery-swap details if the station supports the service).
 
 ### Backend Logic
 

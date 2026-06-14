@@ -10,6 +10,10 @@ class CollaboratorPerformance {
   final double avgCompletionTimeHours;
   final double avgDistanceMeters;
   final double slaComplianceRate;
+  final int totalChangeRequests;
+  final int publishedChangeRequests;
+  final int rejectedChangeRequests;
+  final double changeRequestPublishRate;
 
   CollaboratorPerformance({
     required this.collaboratorId,
@@ -19,6 +23,10 @@ class CollaboratorPerformance {
     required this.avgCompletionTimeHours,
     required this.avgDistanceMeters,
     required this.slaComplianceRate,
+    this.totalChangeRequests = 0,
+    this.publishedChangeRequests = 0,
+    this.rejectedChangeRequests = 0,
+    this.changeRequestPublishRate = 0.0,
   });
 
   factory CollaboratorPerformance.fromJson(Map<String, dynamic>? json) {
@@ -33,6 +41,11 @@ class CollaboratorPerformance {
       avgCompletionTimeHours: (json['avgCompletionTimeHours'] as num?)?.toDouble() ?? 0.0,
       avgDistanceMeters: (json['avgDistanceMeters'] as num?)?.toDouble() ?? 0.0,
       slaComplianceRate: (json['slaComplianceRate'] as num?)?.toDouble() ?? 0.0,
+      totalChangeRequests: json['totalChangeRequests'] as int? ?? 0,
+      publishedChangeRequests: json['publishedChangeRequests'] as int? ?? 0,
+      rejectedChangeRequests: json['rejectedChangeRequests'] as int? ?? 0,
+      changeRequestPublishRate:
+          (json['changeRequestPublishRate'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -45,6 +58,10 @@ class CollaboratorPerformance {
       'avgCompletionTimeHours': avgCompletionTimeHours,
       'avgDistanceMeters': avgDistanceMeters,
       'slaComplianceRate': slaComplianceRate,
+      'totalChangeRequests': totalChangeRequests,
+      'publishedChangeRequests': publishedChangeRequests,
+      'rejectedChangeRequests': rejectedChangeRequests,
+      'changeRequestPublishRate': changeRequestPublishRate,
     };
   }
 }
@@ -60,6 +77,10 @@ class CollaboratorPerformanceDetail extends CollaboratorPerformance {
     required super.avgCompletionTimeHours,
     required super.avgDistanceMeters,
     required super.slaComplianceRate,
+    super.totalChangeRequests,
+    super.publishedChangeRequests,
+    super.rejectedChangeRequests,
+    super.changeRequestPublishRate,
     required this.monthlyBreakdown,
   });
 
@@ -80,6 +101,11 @@ class CollaboratorPerformanceDetail extends CollaboratorPerformance {
       avgCompletionTimeHours: (json['avgCompletionTimeHours'] as num?)?.toDouble() ?? 0.0,
       avgDistanceMeters: (json['avgDistanceMeters'] as num?)?.toDouble() ?? 0.0,
       slaComplianceRate: (json['slaComplianceRate'] as num?)?.toDouble() ?? 0.0,
+      totalChangeRequests: json['totalChangeRequests'] as int? ?? 0,
+      publishedChangeRequests: json['publishedChangeRequests'] as int? ?? 0,
+      rejectedChangeRequests: json['rejectedChangeRequests'] as int? ?? 0,
+      changeRequestPublishRate:
+          (json['changeRequestPublishRate'] as num?)?.toDouble() ?? 0.0,
       monthlyBreakdown: monthly,
     );
   }

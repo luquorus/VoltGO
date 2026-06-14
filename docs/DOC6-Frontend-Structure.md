@@ -224,7 +224,7 @@ GoRouter provides declarative routing with role-based guards.
 
 ### Collaborator Mobile (`collab_mobile`)
 
-**Screens (15 total):**
+**Screens (19 total — 4 added 2026-06):**
 
 | Screen | Description |
 |---|---|
@@ -244,11 +244,13 @@ GoRouter provides declarative routing with role-based guards.
 | `notifications_screen.dart` | Notifications |
 | `forbidden_screen.dart` | Access denied |
 
-**Providers (6 total):**
-`battery_swap_task_providers`, `contracts_provider`, `dashboard_provider`, `notification_provider`, `profile_providers`, `task_providers`
+**Providers (7 total — 1 added 2026-06):**
+`battery_swap_task_providers`, `change_request_providers` (NEW), `contracts_provider`, `dashboard_provider`, `notification_provider`, `profile_providers`, `task_providers`
 
-**Repositories (2 total):**
-`profile_repository`, `task_repository`
+**Repositories (4 total — 2 added 2026-06):**
+`change_request_repository` (NEW), `battery_swap_change_request_repository` (NEW), `profile_repository`, `task_repository`
+
+**Bottom Navigation (UPDATED 2026-06):** Migrated from `BottomNavigationBar` to Material 3 `NavigationBar` to support 6 destinations: **Home / Charging / Swap / Requests (NEW) / Notifications / Profile**. The Requests tab is reachable at `/change-requests`.
 
 ---
 

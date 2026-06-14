@@ -20,5 +20,9 @@ public class CollaboratorPerformanceDetailDTO {
     private double avgCompletionTimeHours;
     private double avgDistanceMeters;
     private double slaComplianceRate;
+    private long totalChangeRequests;
+    private long publishedChangeRequests;
+    private long rejectedChangeRequests;
+    private double changeRequestPublishRate;
     private List<MonthlyBreakdownDTO> monthlyBreakdown;
 }

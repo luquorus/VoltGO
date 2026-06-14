@@ -352,7 +352,7 @@ public class GlobalExceptionHandler {
             case VALIDATION_ERROR, INVALID_INPUT, INVALID_TIME_RANGE, ROUTE_NOT_FOUND -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case SLOT_UNAVAILABLE, CHARGER_UNIT_INACTIVE -> HttpStatus.CONFLICT;
+            case SLOT_UNAVAILABLE, CHARGER_UNIT_INACTIVE, CONFLICT -> HttpStatus.CONFLICT;
             case INVALID_STATE -> HttpStatus.BAD_REQUEST;
             case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;

@@ -35,7 +35,8 @@ src/main/java/com/example/evstation/
 │   │   └── mapper/
 │   ├── collaborator_mobile/           # Field collaborator mobile API
 │   │   ├── controller/
-│   │   │   └── CollaboratorMobileController.java
+│   │   │   ├── CollaboratorMobileController.java
+│   │   │   └── CollaboratorChangeRequestController.java  # NEW 2026-06 — CR endpoints for collaborators
 │   │   ├── dto/
 │   │   └── mapper/
 │   ├── collaborator_web/              # Collaborator web portal API

@@ -5,6 +5,10 @@ import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.notification.api.dto.CreateNotificationDTO;
+import com.example.evstation.notification.application.NotificationService;
+import com.example.evstation.notification.domain.NotificationCategory;
+import com.example.evstation.notification.domain.NotificationType;
 import com.example.evstation.station.domain.*;
 import com.example.evstation.station.infrastructure.jpa.*;
 import com.example.evstation.batteryswap.application.SwapStationStateApplyService;
@@ -38,6 +42,7 @@ public class AdminChangeRequestService {
     private final VerificationService verificationService;
     private final ChargerUnitCreationService chargerUnitCreationService;
     private final SwapStationStateApplyService swapStationStateApplyService;
+    private final NotificationService notificationService;
     
     private static final int HIGH_RISK_THRESHOLD = 60;
 
@@ -118,13 +123,19 @@ public class AdminChangeRequestService {
         changeRequestRepository.save(changeRequest);
         
         // Write audit log
-        writeAuditLog(adminId, adminRole, "APPROVE_CHANGE_REQUEST", "CHANGE_REQUEST", id, 
+        writeAuditLog(adminId, adminRole, "APPROVE_CHANGE_REQUEST", "CHANGE_REQUEST", id,
                 Map.of(
                         "note", note != null ? note : "",
                         "previousStatus", "PENDING",
                         "newStatus", "APPROVED"
                 ));
-        
+
+        // Notify the submitter (only if the submitter is a collaborator — EV user
+        // notifications are handled by a different notification service on the EV side)
+        notifySubmitterIfCollaborator(changeRequest, "approved",
+                "Your change request has been approved",
+                "An admin approved your change request. It is now ready to be published.");
+
         log.info("Change request approved: id={}", id);
         return buildAdminDTO(changeRequest);
     }
@@ -162,13 +173,18 @@ public class AdminChangeRequestService {
         changeRequestRepository.save(changeRequest);
         
         // Write audit log
-        writeAuditLog(adminId, adminRole, "REJECT_CHANGE_REQUEST", "CHANGE_REQUEST", id, 
+        writeAuditLog(adminId, adminRole, "REJECT_CHANGE_REQUEST", "CHANGE_REQUEST", id,
                 Map.of(
                         "reason", reason,
                         "previousStatus", "PENDING",
                         "newStatus", "REJECTED"
                 ));
-        
+
+        // Notify the submitter if collaborator
+        notifySubmitterIfCollaborator(changeRequest, "rejected",
+                "Your change request was rejected",
+                "Reason: " + (reason != null ? reason : "(no reason provided)"));
+
         log.info("Change request rejected: id={}", id);
         return buildAdminDTO(changeRequest);
     }
@@ -308,13 +324,70 @@ public class AdminChangeRequestService {
         
         // Recalculate trust score after publishing
         trustScoringService.recalculate(stationId);
-        
+
+        // Notify the submitter if collaborator
+        notifySubmitterIfCollaborator(changeRequest, "published",
+                "Your change request is live",
+                "Your station edit has been published and is now visible to users.");
+
         log.info("Change request published: id={}, stationId={}", id, stationId);
         return buildAdminDTO(changeRequest);
     }
 
     // ========== Private Helper Methods ==========
-    
+
+    /**
+     * Send an in-app notification to the submitter if the submitter is a COLLABORATOR.
+     * The notification service handles push + email after the transaction commits
+     * (see {@code NotificationService#onNotificationEvent}).
+     *
+     * @param cr           the change request whose status just changed
+     * @param decision     short verb used in the deep-link data: "approved" / "rejected" / "published"
+     * @param title        notification title
+     * @param body         notification body
+     */
+    private void notifySubmitterIfCollaborator(ChangeRequestEntity cr,
+                                               String decision,
+                                               String title,
+                                               String body) {
+        try {
+            UUID submitterId = cr.getSubmittedBy();
+            if (submitterId == null) return;
+
+            String submitterRole = userAccountRepository.findById(submitterId)
+                    .map(UserAccountEntity::getRole)
+                    .map(Enum::name)
+                    .orElse(null);
+            if (!"COLLABORATOR".equals(submitterRole)) {
+                // Skip — collaborators are the only ones whose notifications
+                // we route through NotificationService in this module.
+                return;
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("deepLink", "/change-requests/" + cr.getId());
+            data.put("decision", decision);
+            data.put("changeRequestId", cr.getId().toString());
+
+            notificationService.send(CreateNotificationDTO.builder()
+                    .recipientId(submitterId)
+                    .type(NotificationType.STATION_CHANGE_REQUEST_PUBLISHED)
+                    .category(NotificationCategory.STATION)
+                    .title(title)
+                    .body(body)
+                    .data(data)
+                    .referenceId(cr.getId())
+                    .referenceType("CHANGE_REQUEST")
+                    .build());
+            log.info("[CR-NOTIFY] Sent '{}' notification to collaborator {} for CR {}",
+                    decision, submitterId, cr.getId());
+        } catch (Exception e) {
+            // Never let a notification failure roll back the admin decision
+            log.warn("[CR-NOTIFY] Failed to notify submitter for CR {}: {}",
+                    cr.getId(), e.getMessage());
+        }
+    }
+
     private void writeAuditLog(UUID actorId, String actorRole, String action, 
                                String entityType, UUID entityId, Map<String, Object> metadata) {
         AuditLogEntity auditLog = AuditLogEntity.builder()

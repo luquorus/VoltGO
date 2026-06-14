@@ -448,6 +448,8 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
                       const DataColumn(label: Text('Avg Time'), numeric: true),
                       const DataColumn(label: Text('Avg Distance'), numeric: true),
                       const DataColumn(label: Text('SLA Compliance')),
+                      const DataColumn(label: Text('CRs'), numeric: true),
+                      const DataColumn(label: Text('CR Publish %')),
                     ],
                     rows: collaborators.map((collab) {
                       return DataRow(
@@ -461,8 +463,8 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
                                     radius: 16,
                                     backgroundColor: AdminTheme.primaryTeal.withOpacity(0.1),
                                     child: Text(
-                                      collab.fullName.isNotEmpty 
-                                          ? collab.fullName[0].toUpperCase() 
+                                      collab.fullName.isNotEmpty
+                                          ? collab.fullName[0].toUpperCase()
                                           : '?',
                                       style: TextStyle(
                                         color: AdminTheme.primaryTeal,
@@ -482,6 +484,8 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
                           DataCell(Text('${collab.avgCompletionTimeHours.toStringAsFixed(1)}h')),
                           DataCell(Text('${collab.avgDistanceMeters.toStringAsFixed(0)}m')),
                           DataCell(_buildSlaComplianceBadge(collab.slaComplianceRate)),
+                          DataCell(Text('${collab.publishedChangeRequests}/${collab.totalChangeRequests}')),
+                          DataCell(_buildPublishRateCell(collab.changeRequestPublishRate)),
                         ],
                       );
                     }).toList(),
@@ -584,6 +588,22 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
           fontSize: 12,
         ),
       ),
+    );
+  }
+
+  Widget _buildPublishRateCell(double rate) {
+    final percentage = rate.toStringAsFixed(0);
+    Color color;
+    if (rate >= 70) {
+      color = const Color(0xFF22C55E);
+    } else if (rate >= 40) {
+      color = const Color(0xFFF97316);
+    } else {
+      color = Colors.grey;
+    }
+    return Text(
+      '$percentage%',
+      style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
     );
   }
 }

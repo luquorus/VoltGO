@@ -265,6 +265,19 @@ Request:
 | `PUT` | `/api/collab/mobile/me/location` | Update GPS location | Yes (COLLABORATOR) |
 | `POST` | `/api/mobile/collab/battery-swap/verification/tasks/{id}/checkin` | Battery swap check-in | Yes (COLLABORATOR) |
 | `POST` | `/api/mobile/collab/battery-swap/verification/tasks/{id}/evidence` | Submit swap verification evidence | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/change-requests` | **NEW 2026-06** — Create charging-station CR | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/change-requests/mine` | **NEW 2026-06** — List my charging CRs | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/change-requests/{id}` | **NEW 2026-06** — Get charging CR detail | Yes (COLLABORATOR) |
+| `PUT` | `/api/collab/mobile/change-requests/{id}` | **NEW 2026-06** — Update charging CR draft | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/change-requests/{id}/submit` | **NEW 2026-06** — Submit charging CR for review | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/battery-swap-change-requests` | **NEW 2026-06** — Create battery-swap CR | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/battery-swap-change-requests/mine` | **NEW 2026-06** — List my battery-swap CRs | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/battery-swap-change-requests/{id}` | **NEW 2026-06** — Get battery-swap CR detail | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/battery-swap-change-requests/{id}/submit` | **NEW 2026-06** — Submit battery-swap CR for review | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/stations/search/by-name` | **NEW 2026-06-14** — Search published charging stations by name (auto-fill helper) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/stations/{id}` | **NEW 2026-06-14** — Get full published charging-station detail (auto-fill helper) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/battery-swap-stations/search/by-name` | **NEW 2026-06-14** — Search published battery-swap stations by name (auto-fill helper) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/battery-swap-stations/{id}` | **NEW 2026-06-14** — Get full published battery-swap station detail (auto-fill helper) | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/notifications` | Get notifications | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/notifications/unread-count` | Get unread count | Yes (COLLABORATOR) |
 | `PATCH` | `/api/collab/notifications/{id}/read` | Mark as read | Yes (COLLABORATOR) |
@@ -530,7 +543,7 @@ Common HTTP status codes used:
 | EV User — Loyalty | 17 |
 | EV User — Notifications | 4 |
 | EV User — Files | 2 |
-| Collaborator Mobile | 18 |
+| Collaborator Mobile | 18 + **8 NEW (CR)** + **4 NEW (search/auto-fill)** = 30 |
 | Collaborator Web | 10 |
 | Admin — Dashboard | 5 |
 | Admin — Stations | 5 + 2 CSV |

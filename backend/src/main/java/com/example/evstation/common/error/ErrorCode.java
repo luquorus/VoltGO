@@ -14,6 +14,7 @@ public enum ErrorCode {
     FORBIDDEN("EVS-0005", "Forbidden"),
     INVALID_INPUT("EVS-0006", "Invalid input"),
     INVALID_STATE("EVS-0007", "Invalid state"),
+    CONFLICT("EVS-0014", "Resource conflict"),
     
     // Booking errors
     SLOT_UNAVAILABLE("EVS-0008", "Slot unavailable"),

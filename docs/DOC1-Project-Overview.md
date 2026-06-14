@@ -26,7 +26,7 @@
 - **Charging Booking:** Reserve a charging slot at a station for a specific time window. Booking enters `HOLD` state with a 15-minute expiry, then auto-converts to `CONFIRMED` or `EXPIRED`.
 - **Battery Swap Reservation:** Reserve a battery and slot at a swap station. Workflow: reserve → confirm arrival → start swap (receive 6-digit swap code) → pay (mock) → complete → verify.
 - **Station Availability:** Real-time charger unit status (AVAILABLE, OCCUPIED, OUT_OF_SERVICE) via API.
-- **Change Request:** Submit suggested edits to station data (name, address, ports, hours) for admin review.
+- **Change Request:** Submit suggested edits to station data (name, address, ports, hours) for admin review. The same workflow is also available to collaborators (see *Collaborator Features* below).
 - **Issue Reporting:** Report station discrepancies (wrong address, broken charger, etc.).
 - **Station Rating:** Rate a station after charging. Ratings go through admin moderation before publication.
 - **Loyalty Program:** Earn points per completed booking/swap. Redeem points for vouchers. Earn badges (5 tiers: Bronze → Silver → Gold → Platinum → Diamond). Referral program with bonus points for both parties.
@@ -41,8 +41,9 @@
 - **GPS Check-in:** Record GPS coordinates when arriving at a verification task location. Haversine distance calculated against station location.
 - **Station Verification Tasks:** Accept assigned verification tasks, photograph station evidence (exterior, charger, signage), submit verification review for admin approval.
 - **Battery Swap Verification Tasks:** Verify swap station existence, availability, and operational status.
+- **Change Request (NEW — 2026-06):** Propose edits to station data (charging or battery swap) after on-site verification. Workflow: DRAFT → submit → admin reviews → APPROVED/REJECTED → PUBLISHED. Includes risk assessment and the same workflow as EV User change requests. Reachable from a new "Requests" tab in the bottom navigation bar; admins are notified when a CR is submitted, approved, rejected, or published.
 - **Contract Management:** View active and historical contracts with the platform.
-- **Notifications:** Receive task assignments, SLA reminders, and system alerts.
+- **Notifications:** Receive task assignments, SLA reminders, system alerts, and CR decision updates (approve / reject / publish).
 
 ### Admin Features (Web Portal — `admin_web`)
 

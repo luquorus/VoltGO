@@ -89,6 +89,28 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
         const SnackBar(content: Text('Please select a collaborator'), backgroundColor: Colors.red),
       );
       return;
+    } else if (_selectedCandidate!.isCrSubmitter) {
+      // Client-side guard: this candidate submitted the originating CR.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.block, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'This collaborator submitted the originating change request and cannot self-verify. Please pick a different collaborator.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Color(0xFFD97706),
+          duration: Duration(seconds: 6),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
     }
 
     setState(() => _isAssigning = true);
@@ -117,8 +139,36 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
       }
     } catch (e) {
       if (mounted) {
+        final errorCode = extractErrorCode(e);
+        final raw = formatApiError(e);
+        final isSelfAssign = errorCode == 'EVS-0014' &&
+            (raw.toLowerCase().contains('same collaborator') ||
+                raw.toLowerCase().contains('submitted the originating'));
+        final message = isSelfAssign
+            ? 'Cannot assign this task to the collaborator who submitted the originating change request. '
+                'Please pick a different collaborator.'
+            : 'Error: $raw';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${formatApiError(e)}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  isSelfAssign ? Icons.block : Icons.error_outline,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: isSelfAssign ? Colors.orange.shade800 : Colors.red,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -318,19 +368,30 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
       itemBuilder: (context, index) {
         final candidate = data.candidates[index];
         final isSelected = _selectedCandidate?.collaboratorUserId == candidate.collaboratorUserId;
+        final isBlocked = candidate.isCrSubmitter;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
-          color: isSelected ? AdminTheme.primaryTeal.withOpacity(0.1) : null,
+          color: isBlocked
+              ? Colors.orange.withOpacity(0.06)
+              : isSelected
+                  ? AdminTheme.primaryTeal.withOpacity(0.1)
+                  : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: BorderSide(
-              color: isSelected ? AdminTheme.primaryTeal : Colors.transparent,
+              color: isBlocked
+                  ? Colors.orange.shade300
+                  : isSelected
+                      ? AdminTheme.primaryTeal
+                      : Colors.transparent,
               width: 2,
             ),
           ),
           child: InkWell(
-            onTap: () => setState(() => _selectedCandidate = candidate),
+            onTap: isBlocked
+                ? null
+                : () => setState(() => _selectedCandidate = candidate),
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -360,6 +421,12 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
                               candidate.displayName,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
+                                color: isBlocked
+                                    ? theme.colorScheme.onSurface.withOpacity(0.45)
+                                    : null,
+                                decoration: isBlocked
+                                    ? TextDecoration.lineThrough
+                                    : null,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -379,8 +446,55 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
                                   ),
                                 ),
                               ),
+                            if (isBlocked) ...[
+                              const SizedBox(width: 4),
+                              Tooltip(
+                                message:
+                                    'This collaborator submitted the change request that created this task. They cannot self-verify.',
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.orange.shade300,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.block,
+                                        size: 10,
+                                        color: Color(0xFFB45309),
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'CR SUBMITTER',
+                                        style: TextStyle(
+                                          color: Color(0xFFB45309),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
+                        if (isBlocked) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Cannot self-verify — pick a different collaborator.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFFB45309),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                         if (candidate.phone != null) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -462,7 +576,9 @@ class _AssignTaskModalState extends ConsumerState<AssignTaskModal> {
                   Radio<String>(
                     value: candidate.collaboratorUserId,
                     groupValue: _selectedCandidate?.collaboratorUserId,
-                    onChanged: (v) => setState(() => _selectedCandidate = candidate),
+                    onChanged: isBlocked
+                        ? null
+                        : (v) => setState(() => _selectedCandidate = candidate),
                     activeColor: AdminTheme.primaryTeal,
                   ),
                 ],

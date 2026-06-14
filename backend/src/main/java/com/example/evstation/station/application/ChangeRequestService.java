@@ -41,7 +41,15 @@ public class ChangeRequestService {
      */
     @Transactional
     public ChangeRequestResponseDTO createChangeRequest(CreateChangeRequestDTO request, UUID userId) {
-        log.info("Creating change request: type={}, userId={}", request.getType(), userId);
+        return createChangeRequest(request, userId, "EV_USER");
+    }
+
+    /**
+     * Create a new change request (DRAFT status) with explicit actor role.
+     */
+    @Transactional
+    public ChangeRequestResponseDTO createChangeRequest(CreateChangeRequestDTO request, UUID userId, String actorRole) {
+        log.info("Creating change request: type={}, userId={}, actorRole={}", request.getType(), userId, actorRole);
         
         // Validate request based on type
         validateChangeRequest(request);
@@ -153,7 +161,15 @@ public class ChangeRequestService {
      */
     @Transactional
     public ChangeRequestResponseDTO submitChangeRequest(UUID changeRequestId, UUID userId) {
-        log.info("Submitting change request: id={}, userId={}", changeRequestId, userId);
+        return submitChangeRequest(changeRequestId, userId, "EV_USER");
+    }
+
+    /**
+     * Submit a change request (DRAFT -> PENDING) with explicit actor role.
+     */
+    @Transactional
+    public ChangeRequestResponseDTO submitChangeRequest(UUID changeRequestId, UUID userId, String actorRole) {
+        log.info("Submitting change request: id={}, userId={}, actorRole={}", changeRequestId, userId, actorRole);
         
         ChangeRequestEntity changeRequest = changeRequestRepository.findById(changeRequestId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Change request not found"));
@@ -193,7 +209,7 @@ public class ChangeRequestService {
                 changeRequestId, riskAssessment.getRiskScore());
         
         // Write audit log for SUBMIT_CHANGE_REQUEST
-        writeAuditLog(userId, "EV_USER", "SUBMIT_CHANGE_REQUEST", "CHANGE_REQUEST", changeRequestId,
+        writeAuditLog(userId, actorRole, "SUBMIT_CHANGE_REQUEST", "CHANGE_REQUEST", changeRequestId,
                 Map.of(
                         "type", changeRequest.getType().name(),
                         "stationVersionId", changeRequest.getProposedStationVersionId().toString(),

@@ -3,6 +3,7 @@ package com.example.evstation.verification.application;
 import com.example.evstation.auth.domain.Role;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
 import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapChangeRequestJpaRepository;
 import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapStationVersionJpaRepository;
 import com.example.evstation.collaborator.application.ContractPolicyService;
 import com.example.evstation.collaborator.infrastructure.jpa.CollaboratorProfileJpaRepository;
@@ -53,6 +54,7 @@ public class VerificationService {
     private final AuditLogJpaRepository auditLogRepository;
     private final ContractPolicyService contractPolicyService;
     private final BatterySwapStationVersionJpaRepository batterySwapVersionRepository;
+    private final BatterySwapChangeRequestJpaRepository batterySwapChangeRequestRepository;
     private final TrustScoringService trustScoringService;
     private final EntityManager entityManager;
     private final Clock clock;
@@ -337,46 +339,107 @@ public class VerificationService {
     }
 
     /**
+     * Enforce the rule that an admin cannot assign a verification task to the
+     * same collaborator who submitted the originating change request. Applies
+     * to BOTH charging and battery-swap CRs.
+     *
+     * On violation: writes a dedicated audit log entry and throws 409 Conflict
+     * via BusinessException so the admin UI can show a clear error.
+     */
+    private void assertNotSelfAssigned(VerificationTaskEntity task,
+                                       UUID collaboratorUserId,
+                                       UUID adminId,
+                                       String adminRole) {
+        UUID crSubmitter = null;
+        String crKind = null;
+
+        if (task.getChangeRequestId() != null) {
+            crSubmitter = changeRequestRepository.findById(task.getChangeRequestId())
+                    .map(cr -> cr.getSubmittedBy())
+                    .orElse(null);
+            crKind = "CHARGING";
+        } else if (task.getBatterySwapChangeRequestId() != null) {
+            crSubmitter = batterySwapChangeRequestRepository
+                    .findById(task.getBatterySwapChangeRequestId())
+                    .map(cr -> cr.getSubmittedBy())
+                    .orElse(null);
+            crKind = "BATTERY_SWAP";
+        }
+
+        if (crSubmitter == null) {
+            return; // task not linked to a CR — nothing to enforce
+        }
+
+        if (crSubmitter.equals(collaboratorUserId)) {
+            // Write a dedicated audit log entry so the attempt is traceable
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("taskId", task.getId().toString());
+            metadata.put("attemptedAssignee", collaboratorUserId.toString());
+            metadata.put("crSubmitter", crSubmitter.toString());
+            metadata.put("crKind", crKind);
+            metadata.put("changeRequestId",
+                    task.getChangeRequestId() != null
+                            ? task.getChangeRequestId().toString()
+                            : task.getBatterySwapChangeRequestId().toString());
+            metadata.put("reason",
+                    "Admin attempted to assign verification task to the same collaborator who submitted the originating change request");
+            writeAuditLog(adminId, adminRole, "BLOCK_SELF_ASSIGN", "VERIFICATION_TASK",
+                    task.getId(), metadata);
+
+            throw new BusinessException(ErrorCode.CONFLICT,
+                    "Cannot assign this verification task to the same collaborator who submitted the originating "
+                            + (crKind != null ? crKind.toLowerCase().replace('_', ' ') : "")
+                            + " change request. Please choose a different collaborator.");
+        }
+    }
+
+    /**
      * Assign task to collaborator by user ID (Admin only) - preferred method from candidates list
      */
     @Transactional
     public VerificationTaskDTO assignTaskByUserId(UUID taskId, UUID collaboratorUserId, UUID adminId, String adminRole) {
         log.info("Assigning task: taskId={}, collaboratorUserId={}", taskId, collaboratorUserId);
-        
+
         // Find collaborator by user ID
         UserAccountEntity user = userAccountRepository.findById(collaboratorUserId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, 
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND,
                         "User not found with ID: " + collaboratorUserId));
-        
+
         // Compute distance for audit log
         VerificationTaskEntity task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
-        
+
+        // Self-assign check + status check are enforced inside assignTaskToUser.
         Integer distance = computeDistanceForAssignment(task.getStationId(), collaboratorUserId);
-        
+
         return assignTaskToUser(taskId, user, adminId, adminRole, distance);
     }
 
     private VerificationTaskDTO assignTaskToUser(UUID taskId, UserAccountEntity user, UUID adminId, String adminRole, Integer distanceMeters) {
         VerificationTaskEntity task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Task not found"));
-        
+
         if (task.getStatus() != VerificationTaskStatus.OPEN) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Can only assign OPEN tasks. Current status: " + task.getStatus());
         }
-        
+
+        // Enforce: cannot assign a verification task to the same collaborator
+        // who submitted the originating change request. Applies to BOTH
+        // charging and battery-swap CRs.
+        assertNotSelfAssigned(task, user.getId(), adminId, adminRole);
+
         if (user.getRole() != Role.COLLABORATOR) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "User must have COLLABORATOR role. Found role: " + user.getRole());
         }
-        
+
         // Verify collaborator has profile
         if (!collaboratorRepository.existsByUserAccountId(user.getId())) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Collaborator profile not found for user: " + user.getEmail());
         }
-        
+
         // Verify contract is active
         contractPolicyService.requireActiveContract(user.getId());
         
@@ -885,6 +948,9 @@ public class VerificationService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Can only assign OPEN tasks. Current status: " + task.getStatus());
         }
+
+        // Self-assign check is enforced via assertNotSelfAssigned below.
+        assertNotSelfAssigned(task, collaboratorUserId, adminId, adminRole);
 
         if (user.getRole() != Role.COLLABORATOR) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,

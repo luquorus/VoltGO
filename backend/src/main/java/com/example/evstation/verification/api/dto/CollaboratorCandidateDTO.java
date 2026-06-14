@@ -15,16 +15,23 @@ public class CollaboratorCandidateDTO {
     private String fullName;
     private String phone;
     private Boolean contractActive;
-    
+
     // Location info
     private CollaboratorLocationDTO location;
-    
+
     // Distance to station in meters (null if location not available)
     private Integer distanceMeters;
-    
+
     // Workload statistics
     private CandidateStatsDTO stats;
-    
+
+    /**
+     * True when this collaborator submitted the change request that
+     * originated the task — admin UI must disable assignment in that case
+     * (conflict of interest).
+     */
+    private Boolean isCrSubmitter;
+
     @Data
     @Builder
     public static class CandidateStatsDTO {

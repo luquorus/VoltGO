@@ -11,6 +11,8 @@ import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.infrastructure.jpa.StationVersionEntity;
 import com.example.evstation.station.infrastructure.jpa.StationVersionJpaRepository;
+import com.example.evstation.station.infrastructure.jpa.ChangeRequestJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapChangeRequestJpaRepository;
 import com.example.evstation.verification.api.dto.CandidateListResponseDTO;
 import com.example.evstation.verification.api.dto.CollaboratorCandidateDTO;
 import com.example.evstation.verification.infrastructure.jpa.VerificationTaskEntity;
@@ -46,6 +48,8 @@ public class CollaboratorCandidateQueryService {
     private final CollaboratorProfileJpaRepository collaboratorRepository;
     private final ContractJpaRepository contractRepository;
     private final UserAccountJpaRepository userAccountRepository;
+    private final ChangeRequestJpaRepository changeRequestRepository;
+    private final BatterySwapChangeRequestJpaRepository batterySwapChangeRequestRepository;
     private final EntityManager entityManager;
     private final Clock clock;
 
@@ -83,24 +87,27 @@ public class CollaboratorCandidateQueryService {
         if (stationLat == null || stationLng == null) {
             throw new BusinessException(ErrorCode.INVALID_STATE, "Station has no location");
         }
-        
+
         LocalDate today = LocalDate.now(clock);
         Instant thirtyDaysAgo = Instant.now(clock).minus(30, ChronoUnit.DAYS);
-        
+
+        // Resolve CR submitter (if any) so the UI can disable self-assignment
+        UUID crSubmitterId = resolveCrSubmitterId(task);
+
         // Get all collaborator profiles with user accounts having COLLABORATOR role
         List<CollaboratorProfileEntity> allProfiles = getCollaboratorProfiles(
                 onlyActiveContract, includeUnlocated, today);
-        
+
         // Compute distances using PostGIS
         Map<UUID, Integer> distanceMap = computeDistances(allProfiles, stationLat, stationLng);
-        
+
         // Get workload statistics
-        Map<UUID, CollaboratorCandidateDTO.CandidateStatsDTO> statsMap = 
+        Map<UUID, CollaboratorCandidateDTO.CandidateStatsDTO> statsMap =
                 computeWorkloadStats(allProfiles, thirtyDaysAgo);
-        
+
         // Build candidate DTOs
         List<CollaboratorCandidateDTO> candidates = allProfiles.stream()
-                .map(profile -> buildCandidateDTO(profile, distanceMap, statsMap, today))
+                .map(profile -> buildCandidateDTO(profile, distanceMap, statsMap, today, crSubmitterId))
                 .collect(Collectors.toList());
         
         // Sort: distance ASC (nulls last), then active ASC, then completed DESC
@@ -275,10 +282,11 @@ public class CollaboratorCandidateQueryService {
             CollaboratorProfileEntity profile,
             Map<UUID, Integer> distanceMap,
             Map<UUID, CollaboratorCandidateDTO.CandidateStatsDTO> statsMap,
-            LocalDate today) {
-        
+            LocalDate today,
+            UUID crSubmitterId) {
+
         UUID userId = profile.getUserAccountId();
-        
+
         // Build location DTO
         CollaboratorLocationDTO locationDTO = null;
         if (profile.getCurrentLocation() != null) {
@@ -289,9 +297,9 @@ public class CollaboratorCandidateQueryService {
                     .source(profile.getLocationSource() != null ? profile.getLocationSource().name() : null)
                     .build();
         }
-        
+
         boolean hasActiveContract = contractRepository.hasEffectiveActiveContract(profile.getId(), today);
-        
+
         return CollaboratorCandidateDTO.builder()
                 .collaboratorUserId(userId.toString())
                 .profileId(profile.getId().toString())
@@ -300,12 +308,32 @@ public class CollaboratorCandidateQueryService {
                 .contractActive(hasActiveContract)
                 .location(locationDTO)
                 .distanceMeters(distanceMap.get(userId))
+                .isCrSubmitter(crSubmitterId != null && crSubmitterId.equals(userId))
                 .stats(statsMap.getOrDefault(userId, CollaboratorCandidateDTO.CandidateStatsDTO.builder()
                         .completed(0)
                         .active(0)
                         .failedOrOverdue(0)
                         .build()))
                 .build();
+    }
+
+    /**
+     * Resolve the change-request submitter for a task. Returns null when the
+     * task is not linked to a CR or the CR is missing.
+     */
+    private UUID resolveCrSubmitterId(VerificationTaskEntity task) {
+        if (task.getChangeRequestId() != null) {
+            return changeRequestRepository.findById(task.getChangeRequestId())
+                    .map(cr -> cr.getSubmittedBy())
+                    .orElse(null);
+        }
+        if (task.getBatterySwapChangeRequestId() != null) {
+            return batterySwapChangeRequestRepository
+                    .findById(task.getBatterySwapChangeRequestId())
+                    .map(cr -> cr.getSubmittedBy())
+                    .orElse(null);
+        }
+        return null;
     }
 
     private int compareNullSafe(Integer a, Integer b) {

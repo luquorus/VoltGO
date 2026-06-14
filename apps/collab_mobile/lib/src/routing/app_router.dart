@@ -16,6 +16,10 @@ import '../screens/registration_form_screen.dart';
 import '../screens/registration_pending_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/contracts_screen.dart';
+import '../screens/change_request_list_screen.dart';
+import '../screens/change_request_detail_screen.dart';
+import '../screens/change_request_create_screen.dart';
+import '../screens/battery_swap_change_request_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -101,6 +105,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // Notifications
       GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+
+      // Change Request routes (added 2026-06)
+      GoRoute(
+        path: '/change-requests',
+        builder: (_, __) => const CollabChangeRequestListScreen(),
+      ),
+      GoRoute(
+        path: '/change-requests/create',
+        builder: (_, __) => const CollabChangeRequestCreateScreen(),
+      ),
+      GoRoute(
+        path: '/change-requests/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return CollabChangeRequestDetailScreen(changeRequestId: id);
+        },
+      ),
+      GoRoute(
+        path: '/change-requests/battery-swap/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return CollabBatterySwapChangeRequestDetailScreen(changeRequestId: id);
+        },
+      ),
     ],
   );
 });

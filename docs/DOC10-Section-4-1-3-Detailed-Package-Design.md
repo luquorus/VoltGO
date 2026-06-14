@@ -131,6 +131,7 @@ Supporting packages that interact with the six core packages:
 - `EvBatterySwapController` (ev_user_mobile) — EV user swap endpoints
 - `AdminBatterySwapStationController`, `AdminBatterySwapChangeRequestController`, `AdminBatterySwapTrustController` (admin_web)
 - `CollaboratorWebBatterySwapVerificationController`, `CollaboratorMobileBatterySwapVerificationController` (field verification)
+- `CollaboratorChangeRequestController` (collaborator_mobile — **NEW 2026-06**) — exposes CR endpoints for both charging and battery-swap stations, authorised via `@PreAuthorize("hasRole('COLLABORATOR')")`.
 - `AdminBatterySwapVerificationController` (admin review)
 
 ---
@@ -370,6 +371,7 @@ Realization is present in two forms in the VoltGO codebase.
 | Station Governance | `ChangeRequestService` | `RiskEngineService` | Dependency | `A ..> B` | Constructor injection of risk engine | Submitting a change request triggers risk assessment, creating a dependency on the risk engine before the request enters the approval workflow |
 | Station Governance | `AdminChangeRequestService` | `ChargerUnitCreationService` | Dependency | `A ..> B` | Constructor injection | Publishing a station version automatically creates charger units from the charging port configuration |
 | Station Governance | `AdminChangeRequestService` | `SwapStationStateApplyService` | Dependency | `A ..> B` | Constructor injection | Publishing a battery swap station applies operational state (piles and slots) from the version configuration |
+| Station Governance | `AdminChangeRequestService` | `NotificationService` | Dependency | `A ..> B` | Constructor injection (**NEW 2026-06**) | After approve / reject / publish, send an in-app notification to the collaborator submitter |
 | All packages | `*Service` | `AuditLogJpaRepository` | Dependency | `A ..> B` | Constructor injection across services | All services write audit logs through the shared AuditLogEntity repository, creating a cross-cutting dependency on the audit logging infrastructure |
 | Station Governance | `StationVersionEntity` | `StationEntity` | Association | `A --> B` | StationVersionEntity.stationId references StationEntity.id | A station version belongs to a station, representing a containment association where multiple versions reference the same station root entity |
 | Station Governance | `StationServiceEntity` | `StationVersionEntity` | Association | `A --> B` | StationServiceEntity.stationVersionId references StationVersionEntity.id | Services are configured per station version, establishing an association where multiple service configurations belong to one version |
@@ -1221,8 +1223,8 @@ package "com.example.evstation.station" {
 
   package "station.application" {
     class ChangeRequestService {
-      + createChangeRequest(request, userId): ChangeRequestResponseDTO
-      + submitChangeRequest(changeRequestId, userId): ChangeRequestResponseDTO
+      + createChangeRequest(request, userId, actorRole): ChangeRequestResponseDTO
+      + submitChangeRequest(changeRequestId, userId, actorRole): ChangeRequestResponseDTO
       + getMyChangeRequests(userId): List<ChangeRequestResponseDTO>
     }
 

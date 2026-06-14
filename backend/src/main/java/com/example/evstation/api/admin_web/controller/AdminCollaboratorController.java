@@ -13,6 +13,11 @@ import com.example.evstation.verification.infrastructure.jpa.VerificationReviewE
 import com.example.evstation.verification.domain.VerificationResult;
 import com.example.evstation.station.infrastructure.jpa.StationVersionJpaRepository;
 import com.example.evstation.station.infrastructure.jpa.StationVersionEntity;
+import com.example.evstation.station.infrastructure.jpa.ChangeRequestJpaRepository;
+import com.example.evstation.station.infrastructure.jpa.ChangeRequestEntity;
+import com.example.evstation.station.domain.ChangeRequestStatus;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapChangeRequestJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapChangeRequestEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,6 +51,8 @@ public class AdminCollaboratorController {
     private final VerificationTaskJpaRepository taskRepository;
     private final VerificationReviewJpaRepository reviewRepository;
     private final StationVersionJpaRepository stationVersionRepository;
+    private final ChangeRequestJpaRepository changeRequestRepository;
+    private final BatterySwapChangeRequestJpaRepository batterySwapChangeRequestRepository;
 
     @Operation(summary = "Get collaborator performance list",
             description = "Get paginated list of collaborators with their performance metrics")
@@ -167,6 +174,31 @@ public class AdminCollaboratorController {
 
         double slaComplianceRate = calculateSlaComplianceRate(allTasks, allReviews);
 
+        // Change Request metrics (charging + battery swap)
+        long totalChargingCR = changeRequestRepository.findBySubmittedByOrderByCreatedAtDesc(userAccountId).size();
+        long totalSwapCR = batterySwapChangeRequestRepository.findAll().stream()
+                .filter(cr -> userAccountId.equals(cr.getSubmittedBy()))
+                .count();
+        long totalCR = totalChargingCR + totalSwapCR;
+
+        long publishedCR = changeRequestRepository.findBySubmittedByOrderByCreatedAtDesc(userAccountId).stream()
+                .filter(cr -> cr.getStatus() == ChangeRequestStatus.PUBLISHED)
+                .count()
+                + batterySwapChangeRequestRepository.findAll().stream()
+                .filter(cr -> userAccountId.equals(cr.getSubmittedBy()))
+                .filter(cr -> cr.getStatus() == com.example.evstation.batteryswap.domain.ChangeRequestStatus.PUBLISHED)
+                .count();
+
+        long rejectedCR = changeRequestRepository.findBySubmittedByOrderByCreatedAtDesc(userAccountId).stream()
+                .filter(cr -> cr.getStatus() == ChangeRequestStatus.REJECTED)
+                .count()
+                + batterySwapChangeRequestRepository.findAll().stream()
+                .filter(cr -> userAccountId.equals(cr.getSubmittedBy()))
+                .filter(cr -> cr.getStatus() == com.example.evstation.batteryswap.domain.ChangeRequestStatus.REJECTED)
+                .count();
+
+        double publishRate = totalCR > 0 ? (double) publishedCR / totalCR * 100 : 0;
+
         return CollaboratorPerformanceDTO.builder()
                 .collaboratorId(profile.getId())
                 .fullName(profile.getFullName())
@@ -175,6 +207,10 @@ public class AdminCollaboratorController {
                 .avgCompletionTimeHours(Math.round(avgCompletionHours * 100.0) / 100.0)
                 .avgDistanceMeters(Math.round(avgDistanceMeters * 100.0) / 100.0)
                 .slaComplianceRate(Math.round(slaComplianceRate * 100.0) / 100.0)
+                .totalChangeRequests(totalCR)
+                .publishedChangeRequests(publishedCR)
+                .rejectedChangeRequests(rejectedCR)
+                .changeRequestPublishRate(Math.round(publishRate * 100.0) / 100.0)
                 .build();
     }
 
@@ -190,6 +226,10 @@ public class AdminCollaboratorController {
                 .avgCompletionTimeHours(perf.getAvgCompletionTimeHours())
                 .avgDistanceMeters(perf.getAvgDistanceMeters())
                 .slaComplianceRate(perf.getSlaComplianceRate())
+                .totalChangeRequests(perf.getTotalChangeRequests())
+                .publishedChangeRequests(perf.getPublishedChangeRequests())
+                .rejectedChangeRequests(perf.getRejectedChangeRequests())
+                .changeRequestPublishRate(perf.getChangeRequestPublishRate())
                 .monthlyBreakdown(monthlyBreakdown)
                 .build();
     }

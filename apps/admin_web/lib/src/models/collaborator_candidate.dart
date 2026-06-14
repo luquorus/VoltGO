@@ -8,6 +8,9 @@ class CollaboratorCandidate {
   final CandidateLocation? location;
   final int? distanceMeters;
   final CandidateStats stats;
+  /// True when this collaborator is the original CR submitter — admin UI must
+  /// disable assignment for this entry (conflict of interest).
+  final bool isCrSubmitter;
 
   CollaboratorCandidate({
     required this.collaboratorUserId,
@@ -18,6 +21,7 @@ class CollaboratorCandidate {
     this.location,
     this.distanceMeters,
     required this.stats,
+    this.isCrSubmitter = false,
   });
 
   factory CollaboratorCandidate.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,7 @@ class CollaboratorCandidate {
       stats: json['stats'] != null
           ? CandidateStats.fromJson(json['stats'] as Map<String, dynamic>)
           : CandidateStats(completed: 0, active: 0, failedOrOverdue: 0),
+      isCrSubmitter: json['isCrSubmitter'] as bool? ?? false,
     );
   }
 

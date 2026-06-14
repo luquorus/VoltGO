@@ -17,7 +17,14 @@ import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.risk.application.BatterySwapRiskAssessmentResult;
 import com.example.evstation.risk.application.RiskEngineService;
 import com.example.evstation.trust.application.TrustScoringService;
+import com.example.evstation.auth.infrastructure.jpa.UserAccountEntity;
+import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
+import com.example.evstation.notification.api.dto.CreateNotificationDTO;
+import com.example.evstation.notification.application.NotificationService;
+import com.example.evstation.notification.domain.NotificationCategory;
+import com.example.evstation.notification.domain.NotificationType;
 import com.example.evstation.station.domain.WorkflowStatus;
+
 import com.example.evstation.station.infrastructure.jpa.AuditLogEntity;
 import com.example.evstation.station.infrastructure.jpa.AuditLogJpaRepository;
 import com.example.evstation.station.infrastructure.jpa.StationEntity;
@@ -36,6 +43,7 @@ import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +73,8 @@ public class BatterySwapChangeRequestService {
     private final LoyaltyPointService loyaltyPointService;
     private final RatingEligibilityService ratingEligibilityService;
     private final BadgeService badgeService;
+    private final UserAccountJpaRepository userAccountRepository;
+    private final NotificationService notificationService;
 
     // ========== EV User Operations ==========
 
@@ -77,7 +87,15 @@ public class BatterySwapChangeRequestService {
      */
     @Transactional
     public BatterySwapCRDTO createChangeRequest(CreateBatterySwapCRDTO dto, UUID userId, boolean submitImmediately) {
-        log.info("Creating battery swap CR: type={}, userId={}, submitImmediately={}", dto.getType(), userId, submitImmediately);
+        return createChangeRequest(dto, userId, submitImmediately, "EV_USER");
+    }
+
+    /**
+     * Overload allowing explicit actor role for audit logging.
+     */
+    @Transactional
+    public BatterySwapCRDTO createChangeRequest(CreateBatterySwapCRDTO dto, UUID userId, boolean submitImmediately, String actorRole) {
+        log.info("Creating battery swap CR: type={}, userId={}, submitImmediately={}, actorRole={}", dto.getType(), userId, submitImmediately, actorRole);
 
         validateCreateRequest(dto);
 
@@ -145,8 +163,8 @@ public class BatterySwapChangeRequestService {
         crRepository.save(cr);
         log.info("Created battery swap CR: {}", cr.getId());
 
-        String actorRole = submitImmediately ? "ADMIN" : "EV_USER";
-        writeAuditLog(userId, actorRole, "CREATE_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", cr.getId(),
+        String resolvedActorRole = actorRole != null ? actorRole : (submitImmediately ? "ADMIN" : "EV_USER");
+        writeAuditLog(userId, resolvedActorRole, "CREATE_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", cr.getId(),
                 Map.of(
                         "type", dto.getType().name(),
                         "stationId", stationId.toString(),
@@ -193,7 +211,12 @@ public class BatterySwapChangeRequestService {
      */
     @Transactional
     public BatterySwapCRDTO submitChangeRequest(UUID crId, UUID userId) {
-        log.info("Submitting battery swap CR: id={}, userId={}", crId, userId);
+        return submitChangeRequest(crId, userId, "EV_USER");
+    }
+
+    @Transactional
+    public BatterySwapCRDTO submitChangeRequest(UUID crId, UUID userId, String actorRole) {
+        log.info("Submitting battery swap CR: id={}, userId={}, actorRole={}", crId, userId, actorRole);
 
         BatterySwapChangeRequestEntity cr = crRepository.findById(crId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Change request not found: " + crId));
@@ -231,7 +254,8 @@ public class BatterySwapChangeRequestService {
 
         log.info("Battery swap CR submitted: id={}, status=PENDING, riskScore={}", crId, riskResult.getRiskScore());
 
-        writeAuditLog(userId, "EV_USER", "SUBMIT_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", crId,
+        String resolvedActorRole = actorRole != null ? actorRole : "EV_USER";
+        writeAuditLog(userId, resolvedActorRole, "SUBMIT_BATTERY_SWAP_CR", "BATTERY_SWAP_CHANGE_REQUEST", crId,
                 Map.of(
                         "type", cr.getType().name(),
                         "versionId", version.getId().toString(),
@@ -427,6 +451,10 @@ public class BatterySwapChangeRequestService {
                         "adminNote", note != null ? note : ""
                 ));
 
+        notifySubmitterIfCollaborator(cr, "approved",
+                "Your battery-swap change request was approved",
+                "An admin approved your battery-swap proposal. It is now ready to be published.");
+
         Hibernate.initialize(version.getPileTemplates());
         return mapper.toDTO(cr, version);
     }
@@ -462,6 +490,10 @@ public class BatterySwapChangeRequestService {
                         "versionId", version.getId().toString(),
                         "reason", reason != null ? reason : ""
                 ));
+
+        notifySubmitterIfCollaborator(cr, "rejected",
+                "Your battery-swap change request was rejected",
+                "Reason: " + (reason != null ? reason : "(no reason provided)"));
 
         Hibernate.initialize(version.getPileTemplates());
         return mapper.toDTO(cr, version);
@@ -539,11 +571,56 @@ public class BatterySwapChangeRequestService {
                         "verificationRequired", cr.getRiskScore() >= VERIFICATION_THRESHOLD
                 ));
 
+        notifySubmitterIfCollaborator(cr, "published",
+                "Your battery-swap change request is live",
+                "Your battery-swap station edit has been published.");
+
         Hibernate.initialize(version.getPileTemplates());
         return mapper.toDTO(cr, version);
     }
 
     // ========== Private Helpers ==========
+
+    /**
+     * Send an in-app notification to the submitter if the submitter is a COLLABORATOR.
+     * Mirrors {@code AdminChangeRequestService#notifySubmitterIfCollaborator}.
+     */
+    private void notifySubmitterIfCollaborator(BatterySwapChangeRequestEntity cr,
+                                               String decision,
+                                               String title,
+                                               String body) {
+        try {
+            UUID submitterId = cr.getSubmittedBy();
+            if (submitterId == null) return;
+
+            String submitterRole = userAccountRepository.findById(submitterId)
+                    .map(UserAccountEntity::getRole)
+                    .map(Enum::name)
+                    .orElse(null);
+            if (!"COLLABORATOR".equals(submitterRole)) return;
+
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("deepLink", "/change-requests/battery-swap/" + cr.getId());
+            data.put("decision", decision);
+            data.put("changeRequestId", cr.getId().toString());
+
+            notificationService.send(CreateNotificationDTO.builder()
+                    .recipientId(submitterId)
+                    .type(NotificationType.STATION_CHANGE_REQUEST_PUBLISHED)
+                    .category(NotificationCategory.STATION)
+                    .title(title)
+                    .body(body)
+                    .data(data)
+                    .referenceId(cr.getId())
+                    .referenceType("BATTERY_SWAP_CHANGE_REQUEST")
+                    .build());
+            log.info("[SWAP-CR-NOTIFY] Sent '{}' notification to collaborator {} for CR {}",
+                    decision, submitterId, cr.getId());
+        } catch (Exception e) {
+            log.warn("[SWAP-CR-NOTIFY] Failed to notify submitter for CR {}: {}",
+                    cr.getId(), e.getMessage());
+        }
+    }
 
     private void validateCreateRequest(CreateBatterySwapCRDTO dto) {
         if (dto.getType() == ChangeRequestType.UPDATE_BATTERY_SWAP_STATION && dto.getStationId() == null) {

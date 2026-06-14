@@ -33,6 +33,28 @@ This is the only meaningful test in the backend. It covers:
 
 **Coverage assessment:** The test covers the Haversine formula implementation and port multiset comparison. However, it does not cover: low inventory checks, hours changed, access changed, or any battery swap safety risk factors.
 
+### Manual test cases for **Collaborator Change Request feature** (NEW 2026-06)
+
+These should be executed end-to-end before each release. The full checklist is mirrored in `changelog.md` § "Proposed test cases".
+
+1. **CR creation — charging** — Authenticate as a collaborator. From the new *Requests* tab → tap *+* → choose *Charging* → fill station ID + change rationale + at least one modified field → save as DRAFT. Expect: row appears in the list with status `DRAFT`.
+2. **CR submission — charging** — Open the DRAFT above → tap *Submit*. Expect: status becomes `PENDING`. The creator receives an in-app notification (category `CHANGE_REQUEST`, type `CR_SUBMITTED`).
+3. **CR approval** — Sign in as admin, open the same CR → tap *Approve*. Expect: status becomes `APPROVED`. The collaborator receives a notification of type `CR_APPROVED`.
+4. **CR rejection** — Admin rejects a different CR with a reason. Expect: status `REJECTED`, collaborator receives `CR_REJECTED` notification containing the reason.
+5. **CR publishing** — Admin publishes an approved CR. Expect: status `PUBLISHED`, station data is updated, collaborator receives `CR_PUBLISHED` notification.
+6. **CR creation — battery swap** — Repeat (1)–(2) with the *Battery swap* type. Same status transitions and notifications must be observed.
+7. **Performance metrics** — Open admin *Collaborator Performance*. Expect two new columns *CRs* (published/total) and *CR Publish %*. The values must match counts in DB. Detail page must show the same four metrics (`totalChangeRequests`, `publishedChangeRequests`, `rejectedChangeRequests`, `changeRequestPublishRate`).
+8. **Bottom navigation** — Open the collaborator app. Expect a sixth tab *Requests* between *Swap* and *Notifications*. Selecting it navigates to `/change-requests`.
+9. **Authz negative** — Hit `/api/collab/mobile/change-requests/**` with an EV_USER JWT. Expect `403 Forbidden`.
+
+### Manual test cases for **Station search & auto-fill + Self-assign guard** (NEW 2026-06-14)
+
+10. **Search shows results** — Authenticate as a collaborator, open *New change request* → set *Action = Update* → type a known station name (≥ 2 chars) in the search box. Expect: a list of matching published stations appears with name, address and station ID.
+11. **Auto-fill populates the form** — Pick a result from the list. Expect: `Station ID`, name, address, lat, lng, operating hours, the list of charging ports, and (when present) `totalBatteries` + `avgChargePowerKw` are filled in. A success toast `Đã điền thông tin trạm` is shown.
+12. **Self-assign — charging** — Sign in as collaborator A and submit a charging-station CR → wait for admin to create the verification task from it. Sign in as admin, open the candidate list, pick A again, then *Assign*. Expect: `409 Conflict` with the message `Cannot assign this verification task to the same collaborator who submitted the originating change request…`.
+13. **Self-assign — battery swap** — Repeat (12) with a battery-swap CR. Expect the same `409 Conflict`.
+14. **Self-assign audit log** — Open the audit log for the task that was blocked in (12)/(13). Expect a row with action `BLOCK_SELF_ASSIGN` and metadata listing `taskId`, `attemptedAssignee`, `crSubmitter`, `crKind`, `changeRequestId`, and the `reason` field.
+
 ### Flutter `widget_test.dart` Files
 
 Each app has a default `widget_test.dart` created by `flutter create`. These are the default counter app tests and do not test any actual application code:

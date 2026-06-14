@@ -1007,6 +1007,117 @@ class CollaboratorMobileApiClient extends BaseApiClient {
   Future<List<dynamic>> getContracts() {
     return get<List<dynamic>>('/api/collab/web/me/contracts');
   }
+
+  // ============================================
+  // Change Request Endpoints (added 2026-06)
+  // ============================================
+
+  /// POST /api/collab/mobile/change-requests
+  /// Create a charging-station change request (CREATE_STATION or UPDATE_STATION).
+  Future<Map<String, dynamic>> createChangeRequest(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>(
+      '/api/collab/mobile/change-requests',
+      data: data,
+    );
+  }
+
+  /// GET /api/collab/mobile/change-requests/mine
+  /// Get all charging-station change requests submitted by the current collaborator.
+  Future<List<dynamic>> getMyChangeRequests() {
+    return get<List<dynamic>>('/api/collab/mobile/change-requests/mine');
+  }
+
+  /// GET /api/collab/mobile/change-requests/{id}
+  Future<Map<String, dynamic>> getChangeRequest(String id) {
+    return get<Map<String, dynamic>>('/api/collab/mobile/change-requests/$id');
+  }
+
+  /// POST /api/collab/mobile/change-requests/{id}/submit
+  /// Submit a DRAFT change request for admin review.
+  Future<Map<String, dynamic>> submitChangeRequest(String id) {
+    return post<Map<String, dynamic>>('/api/collab/mobile/change-requests/$id/submit');
+  }
+
+  /// PUT /api/collab/mobile/change-requests/{id}
+  /// Update a DRAFT change request.
+  Future<Map<String, dynamic>> updateChangeRequest(String id, Map<String, dynamic> data) {
+    return put<Map<String, dynamic>>(
+      '/api/collab/mobile/change-requests/$id',
+      data: data,
+    );
+  }
+
+  // ----- Battery Swap Change Requests -----
+
+  /// POST /api/collab/mobile/battery-swap-change-requests
+  Future<Map<String, dynamic>> createBatterySwapChangeRequest(Map<String, dynamic> data) {
+    return post<Map<String, dynamic>>(
+      '/api/collab/mobile/battery-swap-change-requests',
+      data: data,
+    );
+  }
+
+  /// GET /api/collab/mobile/battery-swap-change-requests/mine
+  Future<List<dynamic>> getMyBatterySwapChangeRequests() {
+    return get<List<dynamic>>('/api/collab/mobile/battery-swap-change-requests/mine');
+  }
+
+  /// GET /api/collab/mobile/battery-swap-change-requests/{id}
+  Future<Map<String, dynamic>> getBatterySwapChangeRequest(String id) {
+    return get<Map<String, dynamic>>('/api/collab/mobile/battery-swap-change-requests/$id');
+  }
+
+  /// POST /api/collab/mobile/battery-swap-change-requests/{id}/submit
+  Future<Map<String, dynamic>> submitBatterySwapChangeRequest(String id) {
+    return post<Map<String, dynamic>>('/api/collab/mobile/battery-swap-change-requests/$id/submit');
+  }
+
+  // ----- Station search & auto-fill (added 2026-06-14) -----
+
+  /// GET /api/collab/mobile/stations/search/by-name?name={q}&page=&size=
+  /// Returns a paginated list of PUBLISHED charging stations whose name matches.
+  Future<Map<String, dynamic>> searchChargingStationsByName(
+    String name, {
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/collab/mobile/stations/search/by-name',
+      queryParameters: {
+        'name': name,
+        'page': '$page',
+        'size': '$size',
+      },
+    );
+  }
+
+  /// GET /api/collab/mobile/stations/{stationId}
+  /// Returns the full published charging-station detail (name, address, lat, lng,
+  /// operating hours, ports, battery-swap info if supported).
+  Future<Map<String, dynamic>> getChargingStationDetail(String stationId) {
+    return get<Map<String, dynamic>>('/api/collab/mobile/stations/$stationId');
+  }
+
+  /// GET /api/collab/mobile/battery-swap-stations/search/by-name?search={q}&page=&size=
+  Future<Map<String, dynamic>> searchBatterySwapStationsByName(
+    String search, {
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/collab/mobile/battery-swap-stations/search/by-name',
+      queryParameters: {
+        'search': search,
+        'page': '$page',
+        'size': '$size',
+      },
+    );
+  }
+
+  /// GET /api/collab/mobile/battery-swap-stations/{stationId}
+  Future<Map<String, dynamic>> getBatterySwapStationDetail(String stationId) {
+    return get<Map<String, dynamic>>('/api/collab/mobile/battery-swap-stations/$stationId');
+  }
 }
 
 /// Collaborator Web API Client
