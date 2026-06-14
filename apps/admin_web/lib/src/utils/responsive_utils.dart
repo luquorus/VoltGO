@@ -34,6 +34,22 @@ EdgeInsets responsivePadding(BuildContext context) {
   return const EdgeInsets.all(24);
 }
 
+/// Returns responsive padding uniformly scaled by [factor] (e.g. 0.8 for tighter cards).
+EdgeInsets responsivePaddingScaled(BuildContext context, double factor) {
+  final base = responsivePadding(context);
+  if (base.left == base.right &&
+      base.left == base.top &&
+      base.left == base.bottom) {
+    return EdgeInsets.all(base.left * factor);
+  }
+  return EdgeInsets.fromLTRB(
+    base.left * factor,
+    base.top * factor,
+    base.right * factor,
+    base.bottom * factor,
+  );
+}
+
 /// Returns appropriate horizontal padding
 double responsiveHPadding(BuildContext context) {
   final width = MediaQuery.of(context).size.width;

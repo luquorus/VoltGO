@@ -251,7 +251,7 @@ class _RegistrationRequestsTabState extends ConsumerState<_RegistrationRequestsT
     final requestsAsync = ref.watch(registrationRequestsProvider);
 
     return Padding(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         children: [
           // Search and Filter Row
@@ -625,7 +625,7 @@ class _ActiveContractsTabState extends ConsumerState<_ActiveContractsTab> {
     final allCollabAsync = ref.watch(allCollaboratorsProvider);
 
     return Padding(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         children: [
           // Search Row
@@ -906,7 +906,7 @@ class _NoContractTabState extends ConsumerState<_NoContractTab> {
     final allCollabAsync = ref.watch(allCollaboratorsProvider);
 
     return Padding(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         children: [
           // Search Row

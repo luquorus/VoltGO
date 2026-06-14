@@ -7,6 +7,9 @@ import '../models/route_models.dart';
 import '../repositories/station_repository.dart';
 import '../services/geocoding_service.dart';
 import 'station_providers.dart';
+import 'package:shared_auth/shared_auth.dart';
+
+export 'package:shared_auth/shared_auth.dart' show VehicleSettings, VehicleSettingsStorage;
 
 /// Diagnostic event types for routing flow.
 class RoutingDiagnosticEvent {
@@ -128,6 +131,7 @@ class RoutingState {
   final RecommendedStation? optimalStation;
   final RoutingDiagnostics diagnostics;
   final int lastRouteSequence;
+  final double consumptionKwhPerKm;
 
   const RoutingState({
     this.status = RouteStatus.idle,
@@ -149,6 +153,7 @@ class RoutingState {
     this.optimalStation,
     RoutingDiagnostics? diagnostics,
     this.lastRouteSequence = 0,
+    this.consumptionKwhPerKm = 0.18,
   }) : diagnostics = diagnostics ?? const _DefaultDiagnostics();
 
   RoutingState copyWith({
@@ -175,6 +180,7 @@ class RoutingState {
     RecommendedStation? optimalStation,
     bool clearOptimalStation = false,
     int? lastRouteSequence,
+    double? consumptionKwhPerKm,
   }) {
     return RoutingState(
       status: status ?? this.status,
@@ -199,6 +205,7 @@ class RoutingState {
           clearOptimalStation ? null : (optimalStation ?? this.optimalStation),
       diagnostics: diagnostics,
       lastRouteSequence: lastRouteSequence ?? this.lastRouteSequence,
+      consumptionKwhPerKm: consumptionKwhPerKm ?? this.consumptionKwhPerKm,
     );
   }
 }
@@ -226,13 +233,36 @@ class RoutingNotifier extends StateNotifier<RoutingState> {
   final StationRepository _repository;
   final GeocodingService _geocodingService;
   final RoutingDiagnostics _diagnostics;
+  final VehicleSettingsStorage _settingsStorage;
   Timer? _debounceTimer;
   Timer? _retryTimer;
   int _routeSequence = 0;
+  bool _settingsLoaded = false;
 
   RoutingNotifier(this._repository, this._geocodingService)
       : _diagnostics = RoutingDiagnostics(),
-        super(RoutingState(diagnostics: RoutingDiagnostics()));
+        _settingsStorage = VehicleSettingsStorage(),
+        super(RoutingState(diagnostics: RoutingDiagnostics())) {
+    _loadVehicleSettings();
+  }
+
+  Future<void> _loadVehicleSettings() async {
+    if (_settingsLoaded) return;
+    _settingsLoaded = true;
+    final settings = await _settingsStorage.load();
+    if (mounted) {
+      state = state.copyWith(
+        batteryPercent: settings.batteryPercent,
+        vehicleRangeKm: settings.vehicleRangeKm,
+        consumptionKwhPerKm: settings.consumptionKwhPerKm,
+      );
+      _diagnostics.log('VEHICLE_SETTINGS_LOADED', {
+        'batteryPercent': settings.batteryPercent,
+        'vehicleRangeKm': settings.vehicleRangeKm,
+        'consumptionKwhPerKm': settings.consumptionKwhPerKm,
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -695,25 +725,34 @@ class RoutingNotifier extends StateNotifier<RoutingState> {
 
   Future<RouteResponse> _attemptRoute(
       LatLng origin, PlaceSuggestion destination) async {
+    // Fallback defaults: use saved vehicle settings if battery info is missing
+    final batteryPercent = state.batteryPercent ?? 50;
+    final vehicleRangeKm = state.vehicleRangeKm ?? 300;
+    final consumption = state.consumptionKwhPerKm;
+
     final request = RouteRequest(
       origin: LatLngPoint(lat: origin.latitude, lng: origin.longitude),
       destination: LatLngPoint(lat: destination.lat, lng: destination.lng),
-      batteryPercent: state.batteryPercent,
-      vehicleRangeKm: state.vehicleRangeKm,
-      consumptionKwhPerKm: 0.18,
+      batteryPercent: batteryPercent,
+      vehicleRangeKm: vehicleRangeKm,
+      consumptionKwhPerKm: consumption,
     );
     return await _repository.calculateRoute(request);
   }
 
   Future<RouteResponse> _attemptRouteFromCoords(
       LatLng origin, LatLng destination) async {
+    final batteryPercent = state.batteryPercent ?? 50;
+    final vehicleRangeKm = state.vehicleRangeKm ?? 300;
+    final consumption = state.consumptionKwhPerKm;
+
     final request = RouteRequest(
       origin: LatLngPoint(lat: origin.latitude, lng: origin.longitude),
       destination:
           LatLngPoint(lat: destination.latitude, lng: destination.longitude),
-      batteryPercent: state.batteryPercent,
-      vehicleRangeKm: state.vehicleRangeKm,
-      consumptionKwhPerKm: 0.18,
+      batteryPercent: batteryPercent,
+      vehicleRangeKm: vehicleRangeKm,
+      consumptionKwhPerKm: consumption,
     );
     return await _repository.calculateRoute(request);
   }
@@ -744,7 +783,7 @@ class RoutingNotifier extends StateNotifier<RoutingState> {
       clearSuggestions: true,
       showSuggestions: false,
       showRoute: false,
-      needsChargingStop: false,
+      // Do NOT clear battery info on route clear — keep saved vehicle settings
       clearOptimalStation: true,
     );
 
@@ -785,13 +824,35 @@ class RoutingNotifier extends StateNotifier<RoutingState> {
       'vehicleRangeKm': vehicleRangeKm,
       'remainingRangeKm': remaining,
     });
+
+    // Persist vehicle settings so routing always has battery info
+    _settingsStorage.save(VehicleSettings(
+      batteryPercent: batteryPercent,
+      vehicleRangeKm: vehicleRangeKm,
+      batteryCapacityKwh: 60,
+      vehicleMaxChargeKw: 120,
+      consumptionKwhPerKm: state.consumptionKwhPerKm,
+    ));
+  }
+
+  void setVehicleSettings(VehicleSettings settings) {
+    final remaining = (settings.batteryPercent / 100.0) * settings.vehicleRangeKm;
+    state = state.copyWith(
+      batteryPercent: settings.batteryPercent,
+      vehicleRangeKm: settings.vehicleRangeKm,
+      remainingRangeKm: remaining,
+      consumptionKwhPerKm: settings.consumptionKwhPerKm,
+    );
+    _settingsStorage.save(settings);
+    _diagnostics.log('VEHICLE_SETTINGS_APPLIED', settings.toJson());
   }
 
   void clearBatteryInfo() {
+    // Reset to saved defaults instead of null — routing should never send null
     state = state.copyWith(
-      batteryPercent: null,
-      vehicleRangeKm: null,
-      remainingRangeKm: null,
+      batteryPercent: 50,
+      vehicleRangeKm: 300,
+      remainingRangeKm: 150,
       needsChargingStop: false,
       clearOptimalStation: true,
     );
@@ -836,4 +897,8 @@ final routingProvider =
   final repository = ref.watch(stationRepositoryProvider);
   final geocodingService = ref.watch(geocodingServiceProvider);
   return RoutingNotifier(repository, geocodingService);
+});
+
+final vehicleSettingsStorageProvider = Provider<VehicleSettingsStorage>((ref) {
+  return VehicleSettingsStorage();
 });

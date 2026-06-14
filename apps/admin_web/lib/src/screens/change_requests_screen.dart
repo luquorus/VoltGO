@@ -27,7 +27,7 @@ class _ChangeRequestsScreenState extends ConsumerState<ChangeRequestsScreen> {
     return AdminScaffold(
       title: 'Change Requests',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

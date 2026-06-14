@@ -300,7 +300,7 @@ class _CsvImportScreenState extends ConsumerState<CsvImportScreen> {
     return AdminScaffold(
       title: 'Import Stations from CSV',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

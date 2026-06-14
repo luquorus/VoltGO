@@ -27,17 +27,28 @@ class ApiClientFactory {
   });
 
   /// Create factory from base URL
-  /// 
-  /// Reads baseUrl from environment or uses default
-  static ApiClientFactory create(Ref ref, {String? baseUrl}) {
-    final url = baseUrl ?? 
+  ///
+  /// Reads baseUrl from environment or uses default. When [onUnauthorized]
+  /// is provided, it is invoked whenever the server responds with 401 so the
+  /// host app can clear local credentials and bounce the user to /login.
+  static ApiClientFactory create(
+    Ref ref, {
+    String? baseUrl,
+    void Function()? onUnauthorized,
+  }) {
+    final url = baseUrl ??
         const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8080');
-    
+
     final dio = ref.read(dioClientProvider(url));
-    
+
+    // Replace the placeholder ErrorInterceptor with one wired to the
+    // caller's onUnauthorized callback (so 401s trigger a session wipe).
+    dio.interceptors.removeWhere((i) => i is ErrorInterceptor);
+    dio.interceptors.add(ErrorInterceptor(onUnauthorized: onUnauthorized));
+
     // Attach auth interceptor
     dio.interceptors.add(AuthInterceptor(ref));
-    
+
     return ApiClientFactory(dio: dio, ref: ref);
   }
 

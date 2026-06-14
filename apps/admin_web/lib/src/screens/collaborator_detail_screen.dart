@@ -50,14 +50,14 @@ class _CollaboratorDetailScreenState extends ConsumerState<CollaboratorDetailScr
 
   Widget _buildContent(BuildContext context, ThemeData theme, CollaboratorProfile collaborator) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              padding: responsivePaddingScaled(context, 0.8),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isNarrow = constraints.maxWidth < 400;

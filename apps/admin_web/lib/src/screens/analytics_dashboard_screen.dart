@@ -23,7 +23,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
           ref.invalidate(issueStatsProvider);
         },
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(responsivePadding(context)),
+          padding: responsivePadding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -608,7 +608,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => context.push('/stations/trust'),
+                  onPressed: () => context.push('/trust/charging'),
                   icon: const Icon(Icons.arrow_forward, size: 16),
                   label: const Text('View All'),
                 ),

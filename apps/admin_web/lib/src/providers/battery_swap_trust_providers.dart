@@ -15,12 +15,8 @@ class BatterySwapTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.getBatterySwapTrust(stationId);
-      return BatterySwapTrust.fromJson(_mapBackendTrustResponse(response));
-    } catch (e) {
-      throw Exception('Failed to get battery swap trust: $e');
-    }
+    final response = await factory.admin.getBatterySwapTrust(stationId);
+    return BatterySwapTrust.fromJson(_mapBackendTrustResponse(response));
   }
 
   /// Map backend breakdown keys to Flutter component names
@@ -48,12 +44,8 @@ class BatterySwapTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.getBatterySwapTrustBreakdown(stationId);
-      return Map<String, int>.from(response as Map);
-    } catch (e) {
-      throw Exception('Failed to get trust breakdown: $e');
-    }
+    final response = await factory.admin.getBatterySwapTrustBreakdown(stationId);
+    return Map<String, int>.from(response as Map);
   }
 
   /// Get trust level
@@ -63,12 +55,8 @@ class BatterySwapTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.getBatterySwapTrustLevel(stationId);
-      return response;
-    } catch (e) {
-      throw Exception('Failed to get trust level: $e');
-    }
+    final response = await factory.admin.getBatterySwapTrustLevel(stationId);
+    return response;
   }
 
   /// Recalculate battery swap trust score
@@ -78,12 +66,8 @@ class BatterySwapTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.recalculateBatterySwapTrust(stationId);
-      return BatterySwapTrust.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to recalculate trust: $e');
-    }
+    final response = await factory.admin.recalculateBatterySwapTrust(stationId);
+    return BatterySwapTrust.fromJson(response);
   }
 }
 
@@ -118,12 +102,8 @@ final batterySwapTrustSummaryProvider = FutureProvider<BatterySwapTrustSummary>(
   final factory = ref.watch(apiClientFactoryProvider);
   if (factory == null) throw Exception('API client not initialized');
 
-  try {
-    final response = await factory.admin.getBatterySwapTrustSummary();
-    return BatterySwapTrustSummary.fromJson(response);
-  } catch (e) {
-    throw Exception('Failed to get trust summary: $e');
-  }
+  final response = await factory.admin.getBatterySwapTrustSummary();
+  return BatterySwapTrustSummary.fromJson(response);
 });
 
 /// Summary of battery swap trust scores across all stations

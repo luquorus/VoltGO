@@ -52,12 +52,14 @@ class _RatingModerationScreenState extends ConsumerState<RatingModerationScreen>
 
     return AdminScaffold(
       title: 'Rating Moderation',
-      body: Column(
-        children: [
-          // Filters
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+      body: Padding(
+        padding: responsivePadding(context),
+        child: Column(
+          children: [
+            // Filters
+            Container(
+              padding: responsivePaddingScaled(context, 0.67),
+              decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               border: Border(
                 bottom: BorderSide(color: AdminTheme.outlineLight),
@@ -215,6 +217,7 @@ class _RatingModerationScreenState extends ConsumerState<RatingModerationScreen>
           ),
         ],
       ),
+    ),
     );
   }
 

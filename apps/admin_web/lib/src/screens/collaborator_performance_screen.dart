@@ -40,7 +40,7 @@ class _CollaboratorPerformanceScreenState extends ConsumerState<CollaboratorPerf
           ref.invalidate(aggregatedPerformanceStatsProvider);
         },
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(responsivePadding(context)),
+          padding: responsivePadding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

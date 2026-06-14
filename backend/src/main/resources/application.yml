@@ -59,12 +59,14 @@ app:
     default-limit: 10
   routing:
     default-station-limit: 3
-    corridor-buffer-meters: 1000
+    corridor-buffer-meters: 5000
     safety-buffer-percent: 5
     default-average-speed-kmph: 30.0
     default-consumption-kwh-per-km: 0.18
     default-vehicle-max-charge-kw: 120.0
     default-target-percent: 80
-    min-battery-percent-at-arrival: 10
+    min-battery-percent-at-arrival: 5
     osrm-base-url: http://router.project-osrm.org
+    fallback-buffer-meters: 1000,3000,5000,10000
+    diagnostic-logging-enabled: true
 

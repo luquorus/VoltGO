@@ -39,7 +39,7 @@ class _UnifiedChangeRequestsScreenState extends ConsumerState<UnifiedChangeReque
     return AdminScaffold(
       title: 'Change Requests',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -224,28 +224,28 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
-          _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
-          _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
-          _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+          _buildStatCard(context, theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+          _buildStatCard(context, theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+          _buildStatCard(context, theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+          _buildStatCard(context, theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
         ],
       );
     }
 
     return Row(
       children: [
-        _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+        _buildStatCard(context, theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+        _buildStatCard(context, theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+        _buildStatCard(context, theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+        _buildStatCard(context, theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
       ],
     );
   }
 
-  Widget _buildStatCard(ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
+  Widget _buildStatCard(BuildContext context, ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
     if (isMobile(context)) {
       return SizedBox(
         width: (MediaQuery.of(context).size.width - 48 - 24) / 2,
@@ -320,43 +320,22 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
 
     return Column(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: AdminTheme.surfaceLight,
-              border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: isMobile(context) ? 100 : null,
-                  child: Text('Type', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                SizedBox(width: isMobile(context) ? 12 : 0),
-                SizedBox(
-                  width: isMobile(context) ? 100 : null,
-                  child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                SizedBox(width: isMobile(context) ? 12 : 0),
-                SizedBox(
-                  width: isMobile(context) ? 120 : null,
-                  child: Text('Submitter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                SizedBox(width: isMobile(context) ? 12 : 0),
-                SizedBox(
-                  width: isMobile(context) ? 80 : null,
-                  child: Text('Risk', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                SizedBox(width: isMobile(context) ? 12 : 0),
-                SizedBox(
-                  width: isMobile(context) ? 100 : null,
-                  child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
+        // Table Header - uses Expanded with flex so it always aligns with rows
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: AdminTheme.surfaceLight,
+            border: Border(bottom: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2))),
+          ),
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: Text('Type', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(flex: 2, child: Text('Status', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(flex: 3, child: Text('Submitter', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(flex: 2, child: Text('Risk', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(flex: 2, child: Text('Submitted', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              const SizedBox(width: 48),
+            ],
           ),
         ),
         Expanded(
@@ -373,19 +352,22 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
   Widget _buildChangeRequestRow(BuildContext context, ThemeData theme, AdminChangeRequest cr) {
     return InkWell(
       onTap: () => context.push('/change-requests/${cr.id}'),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              SizedBox(
-                width: isMobile(context) ? 100 : null,
-                child: Text(cr.type.displayName, style: theme.textTheme.bodyMedium),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                cr.type.displayName,
+                style: theme.textTheme.bodyMedium,
+                overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(width: isMobile(context) ? 12 : 0),
-              SizedBox(
-                width: isMobile(context) ? 100 : null,
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
                 child: StatusPill(
                   label: cr.status.displayName,
                   colorMapper: (label) {
@@ -399,37 +381,50 @@ class _ChargingChangeRequestsTab extends ConsumerWidget {
                   },
                 ),
               ),
-              SizedBox(width: isMobile(context) ? 12 : 0),
-              SizedBox(
-                width: isMobile(context) ? 120 : null,
-                child: Text(cr.submitterEmail ?? 'N/A', style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                cr.submitterEmail ?? 'N/A',
+                style: theme.textTheme.bodyMedium,
+                overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(width: isMobile(context) ? 12 : 0),
-              SizedBox(
-                width: isMobile(context) ? 80 : null,
-                child: Row(children: [
-                  if (cr.riskScore != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getRiskColor(cr.riskScore!).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _getRiskColor(cr.riskScore!), width: 1),
-                      ),
-                      child: Text('${cr.riskScore}', style: theme.textTheme.bodySmall?.copyWith(color: _getRiskColor(cr.riskScore!), fontWeight: FontWeight.w600)),
-                    )
-                  else
-                    Text('N/A', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.4))),
-                ]),
+            ),
+            Expanded(
+              flex: 2,
+              child: Row(children: [
+                if (cr.riskScore != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getRiskColor(cr.riskScore!).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _getRiskColor(cr.riskScore!), width: 1),
+                    ),
+                    child: Text('${cr.riskScore}', style: theme.textTheme.bodySmall?.copyWith(color: _getRiskColor(cr.riskScore!), fontWeight: FontWeight.w600)),
+                  )
+                else
+                  Text('N/A', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.4))),
+              ]),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                cr.submittedAt != null ? _formatDateTime(cr.submittedAt!) : 'N/A',
+                style: theme.textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(width: isMobile(context) ? 12 : 0),
-              SizedBox(
-                width: isMobile(context) ? 100 : null,
-                child: Text(cr.submittedAt != null ? _formatDateTime(cr.submittedAt!) : 'N/A', style: theme.textTheme.bodySmall),
+            ),
+            SizedBox(
+              width: 48,
+              child: IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => context.push('/change-requests/${cr.id}'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => context.push('/change-requests/${cr.id}')),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -576,31 +571,31 @@ class _BatterySwapChangeRequestsTab extends ConsumerWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
-          _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
-          _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
-          _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
-          _buildStatCard(theme, icon: Icons.warning, label: 'High Risk', value: highRisk.toString(), color: Colors.deepOrange),
+          _buildStatCard(context, theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+          _buildStatCard(context, theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+          _buildStatCard(context, theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+          _buildStatCard(context, theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+          _buildStatCard(context, theme, icon: Icons.warning, label: 'High Risk', value: highRisk.toString(), color: Colors.deepOrange),
         ],
       );
     }
 
     return Row(
       children: [
-        _buildStatCard(theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
+        _buildStatCard(context, theme, icon: Icons.description, label: 'Total', value: total.toString(), color: AdminTheme.primaryTeal),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
+        _buildStatCard(context, theme, icon: Icons.pending_actions, label: 'Pending', value: pending.toString(), color: Colors.orange),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
+        _buildStatCard(context, theme, icon: Icons.check_circle, label: 'Approved', value: approved.toString(), color: Colors.green),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
+        _buildStatCard(context, theme, icon: Icons.cancel, label: 'Rejected', value: rejected.toString(), color: Colors.red),
         const SizedBox(width: 16),
-        _buildStatCard(theme, icon: Icons.warning, label: 'High Risk', value: highRisk.toString(), color: Colors.deepOrange),
+        _buildStatCard(context, theme, icon: Icons.warning, label: 'High Risk', value: highRisk.toString(), color: Colors.deepOrange),
       ],
     );
   }
 
-  Widget _buildStatCard(ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
+  Widget _buildStatCard(BuildContext context, ThemeData theme, {required IconData icon, required String label, required String value, required Color color}) {
     if (isMobile(context)) {
       return SizedBox(
         width: (MediaQuery.of(context).size.width - 48 - 24) / 2,

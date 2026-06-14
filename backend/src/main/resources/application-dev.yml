@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:postgres}:${POSTGRES_PORT:5432}/${POSTGRES_DB:voltgo}?stringtype=unspecified
+    username: ${POSTGRES_USER:voltgo_user}
+    password: ${POSTGRES_PASSWORD:admin123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  flyway:
+    enabled: true
+    validateMigrationNaming: false
+    validate-on-migrate: false
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+app:
+  routing:
+    corridor-buffer-meters: 5000
+    fallback-buffer-meters: 1000,3000,5000,10000
+    min-battery-percent-at-arrival: 5
+    diagnostic-logging-enabled: true

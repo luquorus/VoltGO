@@ -26,7 +26,7 @@ class LoyaltyDashboardScreen extends ConsumerWidget {
           ref.read(adminRatingsProvider.notifier).refresh();
         },
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(responsivePadding(context)),
+          padding: responsivePadding(context),
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

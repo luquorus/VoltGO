@@ -79,5 +79,12 @@ public interface StationQueryRepository {
             Double routeDistanceKm,
             String traceId
     );
+
+    /**
+     * Count total published stations in the database.
+     * Used for diagnostic/debug purposes.
+     * @return total count of station_version rows with workflow_status = 'PUBLISHED'
+     */
+    long countTotalPublishedStations();
 }
 

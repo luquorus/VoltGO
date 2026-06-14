@@ -30,7 +30,7 @@ class _RegistrationRequestDetailScreenState
     return AdminScaffold(
       title: 'Registration Request Details',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: requestAsync.when(
           data: (request) => _buildContent(theme, request),
           loading: () => const Center(child: CircularProgressIndicator()),

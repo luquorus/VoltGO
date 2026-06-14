@@ -216,20 +216,25 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
     super.initState();
     _focusNode.addListener(_onFocusChanged);
     _scrollController.addListener(_onScroll);
-    
+
     // Handle pre-selected station
     if (widget.preselectedStationName != null) {
       _searchController.text = widget.preselectedStationName!;
-      _selectedItem = StationSearchItem(
-        id: widget.selectedStationId ?? widget.preselectedStationName!,
-        name: widget.preselectedStationName,
-        type: widget.stationType == StationType.charging 
-            ? StationType.charging 
-            : StationType.batterySwap,
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.onChanged(_selectedItem);
-      });
+      // Only seed selection when an explicit id (UUID) is provided; never
+      // fall back to the name, otherwise downstream trust calls will hit
+      // `GET /api/admin/stations/<name>/trust` and fail with EVS-0002.
+      if (widget.selectedStationId != null && widget.selectedStationId!.isNotEmpty) {
+        _selectedItem = StationSearchItem(
+          id: widget.selectedStationId!,
+          name: widget.preselectedStationName,
+          type: widget.stationType == StationType.charging
+              ? StationType.charging
+              : StationType.batterySwap,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onChanged(_selectedItem);
+        });
+      }
     }
   }
 

@@ -57,7 +57,7 @@ class CollaboratorPerformanceDetailScreen extends ConsumerWidget {
 
   Widget _buildContent(BuildContext context, CollaboratorPerformanceDetail detail) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

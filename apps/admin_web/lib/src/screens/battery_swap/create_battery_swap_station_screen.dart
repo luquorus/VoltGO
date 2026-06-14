@@ -93,8 +93,7 @@ class _CreateBatterySwapStationScreenState
           ),
         );
         context.pop();
-        ref.invalidate(
-            batterySwapStationsProvider((page: 0, size: 20, search: null)));
+        ref.invalidate(batterySwapStationsProvider);
       }
     } catch (e) {
       if (mounted) {
@@ -121,7 +120,7 @@ class _CreateBatterySwapStationScreenState
     return AdminScaffold(
       title: 'Create Battery Swap Station',
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Form(
           key: _formKey,
           child: Column(

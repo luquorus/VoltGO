@@ -49,7 +49,7 @@ class _VerificationTasksListScreenState
         ),
       ],
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

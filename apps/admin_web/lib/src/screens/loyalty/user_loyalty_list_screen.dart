@@ -52,12 +52,14 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
 
     return AdminScaffold(
       title: 'User Points',
-      body: Column(
-        children: [
-          // Search bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+      body: Padding(
+        padding: responsivePadding(context),
+        child: Column(
+          children: [
+            // Search bar
+            Container(
+              padding: responsivePaddingScaled(context, 0.67),
+              decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               border: Border(
                 bottom: BorderSide(color: AdminTheme.outlineLight),
@@ -212,7 +214,8 @@ class _UserLoyaltyListScreenState extends ConsumerState<UserLoyaltyListScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

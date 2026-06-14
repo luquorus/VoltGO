@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,8 @@ public class BatterySwapStationAdminService {
 
     private final StationJpaRepository stationRepository;
     private final StationVersionJpaRepository stationVersionRepository;
+    private final StationServiceJpaRepository stationServiceRepository;
+    private final ChargingPortJpaRepository chargingPortRepository;
     private final BatterySwapStationVersionJpaRepository bsVersionRepository;
     private final BatterySwapStationStateJpaRepository stateRepository;
     private final SwapPileJpaRepository pileRepository;
@@ -47,6 +50,8 @@ public class BatterySwapStationAdminService {
     private final SwapStationStateApplyService swapStationStateApplyService;
     private final BatterySwapTrustScoringService trustScoringService;
     private final AuditLogJpaRepository auditLogRepository;
+
+    private static final int SLOTS_PER_PILE = 6;
 
     @Transactional(readOnly = true)
     public PaginationResponse<BatterySwapStationListDTO> listStations(int page, int size, String search) {
@@ -195,6 +200,17 @@ public class BatterySwapStationAdminService {
 
         stationVersionRepository.save(newStationVersion);
         log.info("Created station version: {}, status={}", newStationVersion.getId(), workflowStatus);
+
+        // 3b. Create StationServiceEntity + default ChargingPortEntity for the swap station.
+        // StationServiceEntity(BATTERY_SWAP) is required so the station is recognised by
+        // SwapStationStateApplyService and by the public station queries (which JOIN
+        // station_service). A default DC ChargingPort is also published so that the
+        // EV user app can render the "Charging ports" section for the station.
+        createSwapStationServiceAndPort(
+                newStationVersion,
+                data.getTotalBatteries(),
+                data.getAvgChargePowerKw(),
+                request.getPublishImmediately());
 
         // 4. If publishing immediately, apply runtime state (create piles/slots)
         if (Boolean.TRUE.equals(request.getPublishImmediately())) {
@@ -449,6 +465,13 @@ public class BatterySwapStationAdminService {
 
         stationVersionRepository.saveAndFlush(newStationVersion);
 
+        // Create/update StationServiceEntity + default ChargingPortEntity for the swap station
+        createSwapStationServiceAndPort(
+                newStationVersion,
+                data.getTotalBatteries(),
+                data.getAvgChargePowerKw(),
+                request.getPublishImmediately());
+
         if (Boolean.TRUE.equals(request.getPublishImmediately())) {
             try {
                 swapStationStateApplyService.applyForSwapVersion(newBsVersion);
@@ -576,6 +599,45 @@ public class BatterySwapStationAdminService {
             piles.add(pile);
         }
         return piles;
+    }
+
+    /**
+     * Create the StationServiceEntity (service_type = BATTERY_SWAP) and a default
+     * ChargingPortEntity for the given station version. This is required so that:
+     *   - SwapStationStateApplyService.applyForVersion() can detect BATTERY_SWAP service.
+     *   - StationQueryRepositoryImpl.findPublishedStationDetail() returns port info.
+     *   - The EV user app displays a non-empty "Charging ports" section.
+     */
+    private void createSwapStationServiceAndPort(
+            StationVersionEntity newStationVersion,
+            int totalBatteries,
+            BigDecimal avgChargePowerKw,
+            Boolean publishImmediately) {
+        StationServiceEntity swapService = StationServiceEntity.builder()
+                .id(UUID.randomUUID())
+                .stationVersionId(newStationVersion.getId())
+                .serviceType(ServiceType.BATTERY_SWAP)
+                .totalBatteries(totalBatteries)
+                .avgChargePowerKw(avgChargePowerKw)
+                .build();
+        stationServiceRepository.save(swapService);
+        log.info("Created BATTERY_SWAP station service: {}", swapService.getId());
+
+        if (Boolean.TRUE.equals(publishImmediately)) {
+            int numPiles = (int) Math.ceil((double) totalBatteries / SLOTS_PER_PILE);
+            int portCount = Math.max(1, numPiles);
+            BigDecimal avgPower = avgChargePowerKw != null ? avgChargePowerKw : new BigDecimal("3.5");
+            ChargingPortEntity swapChargingPort = ChargingPortEntity.builder()
+                    .id(UUID.randomUUID())
+                    .stationServiceId(swapService.getId())
+                    .powerType(PowerType.DC)
+                    .powerKw(avgPower)
+                    .portCount(portCount)
+                    .build();
+            chargingPortRepository.save(swapChargingPort);
+            log.info("Created default DC charging port for swap station: portCount={}, powerKw={}",
+                    portCount, avgPower);
+        }
     }
 
     /**

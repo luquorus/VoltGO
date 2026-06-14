@@ -59,7 +59,7 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
     return AdminScaffold(
       title: 'Change Request Audit Logs',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 800;
@@ -87,11 +87,12 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
   Widget _buildFormCard(ThemeData theme) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Form(
           key: _formKey,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               'Change Request ID (UUID)',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -153,7 +154,8 @@ class _ChangeRequestAuditScreenState extends ConsumerState<ChangeRequestAuditScr
                 ),
               ),
             ],
-          ],
+            ],
+          ),
         ),
       ),
     );

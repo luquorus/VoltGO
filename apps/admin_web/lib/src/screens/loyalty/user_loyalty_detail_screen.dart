@@ -66,7 +66,7 @@ class _UserLoyaltyDetailScreenState extends ConsumerState<UserLoyaltyDetailScree
             ),
           ),
           data: (profile) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: responsivePadding(context),
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +85,7 @@ class _UserLoyaltyDetailScreenState extends ConsumerState<UserLoyaltyDetailScree
                 // Profile card
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: responsivePaddingScaled(context, 0.8),
                     child: Row(
                       children: [
                         CircleAvatar(

@@ -59,7 +59,7 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
     return AdminScaffold(
       title: 'Station Audit Logs',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 800;
@@ -87,11 +87,12 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
   Widget _buildFormCard(ThemeData theme) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Form(
           key: _formKey,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               'Station ID (UUID)',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -152,7 +153,8 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
                 ),
               ),
             ],
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -220,32 +222,6 @@ class _StationAuditScreenState extends ConsumerState<StationAuditScreen> {
   }
 
   Widget _buildAuditLogsTable(BuildContext context, ThemeData theme, List<AuditLogResponse> logs) {
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Metadata Drawer
-            if (_selectedLog != null)
-              Container(
-                width: 400,
-                margin: const EdgeInsets.only(left: 16),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: _buildMetadataDrawer(theme, _selectedLog!),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAuditLogsTable(ThemeData theme, List<AuditLogResponse> logs) {
     if (logs.isEmpty) {
       return EmptyState(
         icon: Icons.history_outlined,

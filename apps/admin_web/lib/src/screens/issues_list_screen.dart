@@ -26,7 +26,7 @@ class _IssuesListScreenState extends ConsumerState<IssuesListScreen> {
     return AdminScaffold(
       title: 'Reported Issues',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

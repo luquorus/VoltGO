@@ -110,15 +110,13 @@ public class BatterySwapService {
                              CAST(sv.location AS geography),
                              CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
                        ) AS DOUBLE PRECISION) / 1000.0 as distance_km
-                FROM station_version sv
-                JOIN station_service ss ON ss.station_version_id = sv.id
-                WHERE sv.workflow_status = 'PUBLISHED'
-                  AND ss.service_type = 'BATTERY_SWAP'
-                  AND ST_DWithin(
+                FROM battery_swap_station_version bsv
+                JOIN station_version sv ON sv.id = bsv.id AND sv.workflow_status = 'PUBLISHED'
+                WHERE ST_DWithin(
                         CAST(sv.location AS geography),
                         CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
                         :radiusMeters
-                  )
+                )
                 ORDER BY distance_km ASC
                 """;
         Query query = entityManager.createNativeQuery(sql);
@@ -131,8 +129,8 @@ public class BatterySwapService {
         List<BatterySwapStationDTO> results = new ArrayList<>();
         for (Object[] row : rows) {
             UUID stationId = (UUID) row[0];
-            stationVersionRepository.findPublishedByStationId(stationId)
-                    .ifPresent(swapStationStateApplyService::applyForVersion);
+            // applyForVersion skips battery swap stations (no station_service record).
+            // State was created by applyForSwapVersion during CSV import / publish.
             BatterySwapStationStateEntity state = stationStateRepository.findById(stationId).orElse(null);
             if (state == null) {
                 continue;
@@ -276,9 +274,8 @@ public class BatterySwapService {
                        sv.address,
                        ST_Y(CAST(sv.location AS geometry)) as lat,
                        ST_X(CAST(sv.location AS geometry)) as lng
-                FROM station_version sv
-                JOIN station_service ss ON ss.station_version_id = sv.id AND ss.service_type = 'BATTERY_SWAP'
-                WHERE sv.workflow_status = 'PUBLISHED'
+                FROM battery_swap_station_version bsv
+                JOIN station_version sv ON sv.id = bsv.id AND sv.workflow_status = 'PUBLISHED'
                 ORDER BY sv.name ASC
                 """;
         @SuppressWarnings("unchecked")
@@ -287,8 +284,8 @@ public class BatterySwapService {
         List<BatterySwapStationDTO> results = new ArrayList<>();
         for (Object[] row : rows) {
             UUID stationId = (UUID) row[0];
-            stationVersionRepository.findPublishedByStationId(stationId)
-                    .ifPresent(swapStationStateApplyService::applyForVersion);
+            // applyForVersion skips battery swap stations (no station_service record).
+            // State was created by applyForSwapVersion during CSV import / publish.
             BatterySwapStationStateEntity state = stationStateRepository.findById(stationId).orElse(null);
             if (state == null) continue;
 

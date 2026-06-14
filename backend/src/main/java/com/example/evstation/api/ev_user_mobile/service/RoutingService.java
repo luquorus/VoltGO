@@ -30,7 +30,7 @@ public class RoutingService {
     @Value("${app.routing.default-station-limit:10}")
     private int defaultStationLimit;
 
-    @Value("${app.routing.corridor-buffer-meters:1000}")
+    @Value("${app.routing.corridor-buffer-meters:5000}")
     private double corridorBufferMeters;
 
     @Value("${app.routing.safety-buffer-percent:5}")
@@ -48,11 +48,14 @@ public class RoutingService {
     @Value("${app.routing.default-average-speed-kmph:30.0}")
     private double defaultAverageSpeedKmph;
 
-    @Value("${app.routing.min-battery-percent-at-arrival:10}")
+    @Value("${app.routing.min-battery-percent-at-arrival:5}")
     private double minBatteryPercentAtArrival;
 
     @Value("${app.routing.diagnostic-logging-enabled:true}")
     private boolean diagnosticLoggingEnabled;
+
+    @Value("${app.routing.fallback-buffer-meters:1000,3000,5000,10000}")
+    private List<Integer> fallbackBufferMeters;
 
     /**
      * Main entry point for route calculation.
@@ -104,6 +107,13 @@ public class RoutingService {
 
             String routeWkt = convertPolylineToWkt(polyline);
 
+            // --- [ROUTE_RCM] Diagnostic logging at key decision point ---
+            log.info("[ROUTE_RCM] routeDistanceKm={}, batteryPercent={}, vehicleRangeKm={}, needsChargingStop={}",
+                    routeDistanceKm,
+                    request.getBatteryPercent(),
+                    request.getVehicleRangeKm(),
+                    evRangeInfo.needsChargingStop());
+
             List<RecommendedStationDTO> allCandidates = findStationsAlongRoute(
                     routeWkt, polyline,
                     request.getMinPowerKw(), stationLimit,
@@ -112,6 +122,18 @@ public class RoutingService {
                     routeDistanceKm,
                     evRangeInfo,
                     traceId);
+
+            // --- [ROUTE_RCM] Final diagnostic ---
+            if (allCandidates.isEmpty()) {
+                log.warn("[ROUTE_RCM] ZERO_RECOMMENDATIONS — routeId={}, "
+                                + "possibleCauses=[buffer_too_narrow, no_published_stations, battery_filter]",
+                        traceId);
+            }
+
+            RecommendedStationDTO optimal = !allCandidates.isEmpty() ? allCandidates.get(0) : null;
+            log.info("[ROUTE_RCM] finalRecommendedCount={}, optimalStation={}",
+                    allCandidates.size(),
+                    optimal != null ? optimal.getName() : "none");
 
             // Top 3 recommendations (already sorted by score ascending from repository)
             int topN = Math.min(3, allCandidates.size());
@@ -457,8 +479,8 @@ public class RoutingService {
         log.info("[STATION_SEARCH] lastPoint | lat={} lng={} traceId={}",
                 polyline.get(polyline.size() - 1).getLat(),
                 polyline.get(polyline.size() - 1).getLng(), traceId);
-        log.info("[STATION_SEARCH] buffer | corridorBufferMeters={} traceId={}",
-                corridorBufferMeters, traceId);
+        log.info("[STATION_SEARCH] buffer | corridorBufferMeters={} fallbackChain={} traceId={}",
+                corridorBufferMeters, fallbackBufferMeters, traceId);
         log.info("[STATION_SEARCH] evParams | batteryPercent={} vehicleRangeKm={} "
                         + "routeDistanceKm={} hasEvParams={} traceId={}",
                 batteryPercent, vehicleRangeKm, routeDistanceKm,
@@ -467,9 +489,42 @@ public class RoutingService {
                 minPowerKw, limit, traceId);
 
         try {
-            List<RecommendedStationDTO> stations = stationQueryRepository.findStationsAlongRoute(
-                    routeWkt, corridorBufferMeters, minPowerKw, limit,
-                    polyline, batteryPercent, vehicleRangeKm, routeDistanceKm, traceId);
+            // --- TIERED FALLBACK: try buffers from smallest to largest ---
+            // Build deduplicated buffer list: corridorBuffer first, then fallbacks
+            Set<Integer> uniqueBuffers = new LinkedHashSet<>();
+            uniqueBuffers.add((int) corridorBufferMeters);
+            for (int fb : fallbackBufferMeters) {
+                uniqueBuffers.add(fb);
+            }
+
+            List<RecommendedStationDTO> stations = Collections.emptyList();
+            int usedBufferMeters = 0;
+            boolean isFirstAttempt = true;
+
+            for (int bufferMeters : uniqueBuffers) {
+                if (!isFirstAttempt) {
+                    log.info("No stations found within {}m, retrying with larger buffer... traceId={}",
+                            bufferMeters, traceId);
+                }
+
+                List<RecommendedStationDTO> candidates = stationQueryRepository.findStationsAlongRoute(
+                        routeWkt, bufferMeters, minPowerKw, limit,
+                        polyline, batteryPercent, vehicleRangeKm, routeDistanceKm, traceId);
+
+                int afterBatteryFilter = candidates.size();
+
+                log.info("[ROUTE_RCM] corridorBufferMeters={}, candidateStationsFound={}, afterBatteryFilter={}",
+                        bufferMeters, candidates.size(), afterBatteryFilter);
+
+                if (!candidates.isEmpty()) {
+                    stations = candidates;
+                    usedBufferMeters = bufferMeters;
+                    log.info("[STATION_SEARCH] BUFFER_SUCCESS | usedBufferM={} stationsFound={} traceId={}",
+                            bufferMeters, stations.size(), traceId);
+                    break;
+                }
+                isFirstAttempt = false;
+            }
 
             // --- POST-SPATIAL-QUERY DIAGNOSTICS ---
             log.info("[STATION_SEARCH] === STATION SEARCH END === "
@@ -477,14 +532,17 @@ public class RoutingService {
                     stations.size(), traceId);
 
             if (stations.isEmpty()) {
+                log.warn("[ROUTE_RCM] ZERO_RECOMMENDATIONS — traceId={}, "
+                                + "possibleCauses=[buffer_too_narrow, no_published_stations, battery_filter]",
+                        traceId);
                 log.warn("[STATION_SEARCH] NO_STATIONS_FOUND | "
-                                + "routeDistanceKm={} corridorBufferM={} "
+                                + "routeDistanceKm={} corridorBufferMeters={} "
                                 + "batteryPercent={} vehicleRangeKm={} "
                                 + "hint='Check if station_version table has PUBLISHED stations "
                                 + "within corridor buffer of route. "
                                 + "Verify ST_DWithin query returns rows in DB directly.' "
                                 + "traceId={}",
-                        routeDistanceKm, corridorBufferMeters,
+                        routeDistanceKm, usedBufferMeters,
                         batteryPercent, vehicleRangeKm, traceId);
             } else {
                 log.info("[STATION_SEARCH] stationsReturned | count={} traceId={}",
@@ -508,7 +566,7 @@ public class RoutingService {
                 for (RecommendedStationDTO s : stations) {
                     if (s.getScore() >= 50_000) {
                         unreachableCount++;
-                        log.debug("[STATION_SEARCH] filtered | stationId={} reason='batteryAtArrival_below_10_percent' "
+                        log.debug("[STATION_SEARCH] filtered | stationId={} reason='batteryAtArrival_below_threshold' "
                                         + "score={} traceId={}",
                                 s.getStationId(), s.getScore(), traceId);
                     }
@@ -528,6 +586,13 @@ public class RoutingService {
 
             log.info("[STATION_SEARCH] finalStationCount | count={} traceId={}",
                     stations.size(), traceId);
+
+            // [ROUTE_RCM] Final summary
+            RecommendedStationDTO optimal = !stations.isEmpty() ? stations.get(0) : null;
+            log.info("[ROUTE_RCM] finalRecommendedCount={}, optimalStation={}",
+                    stations.size(),
+                    optimal != null ? optimal.getName() : "none");
+
             return stations;
 
         } catch (Exception e) {
@@ -546,6 +611,86 @@ public class RoutingService {
                             + "traceId={}",
                     routeWkt, traceId);
             return Collections.emptyList();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Debug endpoint (dev/staging only)
+    // -------------------------------------------------------------------------
+
+    public RouteDebugDTO debugStationsAlongRoute(
+            double originLat, double originLng,
+            double destLat, double destLng,
+            Integer batteryPercent, Double vehicleRangeKm,
+            Integer bufferMetersOverride) {
+
+        String traceId = UUID.randomUUID().toString().substring(0, 8);
+        MDC.put("traceId", traceId);
+
+        try {
+            int bufferMeters = bufferMetersOverride != null
+                    ? bufferMetersOverride : (int) corridorBufferMeters;
+
+            log.info("[DEBUG] debugStationsAlongRoute | origin=({},{}) dest=({},{}) "
+                            + "batteryPercent={} vehicleRangeKm={} bufferMeters={} traceId={}",
+                    originLat, originLng, destLat, destLng,
+                    batteryPercent, vehicleRangeKm, bufferMeters, traceId);
+
+            // Calculate route via OSRM
+            OsrmRouteResponse osrmResponse = callOsrmWithRetry(
+                    originLng, originLat, destLng, destLat, traceId);
+
+            List<PolylinePoint> polyline = extractPolyline(osrmResponse);
+            double routeDistanceKm = osrmResponse.distanceMeters() / 1000.0;
+            String routeWkt = convertPolylineToWkt(polyline);
+
+            // Count total published stations in DB
+            long totalPublished = stationQueryRepository.countTotalPublishedStations();
+            log.info("[DEBUG] totalPublishedStations={} traceId={}", totalPublished, traceId);
+
+            // Query with the specified buffer
+            EVRangeInfo evRangeInfo = new EVRangeInfo(
+                    false, 0, routeDistanceKm,
+                    batteryPercent != null && vehicleRangeKm != null,
+                    vehicleRangeKm != null ? vehicleRangeKm : 0);
+
+            List<RecommendedStationDTO> allStations = stationQueryRepository.findStationsAlongRoute(
+                    routeWkt, bufferMeters, null, 100,
+                    polyline, batteryPercent, vehicleRangeKm, routeDistanceKm, traceId);
+
+            int stationsInCorridor = allStations.size();
+
+            // Filter: exclude unreachable (score >= 50_000)
+            List<RecommendedStationDTO> afterBatteryFilter = allStations.stream()
+                    .filter(s -> s.getScore() < 50_000)
+                    .collect(Collectors.toList());
+
+            int stationsAfterBattery = afterBatteryFilter.size();
+            List<RecommendedStationDTO> top3 = afterBatteryFilter.stream()
+                    .limit(3)
+                    .collect(Collectors.toList());
+            for (int i = 0; i < top3.size(); i++) {
+                top3.get(i).setIsRecommended(true);
+                if (i == 0) top3.get(i).setIsOptimalStop(true);
+            }
+
+            log.info("[DEBUG] result | totalPublished={} inCorridor={} afterFilter={} final={} "
+                            + "traceId={}",
+                    totalPublished, stationsInCorridor, stationsAfterBattery,
+                    top3.size(), traceId);
+
+            return RouteDebugDTO.builder()
+                    .routeWkt(routeWkt)
+                    .bufferMeters(bufferMeters)
+                    .totalPublishedStations(totalPublished)
+                    .stationsInCorridor(stationsInCorridor)
+                    .stationsAfterBatteryFilter(stationsAfterBattery)
+                    .finalRecommended(top3)
+                    .traceId(traceId)
+                    .build();
+
+        } finally {
+            MDC.remove("traceId");
         }
     }
 

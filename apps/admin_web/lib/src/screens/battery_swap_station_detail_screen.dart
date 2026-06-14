@@ -46,7 +46,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       BatterySwapStationDetail station) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -59,16 +59,16 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // Station Info
-          _buildStationInfoCard(theme, station),
+          _buildStationInfoCard(context, theme, station),
           const SizedBox(height: 24),
 
           // Battery Swap Config
-          _buildSwapConfigCard(theme, station),
+          _buildSwapConfigCard(context, theme, station),
           const SizedBox(height: 24),
 
           // Pile Layout
           if (station.pileTemplates != null && station.pileTemplates!.isNotEmpty) ...[
-            _buildPileLayoutCard(theme, station),
+            _buildPileLayoutCard(context, theme, station),
             const SizedBox(height: 24),
           ],
 
@@ -83,7 +83,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 600;
@@ -220,7 +220,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -290,7 +290,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
                   const Spacer(),
                   OutlinedButton.icon(
                     onPressed: () {
-                      context.push('/battery-swap/trust/${station.id}');
+                      context.push('/trust/battery-swap?stationId=${station.id}');
                     },
                     icon: const Icon(Icons.dashboard),
                     label: const Text('View Dashboard'),
@@ -312,10 +312,10 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildStationInfoCard(
-      ThemeData theme, BatterySwapStationDetail station) {
+      BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -368,10 +368,10 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildSwapConfigCard(
-      ThemeData theme, BatterySwapStationDetail station) {
+      BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -476,13 +476,13 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildPileLayoutCard(
-      ThemeData theme, BatterySwapStationDetail station) {
+      BuildContext context, ThemeData theme, BatterySwapStationDetail station) {
     final piles = station.pileTemplates!;
     final totalSlots = piles.fold<int>(0, (sum, p) => sum + p.slotsPerPile);
 
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -575,7 +575,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
       BuildContext context, ThemeData theme, WidgetRef ref, BatterySwapStationDetail station) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -603,7 +603,7 @@ class BatterySwapStationDetailScreen extends ConsumerWidget {
                 ),
                 OutlinedButton.icon(
                   onPressed: () {
-                    context.push('/battery-swap/trust/${station.id}');
+                    context.push('/trust/battery-swap?stationId=${station.id}');
                   },
                   icon: const Icon(Icons.analytics),
                   label: const Text('View Trust Dashboard'),

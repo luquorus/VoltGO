@@ -190,66 +190,70 @@ class _ChargingStationsListScreenState
       children: [
         Expanded(
           child: SingleChildScrollView(
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Name')),
-                DataColumn(label: Text('Address')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Trust Score')),
-                DataColumn(label: Text('Versions')),
-                DataColumn(label: Text('Bookings')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: response.content.map((station) {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(station.name ?? 'N/A')),
-                    DataCell(SizedBox(
-                        width: 200,
-                        child: Text(station.address ?? 'N/A',
-                            overflow: TextOverflow.ellipsis))),
-                    DataCell(_buildStatusChip(theme, station)),
-                    DataCell(Text(station.trustScore?.toString() ?? 'N/A',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _getTrustScoreColor(
-                                theme, station.trustScore)))),
-                    DataCell(Text(station.totalVersions.toString())),
-                    DataCell(Text(station.activeBookings.toString(),
-                        style: TextStyle(
-                            color: station.hasActiveBookings
-                                ? theme.colorScheme.error
-                                : theme.colorScheme.onSurface))),
-                    DataCell(Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            icon: const Icon(Icons.visibility, size: 20),
-                            onPressed: () => context
-                                .push('/charging-stations/${station.stationId}'),
-                            tooltip: 'View Details'),
-                        IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
-                            onPressed: () => context
-                                .push('/charging-stations/${station.stationId}'),
-                            tooltip: 'View/Edit'),
-                        IconButton(
-                            icon: const Icon(Icons.delete, size: 20),
-                            onPressed: station.hasActiveBookings
-                                ? null
-                                : () =>
-                                    _showDeleteDialog(context, theme, ref, station),
-                            tooltip: station.hasActiveBookings
-                                ? 'Cannot delete: has active bookings'
-                                : 'Delete',
-                            color: station.hasActiveBookings
-                                ? theme.colorScheme.error.withOpacity(0.5)
-                                : theme.colorScheme.error),
-                      ],
-                    )),
-                  ],
-                );
-              }).toList(),
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Address')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Trust Score')),
+                  DataColumn(label: Text('Versions')),
+                  DataColumn(label: Text('Bookings')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: response.content.map((station) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(station.name ?? 'N/A')),
+                      DataCell(SizedBox(
+                          width: 200,
+                          child: Text(station.address ?? 'N/A',
+                              overflow: TextOverflow.ellipsis))),
+                      DataCell(_buildStatusChip(theme, station)),
+                      DataCell(Text(station.trustScore?.toString() ?? 'N/A',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _getTrustScoreColor(
+                                  theme, station.trustScore)))),
+                      DataCell(Text(station.totalVersions.toString())),
+                      DataCell(Text(station.activeBookings.toString(),
+                          style: TextStyle(
+                              color: station.hasActiveBookings
+                                  ? theme.colorScheme.error
+                                  : theme.colorScheme.onSurface))),
+                      DataCell(Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                              icon: const Icon(Icons.visibility, size: 20),
+                              onPressed: () => context
+                                  .push('/charging-stations/${station.stationId}'),
+                              tooltip: 'View Details'),
+                          IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              onPressed: () => context
+                                  .push('/charging-stations/${station.stationId}'),
+                              tooltip: 'View/Edit'),
+                          IconButton(
+                              icon: const Icon(Icons.delete, size: 20),
+                              onPressed: station.hasActiveBookings
+                                  ? null
+                                  : () =>
+                                      _showDeleteDialog(context, theme, ref, station),
+                              tooltip: station.hasActiveBookings
+                                  ? 'Cannot delete: has active bookings'
+                                  : 'Delete',
+                              color: station.hasActiveBookings
+                                  ? theme.colorScheme.error.withOpacity(0.5)
+                                  : theme.colorScheme.error),
+                        ],
+                      )),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),

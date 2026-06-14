@@ -128,8 +128,7 @@ class _BatterySwapCsvImportScreenState
       final totalRows = _importResult!['totalRows'] as int? ?? 0;
 
       if (successCount > 0) {
-        ref.invalidate(
-            batterySwapStationsProvider((page: 0, size: 20, search: null)));
+        ref.invalidate(batterySwapStationsProvider);
       }
 
       if (totalRows == 0) {
@@ -201,8 +200,8 @@ class _BatterySwapCsvImportScreenState
 
     return AdminScaffold(
       title: 'Import Battery Swap Stations from CSV',
-      body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+      body: SingleChildScrollView(
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

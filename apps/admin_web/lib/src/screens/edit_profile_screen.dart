@@ -135,7 +135,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return AdminScaffold(
       title: 'Edit Profile',
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: isMobile(context) ? double.infinity : 600),

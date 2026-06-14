@@ -144,7 +144,7 @@ class AdminSidebar extends ConsumerWidget {
                   label: 'Charging Stations',
                   route: '/stations',
                   isActive: currentRoute.startsWith('/stations') &&
-                      !currentRoute.startsWith('/stations/trust') &&
+                      !currentRoute.startsWith('/trust/') &&
                       !currentRoute.startsWith('/battery-swap'),
                 ),
                 _buildNavItem(
@@ -161,9 +161,18 @@ class AdminSidebar extends ConsumerWidget {
                   theme,
                   isCollapsed: isCollapsed,
                   icon: Icons.verified_user_rounded,
-                  label: 'Trust Dashboard',
-                  route: '/stations/trust',
-                  isActive: currentRoute.startsWith('/stations/trust'),
+                  label: 'Charging Trust',
+                  route: '/trust/charging',
+                  isActive: currentRoute.startsWith('/trust/charging'),
+                ),
+                _buildNavItem(
+                  context,
+                  theme,
+                  isCollapsed: isCollapsed,
+                  icon: Icons.electric_bolt,
+                  label: 'Swap Trust',
+                  route: '/trust/battery-swap',
+                  isActive: currentRoute.startsWith('/trust/battery-swap'),
                 ),
                 _SidebarNavItem(
                   context: context,

@@ -9,7 +9,7 @@ import 'dio_web_adapter_stub.dart'
     if (dart.library.html) 'dio_web_adapter_web.dart' as web_adapter;
 
 /// Dio client factory
-/// 
+///
 /// Creates configured Dio instance with:
 /// - Base URL from environment
 /// - Auth interceptor (Bearer token)
@@ -33,6 +33,8 @@ final dioClientProvider = Provider.family<Dio, String>((ref, baseUrl) {
   }
 
   // Add interceptors
+  // ErrorInterceptor will be replaced by ApiClientFactory with an
+  // `onUnauthorized` callback that clears the local session.
   dio.interceptors.add(ErrorInterceptor());
   // AuthInterceptor will be added by ApiClientFactory after auth state is available
 

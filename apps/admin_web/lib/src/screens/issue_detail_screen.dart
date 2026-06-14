@@ -45,14 +45,14 @@ class IssueDetailScreen extends ConsumerWidget {
 
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref, AdminIssue issue) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              padding: responsivePaddingScaled(context, 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -70,7 +70,7 @@ class IssueDetailScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // Description
-          _buildDescriptionSection(theme, issue),
+          _buildDescriptionSection(context, theme, issue),
           const SizedBox(height: 24),
 
           // Admin Note (if exists)
@@ -168,7 +168,7 @@ class IssueDetailScreen extends ConsumerWidget {
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -195,7 +195,7 @@ class IssueDetailScreen extends ConsumerWidget {
   Widget _buildDescriptionSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -230,7 +230,7 @@ class IssueDetailScreen extends ConsumerWidget {
   Widget _buildAdminSection(BuildContext context, ThemeData theme, AdminIssue issue) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

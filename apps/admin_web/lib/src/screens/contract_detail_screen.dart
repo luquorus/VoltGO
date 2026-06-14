@@ -49,14 +49,14 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
 
   Widget _buildContent(BuildContext context, ThemeData theme, Contract contract) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              padding: responsivePaddingScaled(context, 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -193,7 +193,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   Widget _buildContractInfoSection(BuildContext context, ThemeData theme, Contract contract) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -277,7 +277,7 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> {
   Widget _buildDatesSection(BuildContext context, ThemeData theme, Contract contract) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

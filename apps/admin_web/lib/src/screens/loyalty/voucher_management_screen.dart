@@ -89,7 +89,7 @@ class VoucherManagementScreen extends ConsumerWidget {
           if (vouchers.isEmpty) {
             return Center(
               child: Padding(
-                padding: EdgeInsets.all(responsivePadding(context)),
+                padding: responsivePadding(context),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -108,7 +108,7 @@ class VoucherManagementScreen extends ConsumerWidget {
             );
           }
           return Padding(
-            padding: EdgeInsets.all(responsivePadding(context)),
+            padding: responsivePadding(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

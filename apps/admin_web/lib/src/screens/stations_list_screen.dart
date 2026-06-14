@@ -39,7 +39,7 @@ class _StationsListScreenState extends ConsumerState<StationsListScreen> {
     return AdminScaffold(
       title: 'Charging Stations',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

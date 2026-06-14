@@ -11,7 +11,8 @@ import '../screens/verification_tasks_list_screen.dart';
 import '../screens/verification_task_detail_screen.dart';
 import '../screens/issues_list_screen.dart';
 import '../screens/issue_detail_screen.dart';
-import '../screens/unified_trust_dashboard_screen.dart';
+import '../screens/charging_trust_dashboard_screen.dart';
+import '../screens/battery_swap_trust_dashboard_screen.dart';
 import '../screens/audit_query_screen.dart';
 import '../screens/station_audit_screen.dart';
 import '../screens/change_request_audit_screen.dart';
@@ -194,10 +195,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
-        path: '/stations/trust',
+        path: '/trust/charging',
         builder: (context, state) {
-          final stationId = state.uri.queryParameters['stationId'];
-          return UnifiedTrustDashboardScreen(stationId: stationId);
+          final raw = state.uri.queryParameters['stationId'];
+          // Treat empty / non-UUID values as "no station selected" so the
+          // dashboard shows the summary instead of firing a trust call that
+          // the backend will reject with EVS-0002.
+          final stationId = _isValidUuid(raw) ? raw : null;
+          return ChargingTrustDashboardScreen(stationId: stationId);
+        },
+      ),
+      GoRoute(
+        path: '/trust/battery-swap',
+        builder: (context, state) {
+          final raw = state.uri.queryParameters['stationId'];
+          final stationId = _isValidUuid(raw) ? raw : null;
+          return BatterySwapTrustDashboardScreen(stationId: stationId);
         },
       ),
       GoRoute(
@@ -262,8 +275,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/battery-swap/trust',
         builder: (context, state) {
-          final stationId = state.uri.queryParameters['stationId'];
-          return UnifiedTrustDashboardScreen(batterySwapStationId: stationId);
+          // Kept as a legacy alias for /trust/battery-swap so deep links
+          // shared before the refactor still resolve to the new screen.
+          final raw = state.uri.queryParameters['stationId'];
+          final stationId = _isValidUuid(raw) ? raw : null;
+          return BatterySwapTrustDashboardScreen(stationId: stationId);
         },
       ),
       // Analytics Dashboard
@@ -314,4 +330,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Loose UUID v1-v8 matcher (any 8-4-4-4-12 hex block). Used to sanitize
+/// path / query parameters before they reach REST endpoints that require
+/// a UUID path variable — otherwise the backend rejects them with EVS-0002.
+final RegExp _uuidPattern = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+);
+
+bool _isValidUuid(String? value) {
+  if (value == null || value.isEmpty) return false;
+  return _uuidPattern.hasMatch(value);
+}
 

@@ -50,7 +50,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, ThemeData theme, WidgetRef ref,
       AdminVerificationTask task) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -170,7 +170,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // Status Timeline
-          _buildStatusTimeline(theme, task),
+          _buildStatusTimeline(context, theme, task),
           const SizedBox(height: 24),
 
           // Basic Info
@@ -203,7 +203,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
           // Review Info
           if (task.review != null) ...[
-            _buildReviewSection(theme, task.review!),
+            _buildReviewSection(context, theme, task.review!),
           ],
         ],
       ),
@@ -216,7 +216,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -297,7 +297,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildBasicInfoSection(BuildContext context, ThemeData theme, AdminVerificationTask task) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -348,7 +348,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -416,7 +416,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
                         ),
                         OutlinedButton.icon(
                           onPressed: () {
-                            context.push('/battery-swap/trust/${task.stationId}');
+                            context.push('/trust/battery-swap?stationId=${task.stationId}');
                           },
                           icon: const Icon(Icons.dashboard, size: 16),
                           label: const Text('Details'),
@@ -476,7 +476,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildCheckinSection(BuildContext context, ThemeData theme, CheckinInfo checkin) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -529,7 +529,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -724,7 +724,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildEvidencesSection(BuildContext context, ThemeData theme, WidgetRef ref, List<Evidence> evidences) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1037,7 +1037,7 @@ class VerificationTaskDetailScreen extends ConsumerWidget {
   Widget _buildReviewSection(BuildContext context, ThemeData theme, Review review) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+        padding: responsivePaddingScaled(context, 0.8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -28,7 +28,7 @@ class _BatterySwapCRListScreenState
     return AdminScaffold(
       title: 'Battery Swap Change Requests',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

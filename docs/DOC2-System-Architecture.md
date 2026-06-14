@@ -54,13 +54,13 @@ package "Flutter Clients" {
 }
 
 package "Spring Boot API\n(com.example.evstation)" {
-  [Controllers\n(47 REST controllers)] as ctrl
-  [Services\n(48 business services)] as svc
-  [Repositories\n(48 JPA repositories)] as repo
-  [Domain Entities\n(46 JPA entities)] as entity
+  [Controllers\n(Spring Boot REST)] as ctrl
+  [Services\n(business logic)] as svc
+  [Repositories\n(JPA repositories)] as repo
+  [Domain Entities\n(JPA entities)] as entity
   [Security\n(JWT, RBAC)] as sec
   [WebSocket\n(SimulatorDisplayWebSocketHandler)] as ws
-  [Scheduled Jobs\n(4 @Scheduled tasks)] as sched
+  [Scheduled Jobs\n(@Scheduled tasks)] as sched
   [Risk Engines\n(2 assessors)] as risk
 }
 

@@ -214,7 +214,7 @@ class _CreateStationScreenState extends ConsumerState<CreateStationScreen> {
     return AdminScaffold(
       title: _isEditMode ? 'Edit Station' : 'Create Station',
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Form(
           key: _formKey,
           child: Column(

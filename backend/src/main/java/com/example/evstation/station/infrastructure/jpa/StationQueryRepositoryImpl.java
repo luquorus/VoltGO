@@ -10,6 +10,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -26,8 +27,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
 
     @PersistenceContext
     private final EntityManager entityManager;
-    
+
     private final StationTrustJpaRepository trustRepository;
+
+    @Value("${app.routing.min-battery-percent-at-arrival:5}")
+    private double minBatteryPercentAtArrival;
 
     @Override
     public Page<StationListItemDTO> findPublishedStationsWithinRadius(
@@ -581,7 +585,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 + " COALESCE((SELECT SUM(cp.port_count) FROM station_service ss JOIN charging_port cp ON ss.id = cp.station_service_id WHERE ss.station_version_id = sv.id), 0) AS total_ports,"
                 + " COALESCE((SELECT SUM(cp.port_count) FROM station_service ss JOIN charging_port cp ON ss.id = cp.station_service_id WHERE ss.station_version_id = sv.id), 0) AS available_ports,"
                 + " COALESCE((SELECT SUM(cp.power_kw * cp.port_count) FROM station_service ss JOIN charging_port cp ON ss.id = cp.station_service_id WHERE ss.station_version_id = sv.id AND cp.power_type = 'DC'), 0) AS total_power_kw,"
-                + " (SELECT ARRAY_AGG(DISTINCT cp.connector_type) FROM station_service ss JOIN charging_port cp ON ss.id = cp.station_service_id WHERE ss.station_version_id = sv.id) AS connector_types"
+                + " CAST(NULL AS text[]) AS connector_types"
                 + " FROM station_version sv"
                 + " INNER JOIN route_line rl ON true"
                 + " INNER JOIN route_origin ro ON true"
@@ -590,21 +594,21 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 + " AND ST_DWithin(CAST(sv.location AS geography), rl.route_geog, " + bufferMeters + ")"
                 + distanceFilter
                 + ")"
-                + " SELECT station_id, name, address, lat, lng,"
-                + " distance_from_route_meters, distance_from_origin_meters,"
-                + " total_ports, available_ports, total_power_kw, connector_types,"
+                + " SELECT station_data.station_id, station_data.name, station_data.address, station_data.lat, station_data.lng,"
+                + " station_data.distance_from_route_meters, station_data.distance_from_origin_meters,"
+                + " station_data.total_ports, station_data.available_ports, station_data.total_power_kw, station_data.connector_types,"
                 + " COALESCE((SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP'), 0) AS total_batteries,"
                 + " COALESCE(bss.available_batteries, 0) AS available_batteries,"
                 + " COALESCE(bss.avg_charge_power_kw, 0) AS avg_charge_power_kw,"
-                + " CASE WHEN total_ports > 0 AND total_power_kw > 0 AND (SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP') > 0 THEN 'BOTH'"
-                + "      WHEN total_ports > 0 AND total_power_kw > 0 THEN 'CHARGING'"
+                + " CASE WHEN station_data.total_ports > 0 AND station_data.total_power_kw > 0 AND (SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP') > 0 THEN 'BOTH'"
+                + "      WHEN station_data.total_ports > 0 AND station_data.total_power_kw > 0 THEN 'CHARGING'"
                 + "      WHEN (SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP') > 0 THEN 'BATTERY_SWAP'"
                 + "      ELSE 'CHARGING'"
                 + " END AS service_type"
                 + " FROM station_data"
                 + " LEFT JOIN battery_swap_station_state bss ON bss.station_id = station_data.station_id"
-                + " WHERE (total_ports > 0 OR (SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP') > 0)"
-                + " ORDER BY distance_from_route_meters ASC"
+                + " WHERE (station_data.total_ports > 0 OR (SELECT SUM(ss.total_batteries) FROM station_service ss WHERE ss.station_version_id = station_data.station_id AND ss.service_type = 'BATTERY_SWAP') > 0)"
+                + " ORDER BY station_data.distance_from_route_meters ASC"
                 + " LIMIT " + limit;
 
         // Dump the exact SQL for direct psql debugging
@@ -724,7 +728,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 double batteryUsedPercent = (energyUsedKwh / vehicleRangeKm) * 100.0;
                 batteryAtArrival = Math.max(0, batteryPercent - batteryUsedPercent);
 
-                if (batteryAtArrival < 10) {
+                if (batteryAtArrival < minBatteryPercentAtArrival) {
                     // Cannot reach safely — assign unreachable score
                     score = SCORE_UNREACHABLE;
                     estimatedChargeMinutes = 0;
@@ -836,6 +840,18 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 stations.stream().filter(s -> s.getServiceType() == RecommendedStationDTO.ServiceType.BOTH).count(),
                 traceId);
         return stations;
+    }
+
+    @Override
+    public long countTotalPublishedStations() {
+        try {
+            String sql = "SELECT COUNT(*) FROM station_version WHERE workflow_status = 'PUBLISHED'";
+            Query query = entityManager.createNativeQuery(sql);
+            return ((Number) query.getSingleResult()).longValue();
+        } catch (Exception e) {
+            log.warn("[REPO] countTotalPublishedStations failed: {}", e.getMessage());
+            return 0;
+        }
     }
 
     private List<String> parseConnectorTypes(Object obj) {

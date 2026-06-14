@@ -38,7 +38,7 @@ class _BatterySwapStationsListScreenState
         batterySwapStationsProvider((page: page, size: pageSize, search: search)));
 
     return Padding(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -60,8 +60,7 @@ class _BatterySwapStationsListScreenState
                   code: extractErrorCode(error),
                   traceId: extractTraceId(error),
                   onRetry: () {
-                    ref.invalidate(batterySwapStationsProvider(
-                        (page: page, size: pageSize, search: search)));
+                    ref.invalidate(batterySwapStationsProvider);
                   },
                 ),
               ),
@@ -241,95 +240,98 @@ class _BatterySwapStationsListScreenState
                   _buildStationCard(context, theme, ref, response.content[index]),
             ),
           )
-        else ...[
+        else
           Expanded(
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Location')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Batteries')),
-                  DataColumn(label: Text('Piles')),
-                  DataColumn(label: Text('Trust')),
-                  DataColumn(label: Text('Pending CRs')),
-                  DataColumn(label: Text('Actions')),
-                ],
-              rows: response.content.map((station) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(station.name ?? 'Unnamed',
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w500)),
-                          if (station.pendingCRs > 0)
-                            Container(
-                              margin: const EdgeInsets.only(top: 2),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                                border:
-                                    Border.all(color: Colors.orange, width: 1),
-                              ),
-                              child: Text('${station.pendingCRs} pending',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                      color: Colors.orange.shade700,
-                                      fontWeight: FontWeight.w600)),
-                            ),
-                        ],
-                      ),
-                    ),
-                    DataCell(SizedBox(
-                        width: 180,
-                        child: Text(station.address ?? 'N/A',
-                            overflow: TextOverflow.ellipsis))),
-                    DataCell(_buildStatusChip(theme, station)),
-                    DataCell(Text(
-                        station.totalBatteries != null
-                            ? '${station.availableBatteries ?? '?'}/${station.totalBatteries}'
-                            : 'N/A',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _getBatteryColor(
-                                station.availableBatteries,
-                                station.totalBatteries)))),
-                    DataCell(Text(station.totalPiles?.toString() ?? 'N/A')),
-                    DataCell(_buildTrustBadge(theme, station)),
-                    DataCell(Text(station.pendingCRs.toString())),
-                    DataCell(Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            icon: const Icon(Icons.visibility, size: 20),
-                            onPressed: () => context
-                                .push('/battery-swap-stations/${station.id}'),
-                            tooltip: 'View Details'),
-                        IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
-                            onPressed: () => context
-                                .push('/battery-swap-stations/${station.id}'),
-                            tooltip: 'Edit'),
-                        IconButton(
-                            icon: const Icon(Icons.delete, size: 20),
-                            onPressed: () =>
-                                _showDeleteDialog(context, ref, station),
-                            tooltip: 'Delete',
-                            color: Colors.red),
-                      ],
-                    )),
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Name')),
+                    DataColumn(label: Text('Location')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Batteries')),
+                    DataColumn(label: Text('Piles')),
+                    DataColumn(label: Text('Trust')),
+                    DataColumn(label: Text('Pending CRs')),
+                    DataColumn(label: Text('Actions')),
                   ],
-                );
-              }).toList(),
+                  rows: response.content.map((station) {
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(station.name ?? 'Unnamed',
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w500)),
+                              if (station.pendingCRs > 0)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                        color: Colors.orange, width: 1),
+                                  ),
+                                  child: Text('${station.pendingCRs} pending',
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                          color: Colors.orange.shade700,
+                                          fontWeight: FontWeight.w600)),
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(SizedBox(
+                            width: 180,
+                            child: Text(station.address ?? 'N/A',
+                                overflow: TextOverflow.ellipsis))),
+                        DataCell(_buildStatusChip(theme, station)),
+                        DataCell(Text(
+                            station.totalBatteries != null
+                                ? '${station.availableBatteries ?? '?'}/${station.totalBatteries}'
+                                : 'N/A',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getBatteryColor(
+                                    station.availableBatteries,
+                                    station.totalBatteries)))),
+                        DataCell(Text(station.totalPiles?.toString() ?? 'N/A')),
+                        DataCell(_buildTrustBadge(theme, station)),
+                        DataCell(Text(station.pendingCRs.toString())),
+                        DataCell(Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                                icon: const Icon(Icons.visibility, size: 20),
+                                onPressed: () => context
+                                    .push('/battery-swap-stations/${station.id}'),
+                                tooltip: 'View Details'),
+                            IconButton(
+                                icon: const Icon(Icons.edit, size: 20),
+                                onPressed: () => context
+                                    .push('/battery-swap-stations/${station.id}'),
+                                tooltip: 'Edit'),
+                            IconButton(
+                                icon: const Icon(Icons.delete, size: 20),
+                                onPressed: () =>
+                                    _showDeleteDialog(context, ref, station),
+                                tooltip: 'Delete',
+                                color: Colors.red),
+                          ],
+                        )),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
           ),
-        ),
         if (response.totalPages > 1)
           _buildPagination(context, theme, ref, response),
       ],
@@ -564,8 +566,7 @@ class _BatterySwapStationsListScreenState
             backgroundColor: Colors.green,
           ),
         );
-        ref.invalidate(
-            batterySwapStationsProvider((page: 0, size: 20, search: null)));
+        ref.invalidate(batterySwapStationsProvider);
       }
     } catch (e) {
       if (context.mounted) {

@@ -6,7 +6,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_ui/shared_ui.dart';
 import 'package:shared_network/shared_network.dart';
+import 'package:shared_auth/shared_auth.dart';
 import '../providers/station_providers.dart';
+import '../providers/routing_provider.dart';
 import '../widgets/main_scaffold.dart';
 
 /// Recommendation Screen - Find optimal charging stations
@@ -79,16 +81,31 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
       return;
     }
 
+    final batteryCapacity = double.tryParse(_batteryCapacityController.text) ?? 60;
+    final targetPercent = int.tryParse(_targetPercentController.text) ?? 80;
+    final consumption = double.tryParse(_consumptionController.text) ?? 0.18;
+    final maxCharge = double.tryParse(_vehicleMaxChargeKwController.text) ?? 120;
+
+    // Persist vehicle settings for routing — will be used on next route calculation
+    final settings = VehicleSettings(
+      batteryPercent: _batteryPercent.round(),
+      vehicleRangeKm: 300, // vehicleRangeKm is estimated; use default
+      batteryCapacityKwh: batteryCapacity,
+      vehicleMaxChargeKw: maxCharge,
+      consumptionKwhPerKm: consumption,
+    );
+    ref.read(routingProvider.notifier).setVehicleSettings(settings);
+
     final params = RecommendationParams(
       lat: _currentLocation!.latitude,
       lng: _currentLocation!.longitude,
       radiusKm: _radiusKm,
       batteryPercent: _batteryPercent.round(),
-      batteryCapacityKwh: double.parse(_batteryCapacityController.text),
-      targetPercent: int.tryParse(_targetPercentController.text),
-      consumptionKwhPerKm: double.tryParse(_consumptionController.text),
+      batteryCapacityKwh: batteryCapacity,
+      targetPercent: targetPercent,
+      consumptionKwhPerKm: consumption,
       averageSpeedKmph: double.tryParse(_averageSpeedController.text),
-      vehicleMaxChargeKw: double.tryParse(_vehicleMaxChargeKwController.text),
+      vehicleMaxChargeKw: maxCharge,
       limit: 10,
     );
 
@@ -745,51 +762,30 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Breakdown
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildBreakdownItem(
-                      context,
-                      theme,
-                      'Travel',
-                      '$travelMinutes min',
-                      FontAwesomeIcons.car,
-                    ),
-                    Container(
-                      width: 1,
-                      height: 60,
-                      color: theme.colorScheme.outline.withOpacity(0.3),
-                    ),
-                    _buildBreakdownItem(
-                      context,
-                      theme,
-                      'Charging',
-                      '$chargeMinutes min',
-                      FontAwesomeIcons.bolt,
-                    ),
-                  ],
-                ),
-              ),
+              // Breakdown — responsive: column on narrow screens, row on wide
+              MediaQuery.of(context).size.width > 480
+                  ? _buildBreakdownRow(theme, travelMinutes, chargeMinutes)
+                  : _buildBreakdownColumn(theme, travelMinutes, chargeMinutes),
               const SizedBox(height: 12),
-              // Actions
-              Row(
+              // Actions — use Wrap so buttons flow on narrow screens
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width > 600
+                        ? null
+                        : double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => context.push('/stations/$stationId'),
                       icon: const FaIcon(FontAwesomeIcons.circleInfo, size: 14),
                       label: const Text('View details'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width > 600
+                        ? null
+                        : double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () => context.push(
                         '/bookings/create?stationId=$stationId&stationName=${Uri.encodeComponent(name)}',
@@ -798,8 +794,10 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
                       label: const Text('Book port'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width > 600
+                        ? null
+                        : double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => _showSmartTimeSuggestions(context, result),
                       icon: const FaIcon(FontAwesomeIcons.clockRotateLeft, size: 14),
@@ -815,8 +813,51 @@ class _RecommendationScreenState extends ConsumerState<RecommendationScreen> {
     );
   }
 
+  Widget _buildBreakdownRow(ThemeData theme, int travelMinutes, int chargeMinutes) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildBreakdownItem(theme, 'Travel', '$travelMinutes min', FontAwesomeIcons.car),
+          Container(
+            width: 1,
+            height: 60,
+            color: theme.colorScheme.outline.withOpacity(0.3),
+          ),
+          _buildBreakdownItem(theme, 'Charging', '$chargeMinutes min', FontAwesomeIcons.bolt),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreakdownColumn(ThemeData theme, int travelMinutes, int chargeMinutes) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          _buildBreakdownItem(theme, 'Travel', '$travelMinutes min', FontAwesomeIcons.car),
+          SizedBox(height: 8),
+          Container(
+            height: 1,
+            color: theme.colorScheme.outline.withOpacity(0.3),
+          ),
+          SizedBox(height: 8),
+          _buildBreakdownItem(theme, 'Charging', '$chargeMinutes min', FontAwesomeIcons.bolt),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBreakdownItem(
-    BuildContext context,
     ThemeData theme,
     String label,
     String value,

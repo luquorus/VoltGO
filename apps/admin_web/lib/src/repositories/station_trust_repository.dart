@@ -15,12 +15,8 @@ class StationTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.getStationTrust(stationId);
-      return StationTrust.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to get station trust: $e');
-    }
+    final response = await factory.admin.getStationTrust(stationId);
+    return StationTrust.fromJson(response);
   }
 
   /// Recalculate station trust
@@ -30,12 +26,8 @@ class StationTrustRepository {
       throw Exception('API client not initialized');
     }
 
-    try {
-      final response = await factory.admin.recalculateStationTrust(stationId);
-      return StationTrust.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to recalculate station trust: $e');
-    }
+    final response = await factory.admin.recalculateStationTrust(stationId);
+    return StationTrust.fromJson(response);
   }
 }
 

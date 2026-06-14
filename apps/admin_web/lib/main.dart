@@ -32,7 +32,21 @@ void main() async {
         }),
         // Setup ApiClientFactory
         apiClientFactoryProvider.overrideWith((ref) {
-          return ApiClientFactory.create(ref, baseUrl: baseUrl);
+          return ApiClientFactory.create(
+            ref,
+            baseUrl: baseUrl,
+            // Auto-logout on 401: clear local session so the router
+            // bounces the user back to /login instead of showing
+            // EVS-0401 as a regular error.
+            onUnauthorized: () {
+              try {
+                ref.read(authStateNotifierProvider.notifier).logout();
+              } catch (_) {
+                // Interceptor context: never let this callback break
+                // request rejection.
+              }
+            },
+          );
         }),
       ],
       child: const AdminWebApp(),

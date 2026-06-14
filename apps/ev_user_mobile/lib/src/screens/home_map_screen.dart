@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
+import 'package:shared_auth/shared_auth.dart';
 import '../providers/station_providers.dart';
 import '../providers/routing_provider.dart';
 import '../widgets/station_marker.dart';
@@ -182,7 +183,28 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
 
   void _onDestinationSelected(PlaceSuggestion suggestion) {
     _destinationController.text = suggestion.shortName;
+    _ensureBatteryInfo();
     ref.read(routingProvider.notifier).selectDestination(suggestion);
+    setState(() {
+      _mapFitBoundsVersion++;
+    });
+  }
+
+  void _ensureBatteryInfo() {
+    final routingState = ref.read(routingProvider);
+    if (routingState.batteryPercent == null || routingState.vehicleRangeKm == null) {
+      // No battery info set yet — show dialog as overlay
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showBatterySetupIfNeeded(context, routingState);
+      });
+    }
+  }
+
+  void _onLongPressWithBatterySetup(LatLng point) {
+    _ensureBatteryInfo();
+    ref.read(routingProvider.notifier).selectDestinationByLongPress(point);
+    ref.read(routingProvider.notifier).hideSuggestions();
+    _destinationController.text = 'Long press location';
     setState(() {
       _mapFitBoundsVersion++;
     });
@@ -233,12 +255,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
               duration: const Duration(seconds: 1),
             ),
           );
-          ref.read(routingProvider.notifier).selectDestinationByLongPress(point);
-          ref.read(routingProvider.notifier).hideSuggestions();
-          _destinationController.text = 'Long press location';
-          setState(() {
-            _mapFitBoundsVersion++;
-          });
+          _onLongPressWithBatterySetup(point);
         },
         onMapEvent: (event) {
           // Map event handling
@@ -1044,7 +1061,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
       ),
       builder: (ctx) => _BatterySetupSheet(
         currentBattery: routingState.batteryPercent ?? 50,
-        currentRange: routingState.vehicleRangeKm ?? 400,
+        currentRange: routingState.vehicleRangeKm ?? 300,
       ),
     );
 
@@ -1059,6 +1076,36 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
           _mapFitBoundsVersion++;
         });
         ref.read(routingProvider.notifier).selectDestinationByCoordinates(routingState.destination!);
+      }
+    }
+  }
+
+  Future<void> _showBatterySetupIfNeeded(BuildContext context, RoutingState routingState) async {
+    // Only show if battery info is truly missing (not just defaults)
+    if (routingState.batteryPercent == null && routingState.vehicleRangeKm == null) {
+      // First time routing without battery info — prompt user to set it
+      final result = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => _BatterySetupSheet(
+          currentBattery: 50,
+          currentRange: 300,
+        ),
+      );
+
+      if (result != null && mounted) {
+        final battery = result['battery'] as int;
+        final range = result['range'] as double;
+        ref.read(routingProvider.notifier).setBatteryInfo(battery, range);
+
+        // Re-calculate route with battery info
+        if (routingState.destination != null) {
+          setState(() => _mapFitBoundsVersion++);
+          ref.read(routingProvider.notifier).selectDestinationByCoordinates(routingState.destination!);
+        }
       }
     }
   }
@@ -1993,7 +2040,7 @@ class BatterySwapMapMarker extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: const Color(0xFF00897B),
+        color: const Color(0xFF00695C),
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
@@ -2006,7 +2053,7 @@ class BatterySwapMapMarker extends StatelessWidget {
       ),
       child: const Center(
         child: FaIcon(
-          FontAwesomeIcons.carBattery,
+          FontAwesomeIcons.batteryFull,
           color: Colors.white,
           size: 14,
         ),

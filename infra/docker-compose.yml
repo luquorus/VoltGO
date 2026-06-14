@@ -58,7 +58,7 @@ services:
       dockerfile: Dockerfile
     container_name: voltgo-backend
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       JAVA_TOOL_OPTIONS: "-Dspring.main.banner-mode=log"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432

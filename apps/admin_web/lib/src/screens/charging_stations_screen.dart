@@ -12,7 +12,7 @@ class ChargingStationsScreen extends StatelessWidget {
     return AdminScaffold(
       title: 'Charging Stations',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: const ChargingStationsListScreen(),
       ),
     );

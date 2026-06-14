@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-/// Custom station marker widget (circular with lightning bolt).
-/// [isBatterySwap] uses a distinct style for trạm có dịch vụ đổi pin.
+/// Custom station marker widget (circular with icon).
+/// [isBatterySwap] uses a distinct darker teal style for trạm đổi pin.
 class StationMarker extends StatelessWidget {
   final bool isBatterySwap;
 
@@ -10,8 +10,9 @@ class StationMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isBatterySwap ? const Color(0xFF00897B) : const Color(0xFF4CAF50);
-    final icon = isBatterySwap ? FontAwesomeIcons.carBattery : FontAwesomeIcons.bolt;
+    // Charging: bolt icon, medium green. Battery swap: battery icon, darker teal.
+    final bg = isBatterySwap ? const Color(0xFF00695C) : const Color(0xFF4CAF50);
+    final icon = isBatterySwap ? FontAwesomeIcons.batteryFull : FontAwesomeIcons.bolt;
     return Container(
       width: 28,
       height: 28,

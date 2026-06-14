@@ -12,7 +12,7 @@ class BatterySwapStationsScreen extends StatelessWidget {
     return AdminScaffold(
       title: 'Battery Swap Stations',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: const BatterySwapStationsListScreen(),
       ),
     );

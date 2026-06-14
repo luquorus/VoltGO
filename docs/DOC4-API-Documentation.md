@@ -15,17 +15,30 @@
 | **Public endpoints** | Auth, public station listing, public swap station info, file downloads |
 | **Rate limiting** | Not implemented in current build |
 
+### API Client Factory
+
+All typed API clients are defined in `apps/shared/shared_api/lib/src/api_client_factory.dart`:
+
+```
+ApiClientFactory
+├── auth        → /auth/**
+├── ev          → /api/ev/**
+├── collabMobile → /api/collab/mobile/**
+├── collabWeb   → /api/collab/web/**
+├── admin       → /api/admin/**
+└── public      → /api/public/**
+```
+
 ---
 
 ## 4.2 Authentication Endpoints
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Authenticate with email/password, returns JWT | No |
-| `POST` | `/api/auth/register` | Register new EV user account | No |
-| `POST` | `/api/auth/refresh` | Refresh JWT token | Yes (refresh token) |
+| `POST` | `/auth/login` | Authenticate with email/password, returns JWT | No |
+| `POST` | `/auth/register` | Register new EV user account | No |
 
-**`POST /api/auth/login`**
+**`POST /auth/login`**
 
 Request:
 ```json
@@ -45,7 +58,7 @@ Response (200):
 }
 ```
 
-**`POST /api/auth/register`**
+**`POST /auth/register`**
 
 Request:
 ```json
@@ -59,191 +72,116 @@ Request:
 
 ---
 
-## 4.3 EV User Mobile API — Station & Search
+## 4.3 Public API Endpoints
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/stations/nearby` | Get nearby stations by lat/lng/radius | Yes (EV_USER) |
-| `GET` | `/api/stations/{id}` | Get station detail by ID | Yes (EV_USER) |
-| `GET` | `/api/stations/{id}/availability` | Get charger unit availability | Yes (EV_USER) |
-| `GET` | `/api/stations/search` | Search stations by name | Yes (EV_USER) |
+| `GET` | `/api/public/battery-swap/stations` | Get all battery swap stations | No |
+| `GET` | `/api/public/battery-swap/stations/{stationId}` | Get swap station detail | No |
+| `GET` | `/api/public/battery-swap/stations/{stationId}/piles` | Get station piles | No |
+| `GET` | `/api/public/battery-swap/stations/{stationId}/active-code` | Get active swap code | No |
+| `POST` | `/api/public/registration-requests` | Submit collaborator registration | No |
+| `GET` | `/api/public/registration-requests/{id}` | Get registration status | No |
 
-**`GET /api/stations/nearby?latitude=X&longitude=Y&radius=Z`**
+---
 
-Response (200):
-```json
-[
-  {
-    "id": "uuid",
-    "name": "Trạm sạc A",
-    "address": "123 Đường ABC, Quận 1",
-    "latitude": 10.7628,
-    "longitude": 106.6816,
-    "distanceMeters": 450,
-    "services": ["AC_NORMAL", "DC_FAST"],
-    "minPricePerKwh": 2500,
-    "trustScore": 85.5,
-    "rating": 4.2
-  }
-]
-```
+## 4.4 EV User Mobile API — Stations
 
-**`GET /api/stations/{id}/availability`**
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/ev/stations` | Get nearby stations by lat/lng/radius | Yes (EV_USER) |
+| `GET` | `/api/ev/stations/{stationId}` | Get station detail | Yes (EV_USER) |
+| `GET` | `/api/ev/stations/{stationId}/charger-units` | Get charger units | Yes (EV_USER) |
+| `GET` | `/api/ev/stations/{stationId}/availability` | Get availability by date | Yes (EV_USER) |
+| `GET` | `/api/ev/stations/search/by-name` | Search stations by name | Yes (EV_USER) |
+| `POST` | `/api/ev/stations/{stationId}/issues` | Report station issue | Yes (EV_USER) |
+
+**`GET /api/ev/stations?lat=X&lng=Y&radiusKm=Z`**
+
+Query params: `lat`, `lng`, `radiusKm`, `minPowerKw`, `hasAC`, `page`, `size`
 
 Response (200):
 ```json
 {
-  "stationId": "uuid",
-  "date": "2024-12-20",
-  "chargerUnits": [
+  "content": [
     {
-      "unitId": "uuid",
-      "name": "Unit 1",
-      "powerKw": 22.0,
-      "pricePerSlot": 15000,
-      "slots": [
-        { "startTime": "08:00", "endTime": "08:30", "status": "AVAILABLE" },
-        { "startTime": "08:30", "endTime": "09:00", "status": "OCCUPIED" }
-      ]
+      "id": "uuid",
+      "name": "Trạm sạc A",
+      "address": "123 Đường ABC, Quận 1",
+      "latitude": 10.7628,
+      "longitude": 106.6816,
+      "services": ["AC_NORMAL", "DC_FAST"],
+      "trustScore": 85.5
     }
-  ]
+  ],
+  "totalElements": 100,
+  "totalPages": 5
 }
 ```
 
+**`GET /api/ev/stations/{stationId}/availability`**
+
+Query params: `date` (YYYY-MM-DD), `tz`, `slotMinutes`, `powerType`, `minPowerKw`
+
 ---
 
-## 4.4 EV User Mobile API — Booking
+## 4.5 EV User Mobile API — Booking
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/bookings` | Create a new booking (HOLD state, 15-min expiry) | Yes (EV_USER) |
-| `POST` | `/api/bookings/{id}/confirm` | Confirm a HOLD booking (triggers payment) | Yes (EV_USER) |
-| `POST` | `/api/bookings/{id}/cancel` | Cancel a booking | Yes (EV_USER) |
-| `GET` | `/api/bookings/{id}` | Get booking detail | Yes (EV_USER) |
-| `GET` | `/api/bookings/my` | Get current user's bookings (paginated) | Yes (EV_USER) |
+| `POST` | `/api/ev/bookings` | Create booking (HOLD state) | Yes (EV_USER) |
+| `GET` | `/api/ev/bookings/mine` | Get user's bookings (paginated) | Yes (EV_USER) |
+| `GET` | `/api/ev/bookings/{id}` | Get booking detail | Yes (EV_USER) |
+| `POST` | `/api/ev/bookings/{id}/cancel` | Cancel booking | Yes (EV_USER) |
+| `POST` | `/api/ev/bookings/{id}/payment-intent` | Create payment intent | Yes (EV_USER) |
+| `POST` | `/api/ev/payments/{intentId}/simulate-success` | Mock payment success | Yes (EV_USER) |
+| `POST` | `/api/ev/payments/{intentId}/simulate-fail` | Mock payment fail | Yes (EV_USER) |
 
-**`POST /api/bookings`**
+---
+
+## 4.6 EV User Mobile API — Battery Swap
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/ev/battery-swap/stations` | Get nearby swap stations | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap/stations/{stationId}` | Get swap station detail | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations` | Reserve a battery swap | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations/{id}/confirm-arrival` | Confirm arrival | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations/{id}/start` | Start swap (generates 6-digit code) | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations/{id}/confirm` | Confirm swap completion | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations/{id}/cancel` | Cancel reservation | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap/reservations/{id}/pay` | Pay for swap (mock) | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap/reservations/mine` | Get user's reservations | Yes (EV_USER) |
+
+**`POST /api/ev/battery-swap/reservations`**
 
 Request:
 ```json
 {
   "stationId": "uuid",
-  "chargerUnitId": "uuid",
-  "startTime": "2024-12-20T10:00:00Z",
-  "endTime": "2024-12-20T11:00:00Z",
-  "voucherCode": "SUMMER20"
-}
-```
-
-Response (201):
-```json
-{
-  "id": "uuid",
-  "status": "HOLD",
-  "holdExpiresAt": "2024-12-20T09:15:00Z",
-  "price": 30000,
-  "stationName": "Trạm sạc A",
-  "startTime": "2024-12-20T10:00:00Z",
-  "endTime": "2024-12-20T11:00:00Z"
+  "expectedArrivalAt": "2024-12-20T10:00:00Z",
+  "requestedBatteryPercent": 80,
+  "batteryCapacityKwh": 50.0,
+  "note": "..."
 }
 ```
 
 ---
 
-## 4.5 EV User Mobile API — Battery Swap
+## 4.7 EV User Mobile API — Change Requests & Issues
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/battery-swap/stations/nearby` | Get nearby swap stations | Yes (EV_USER) |
-| `POST` | `/api/battery-swap/reservations` | Reserve a battery swap | Yes (EV_USER) |
-| `POST` | `/api/battery-swap/reservations/{id}/confirm-arrival` | Confirm arrival at station | Yes (EV_USER) |
-| `POST` | `/api/battery-swap/reservations/{id}/start` | Start swap (generates 6-digit code) | Yes (EV_USER) |
-| `POST` | `/api/battery-swap/reservations/{id}/pay` | Pay for swap (mock) | Yes (EV_USER) |
-| `POST` | `/api/battery-swap/reservations/{id}/cancel` | Cancel reservation | Yes (EV_USER) |
-| `GET` | `/api/battery-swap/reservations/{id}` | Get reservation detail | Yes (EV_USER) |
-| `GET` | `/api/battery-swap/reservations/my` | Get user's reservations | Yes (EV_USER) |
-
-**`POST /api/battery-swap/reservations`**
-
-Request:
-```json
-{
-  "stationId": "uuid"
-}
-```
-
-Response (201):
-```json
-{
-  "id": "uuid",
-  "status": "RESERVED",
-  "stationName": "Trạm đổi pin B",
-  "slotId": "uuid",
-  "basePriceVnd": 5000,
-  "expiresAt": "2024-12-20T09:30:00Z"
-}
-```
-
-**`POST /api/battery-swap/reservations/{id}/start`**
-
-Response (200):
-```json
-{
-  "swapCode": "123456",
-  "expiresAt": "2024-12-20T10:00:00Z",
-  "message": "Show this code to the hardware display"
-}
-```
-
----
-
-## 4.6 EV User Mobile API — Change Request & Issues
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `POST` | `/api/change-requests` | Submit a station change request | Yes (EV_USER) |
-| `GET` | `/api/change-requests/my` | Get user's change requests | Yes (EV_USER) |
-| `POST` | `/api/issues` | Report a station issue | Yes (EV_USER) |
-| `GET` | `/api/issues/my` | Get user's reported issues | Yes (EV_USER) |
-
-**`POST /api/change-requests`**
-
-Request:
-```json
-{
-  "stationId": "uuid",
-  "changeType": "UPDATE_STATION",
-  "proposedData": {
-    "name": "Trạm sạc A (updated)",
-    "operatingHours": "06:00-23:00"
-  }
-}
-```
-
-**`POST /api/issues`**
-
-Request:
-```json
-{
-  "stationId": "uuid",
-  "category": "BROKEN_CHARGER",
-  "description": "Charger unit 2 is not working"
-}
-```
-
----
-
-## 4.7 EV User Mobile API — Loyalty
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/loyalty/profile` | Get current user's loyalty profile (points, tier) | Yes (EV_USER) |
-| `GET` | `/api/loyalty/points/history` | Get points transaction history | Yes (EV_USER) |
-| `GET` | `/api/loyalty/badges` | Get all badges with progress | Yes (EV_USER) |
-| `GET` | `/api/loyalty/vouchers` | Get available vouchers | Yes (EV_USER) |
-| `POST` | `/api/loyalty/vouchers/{id}/redeem` | Redeem points for a voucher | Yes (EV_USER) |
-| `POST` | `/api/loyalty/referrals` | Create a referral link | Yes (EV_USER) |
-| `POST` | `/api/loyalty/referrals/apply` | Apply referral code on registration | Yes (EV_USER) |
+| `POST` | `/api/ev/change-requests` | Submit station change request | Yes (EV_USER) |
+| `GET` | `/api/ev/change-requests/mine` | Get user's change requests | Yes (EV_USER) |
+| `GET` | `/api/ev/change-requests/{id}` | Get CR detail | Yes (EV_USER) |
+| `POST` | `/api/ev/change-requests/{id}/submit` | Submit CR for review | Yes (EV_USER) |
+| `PUT` | `/api/ev/change-requests/{id}` | Update CR draft | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap-change-requests` | Submit battery swap CR | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap-change-requests` | Get battery swap CRs | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap-change-requests/{id}` | Get battery swap CR detail | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap-change-requests/{id}/submit` | Submit battery swap CR | Yes (EV_USER) |
+| `GET` | `/api/ev/issues/mine` | Get user's reported issues | Yes (EV_USER) |
 
 ---
 
@@ -251,305 +189,289 @@ Request:
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/ai/recommendations` | Get personalized recommendations | Yes (EV_USER) |
-| `GET` | `/api/ai/smart-time` | Get smart charging time suggestions | Yes (EV_USER) |
+| `POST` | `/api/ev/ai/personalized-recommendations` | Get personalized recommendations | Yes (EV_USER) |
+| `POST` | `/api/ev/ai/smart-time-suggestions` | Get smart charging time suggestions | Yes (EV_USER) |
 
-**`GET /api/ai/recommendations?latitude=X&longitude=Y&batteryLevel=Z&targetLevel=W`**
-
-Response (200):
-```json
-{
-  "recommendations": [
-    {
-      "stationId": "uuid",
-      "stationName": "Trạm sạc A",
-      "distanceMeters": 500,
-      "estimatedChargeMinutes": 45,
-      "estimatedTotalMinutes": 65,
-      "trustScore": 88.5,
-      "matchScore": 92.0,
-      "preferredSlotStart": "2024-12-20T14:00:00Z"
-    }
-  ]
-}
-```
-
----
-
-## 4.9 EV User Mobile API — Profile & Misc
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/users/me` | Get current user profile | Yes (EV_USER) |
-| `PUT` | `/api/users/me` | Update current user profile | Yes (EV_USER) |
-| `PUT` | `/api/users/me/password` | Change password | Yes (EV_USER) |
-| `PUT` | `/api/users/me/fcm-token` | Update FCM push token | Yes (EV_USER) |
-| `GET` | `/api/notifications` | Get user notifications | Yes (EV_USER) |
-| `PUT` | `/api/notifications/{id}/read` | Mark notification as read | Yes (EV_USER) |
-| `GET` | `/api/stations/{id}/rate` | Check if user can rate a station | Yes (EV_USER) |
-| `POST` | `/api/stations/{id}/rate` | Submit a station rating | Yes (EV_USER) |
-
----
-
-## 4.10 Collaborator Mobile API
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/collaborator/tasks` | Get assigned verification tasks | Yes (COLLABORATOR) |
-| `POST` | `/api/collaborator/tasks/{id}/checkin` | GPS check-in for a task | Yes (COLLABORATOR) |
-| `POST` | `/api/collaborator/tasks/{id}/evidence` | Upload verification photo evidence | Yes (COLLABORATOR) |
-| `POST` | `/api/collaborator/tasks/{id}/submit` | Submit verification review | Yes (COLLABORATOR) |
-| `GET` | `/api/collaborator/contracts` | Get collaborator contracts | Yes (COLLABORATOR) |
-| `GET` | `/api/collaborator/notifications` | Get collaborator notifications | Yes (COLLABORATOR) |
-
-**`POST /api/collaborator/tasks/{id}/checkin`**
+**`POST /api/ev/ai/personalized-recommendations`**
 
 Request:
 ```json
 {
   "latitude": 10.7628,
-  "longitude": 106.6816
-}
-```
-
-Response (200):
-```json
-{
-  "checkinId": "uuid",
-  "distanceMeters": 8.5,
-  "withinRange": true,
-  "message": "Check-in successful"
+  "longitude": 106.6816,
+  "batteryPercent": 30,
+  "targetPercent": 80,
+  "batteryCapacityKwh": 50.0
 }
 ```
 
 ---
 
-## 4.11 Collaborator Web API
+## 4.9 EV User Mobile API — Loyalty
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/collab-web/profile` | Get collaborator profile | Yes (COLLABORATOR) |
-| `PUT` | `/api/collab-web/profile` | Update collaborator profile | Yes (COLLABORATOR) |
-| `POST` | `/api/collab-web/contracts` | Create new contract | Yes (COLLABORATOR) |
-| `GET` | `/api/collab-web/notifications` | Get notifications | Yes (COLLABORATOR) |
+| `GET` | `/api/ev/loyalty/me` | Get current user's loyalty profile | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/points/history` | Get points transaction history (paginated) | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/ratings/eligible` | Get stations eligible for rating | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/ratings` | Get current user's ratings | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/ratings` | Submit station rating | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/ratings/{id}/helpful` | Mark rating as helpful | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/badges` | Get earned badges | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/badges/available` | Get all badges with progress | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/referral/generate` | Generate referral code | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/public/stations/{stationId}/ratings` | Get public station ratings (paginated) | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/public/stations/{stationId}/summary` | Get station rating summary | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/vouchers` | Get available vouchers | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/vouchers/mine` | Get user's redeemed vouchers (paginated) | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/vouchers/{definitionId}/redeem` | Redeem voucher | Yes (EV_USER) |
+| `GET` | `/api/ev/loyalty/vouchers/redemptions/{redemptionId}` | Get redemption detail | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/vouchers/redemptions/{redemptionId}/apply-to-booking` | Apply voucher to booking | Yes (EV_USER) |
+| `POST` | `/api/ev/loyalty/vouchers/redemptions/{redemptionId}/apply-to-swap` | Apply voucher to swap | Yes (EV_USER) |
 
 ---
 
-## 4.12 Admin Web API — Dashboard
+## 4.10 EV User Mobile API — Notifications
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/admin/dashboard/stats` | Overall dashboard statistics | Yes (ADMIN) |
-| `GET` | `/api/admin/dashboard/booking-trends` | Booking trends over time | Yes (ADMIN) |
-| `GET` | `/api/admin/dashboard/issue-stats` | Issue breakdown by category | Yes (ADMIN) |
-| `GET` | `/api/admin/dashboard/collaborator-performance` | Collaborator performance summary | Yes (ADMIN) |
-
-**`GET /api/admin/dashboard/stats`**
-
-Response (200):
-```json
-{
-  "totalStations": 120,
-  "activeStations": 98,
-  "pendingStations": 22,
-  "totalBookings": 4521,
-  "activeBookings": 38,
-  "totalUsers": 2340,
-  "newUsersThisMonth": 145,
-  "totalIssues": 67,
-  "openIssues": 12,
-  "averageTrustScore": 78.5
-}
-```
+| `GET` | `/api/ev/notifications` | Get notifications (paginated) | Yes (EV_USER) |
+| `GET` | `/api/ev/notifications/unread-count` | Get unread count | Yes (EV_USER) |
+| `PATCH` | `/api/ev/notifications/{id}/read` | Mark as read | Yes (EV_USER) |
+| `PATCH` | `/api/ev/notifications/read-all` | Mark all as read | Yes (EV_USER) |
 
 ---
 
-## 4.13 Admin Web API — Station Management
+## 4.11 EV User Mobile API — File Upload
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/admin/stations` | List all stations (paginated) | Yes (ADMIN) |
+| `POST` | `/api/ev/files/presign-upload` | Get presigned upload URL | Yes (EV_USER) |
+| `GET` | `/api/ev/files/presign-view` | Get presigned view URL | Yes (EV_USER) |
+
+---
+
+## 4.12 Collaborator Mobile API
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/collab/mobile/tasks` | Get assigned tasks | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/tasks/{id}/check-in` | GPS check-in | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/files/presign-upload` | Get presigned upload URL | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/files/upload` | Proxy file upload | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/files/presign-view` | Get presigned view URL | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/mobile/files/view` | Proxy file view (bytes) | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/mobile/tasks/{id}/submit-evidence` | Submit verification evidence | Yes (COLLABORATOR) |
+| `PUT` | `/api/collab/mobile/me/location` | Update GPS location | Yes (COLLABORATOR) |
+| `POST` | `/api/mobile/collab/battery-swap/verification/tasks/{id}/checkin` | Battery swap check-in | Yes (COLLABORATOR) |
+| `POST` | `/api/mobile/collab/battery-swap/verification/tasks/{id}/evidence` | Submit swap verification evidence | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/notifications` | Get notifications | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/notifications/unread-count` | Get unread count | Yes (COLLABORATOR) |
+| `PATCH` | `/api/collab/notifications/{id}/read` | Mark as read | Yes (COLLABORATOR) |
+| `PATCH` | `/api/collab/notifications/read-all` | Mark all as read | Yes (COLLABORATOR) |
+| `POST` | `/api/collab/notifications/push-token` | Register FCM token | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/notifications/preferences` | Get preferences | Yes (COLLABORATOR) |
+| `PUT` | `/api/collab/notifications/preferences` | Save preferences | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/tasks/kpi` | Get monthly KPI | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/me/contracts` | Get contracts | Yes (COLLABORATOR) |
+
+---
+
+## 4.13 Collaborator Web API
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/collab/web/tasks` | Get tasks (paginated) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/tasks/history` | Get task history (paginated) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/tasks/kpi` | Get KPI | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/me/profile` | Get profile | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/me/contracts` | Get contracts | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/files/presign-view` | Get presigned view URL | Yes (COLLABORATOR) |
+| `PUT` | `/api/collab/web/me/location` | Update GPS location | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/battery-swap/tasks` | Get battery swap tasks (paginated) | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/battery-swap/tasks/{id}` | Get battery swap task detail | Yes (COLLABORATOR) |
+| `GET` | `/api/collab/web/battery-swap/kpi` | Get battery swap KPI | Yes (COLLABORATOR) |
+
+---
+
+## 4.14 Admin Web API — Dashboard
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/dashboard/stats` | Overall statistics | Yes (ADMIN) |
+| `GET` | `/api/admin/dashboard/trends` | Booking trends | Yes (ADMIN) |
+| `GET` | `/api/admin/dashboard/booking-stats` | Booking statistics | Yes (ADMIN) |
+| `GET` | `/api/admin/dashboard/issue-stats` | Issue statistics | Yes (ADMIN) |
+| `GET` | `/api/admin/dashboard/trust-overview` | Trust overview (paginated) | Yes (ADMIN) |
+
+---
+
+## 4.15 Admin Web API — Station Management
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/stations` | List stations (paginated) | Yes (ADMIN) |
 | `GET` | `/api/admin/stations/{id}` | Get station detail | Yes (ADMIN) |
-| `POST` | `/api/admin/stations` | Create a new station | Yes (ADMIN) |
+| `POST` | `/api/admin/stations` | Create station | Yes (ADMIN) |
 | `PUT` | `/api/admin/stations/{id}` | Update station | Yes (ADMIN) |
 | `DELETE` | `/api/admin/stations/{id}` | Delete station | Yes (ADMIN) |
-| `GET` | `/api/admin/stations/{id}/audit-log` | Get station audit log | Yes (ADMIN) |
-| `POST` | `/api/admin/stations/import` | Bulk import stations from CSV | Yes (ADMIN) |
+| `POST` | `/api/admin/stations/import-csv` | Bulk import CSV | Yes (ADMIN) |
 
 ---
 
-## 4.14 Admin Web API — Change Requests
+## 4.16 Admin Web API — Trust Score Management
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/admin/change-requests` | List all change requests | Yes (ADMIN) |
-| `GET` | `/api/admin/change-requests/{id}` | Get CR detail with station snapshot | Yes (ADMIN) |
-| `POST` | `/api/admin/change-requests/{id}/approve` | Approve and publish CR | Yes (ADMIN) |
-| `POST` | `/api/admin/change-requests/{id}/reject` | Reject CR with reason | Yes (ADMIN) |
-| `POST` | `/api/admin/change-requests/{id}/publish-direct` | Publish changes directly | Yes (ADMIN) |
-
-**`GET /api/admin/change-requests/{id}`**
-
-Response (200):
-```json
-{
-  "id": "uuid",
-  "stationId": "uuid",
-  "changeType": "UPDATE_STATION",
-  "submittedBy": "uuid",
-  "status": "PENDING",
-  "riskScore": 45,
-  "riskLevel": "MEDIUM",
-  "stationData": {
-    "name": "Trạm sạc A",
-    "currentPorts": [...],
-    "proposedPorts": [...]
-  },
-  "auditLog": [
-    { "action": "SUBMITTED", "timestamp": "...", "actor": "..." }
-  ]
-}
-```
+| `GET` | `/api/admin/stations/{stationId}/trust` | Get station trust | Yes (ADMIN) |
+| `POST` | `/api/admin/stations/{stationId}/trust/recalculate` | Recalculate trust | Yes (ADMIN) |
+| `GET` | `/api/admin/stations/trust/summary` | Get trust summary | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/trust/{stationId}` | Get battery swap trust | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/trust/{stationId}/breakdown` | Get trust breakdown | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/trust/{stationId}/level` | Get trust level | Yes (ADMIN) |
+| `POST` | `/api/admin/battery-swap/trust/{stationId}/recalculate` | Recalculate swap trust | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/trust/summary` | Get swap trust summary | Yes (ADMIN) |
 
 ---
 
-## 4.15 Admin Web API — Collaborator Management
+## 4.17 Admin Web API — Change Requests
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/admin/collaborators` | List collaborators (paginated) | Yes (ADMIN) |
-| `GET` | `/api/admin/collaborators/{id}` | Get collaborator detail | Yes (ADMIN) |
-| `GET` | `/api/admin/collaborators/{id}/performance` | Get performance metrics | Yes (ADMIN) |
-| `GET` | `/api/admin/collaborators/{id}/location` | Get collaborator GPS location | Yes (ADMIN) |
-| `GET` | `/api/admin/collaborators/{id}/contracts` | Get collaborator contracts | Yes (ADMIN) |
-| `POST` | `/api/admin/collaborators/{id}/contracts` | Create contract | Yes (ADMIN) |
+| `GET` | `/api/admin/change-requests` | List change requests | Yes (ADMIN) |
+| `GET` | `/api/admin/change-requests/{id}` | Get CR detail | Yes (ADMIN) |
+| `POST` | `/api/admin/change-requests/{id}/approve` | Approve CR | Yes (ADMIN) |
+| `POST` | `/api/admin/change-requests/{id}/reject` | Reject CR | Yes (ADMIN) |
+| `POST` | `/api/admin/change-requests/{id}/publish` | Publish CR directly | Yes (ADMIN) |
+| `GET` | `/api/admin/change-requests/{id}/audit` | Get CR audit log | Yes (ADMIN) |
 
 ---
 
-## 4.16 Admin Web API — Verification Tasks
+## 4.18 Admin Web API — Battery Swap Station Management
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/admin/verification/tasks` | List verification tasks | Yes (ADMIN) |
-| `POST` | `/api/admin/verification/tasks` | Create verification task | Yes (ADMIN) |
-| `GET` | `/api/admin/verification/tasks/{id}` | Get task detail | Yes (ADMIN) |
-| `POST` | `/api/admin/verification/tasks/{id}/assign` | Assign task to collaborator | Yes (ADMIN) |
-| `POST` | `/api/admin/verification/tasks/{id}/review` | Submit review result | Yes (ADMIN) |
-
----
-
-## 4.17 Admin Web API — Trust Score Management
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/admin/trust/overview` | Get trust score overview (paginated) | Yes (ADMIN) |
-| `GET` | `/api/admin/trust/stations/{id}` | Get station trust breakdown | Yes (ADMIN) |
-| `POST` | `/api/admin/trust/stations/{id}/recalculate` | Manually recalculate trust | Yes (ADMIN) |
-| `GET` | `/api/admin/trust/battery-swap/overview` | Get battery swap trust overview | Yes (ADMIN) |
-| `GET` | `/api/admin/trust/battery-swap/stations/{id}` | Get battery swap trust breakdown | Yes (ADMIN) |
-
-**`GET /api/admin/trust/stations/{id}`**
-
-Response (200):
-```json
-{
-  "stationId": "uuid",
-  "stationName": "Trạm sạc A",
-  "overallScore": 85.5,
-  "factors": {
-    "accuracyFactor": 20.0,
-    "uptimeFactor": 18.5,
-    "issueFactor": 17.0,
-    "ratingFactor": 15.0,
-    "verificationFactor": 15.0
-  },
-  "lastCalculatedAt": "2024-12-20T08:00:00Z"
-}
-```
-
----
-
-## 4.18 Admin Web API — Loyalty Administration
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/admin/loyalty/badges` | List all badge definitions | Yes (ADMIN) |
-| `POST` | `/api/admin/loyalty/badges` | Create new badge | Yes (ADMIN) |
-| `PUT` | `/api/admin/loyalty/badges/{id}` | Update badge | Yes (ADMIN) |
-| `GET` | `/api/admin/loyalty/vouchers` | List voucher definitions | Yes (ADMIN) |
-| `POST` | `/api/admin/loyalty/vouchers` | Create voucher definition | Yes (ADMIN) |
-| `PUT` | `/api/admin/loyalty/vouchers/{id}` | Update voucher | Yes (ADMIN) |
-| `GET` | `/api/admin/loyalty/ratings` | List ratings for moderation | Yes (ADMIN) |
-| `POST` | `/api/admin/loyalty/ratings/{id}/moderate` | Approve/reject rating | Yes (ADMIN) |
-| `GET` | `/api/admin/loyalty/leaderboard` | Points leaderboard | Yes (ADMIN) |
-
----
-
-## 4.19 Admin Web API — Registration Requests
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/admin/registration-requests` | List collaborator registration requests | Yes (ADMIN) |
-| `GET` | `/api/admin/registration-requests/{id}` | Get registration request detail | Yes (ADMIN) |
-| `POST` | `/api/admin/registration-requests/{id}/approve` | Approve and create account | Yes (ADMIN) |
-| `POST` | `/api/admin/registration-requests/{id}/reject` | Reject with reason | Yes (ADMIN) |
-
----
-
-## 4.20 Admin Web API — Issue Management
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/admin/issues` | List all issues | Yes (ADMIN) |
-| `GET` | `/api/admin/issues/{id}` | Get issue detail | Yes (ADMIN) |
-| `POST` | `/api/admin/issues/{id}/respond` | Add admin response to issue | Yes (ADMIN) |
-| `POST` | `/api/admin/issues/{id}/resolve` | Mark issue as resolved | Yes (ADMIN) |
-
----
-
-## 4.21 Admin Web API — Battery Swap Management
-
-| Method | Path | Description | Auth Required |
-|---|---|---|---|
-| `GET` | `/api/admin/battery-swap/stations` | List swap stations | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/stations` | List swap stations (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/stations/{stationId}` | Get swap station detail | Yes (ADMIN) |
 | `POST` | `/api/admin/battery-swap/stations` | Create swap station | Yes (ADMIN) |
-| `PUT` | `/api/admin/battery-swap/stations/{id}` | Update swap station | Yes (ADMIN) |
-| `DELETE` | `/api/admin/battery-swap/stations/{id}` | Delete swap station | Yes (ADMIN) |
+| `PUT` | `/api/admin/battery-swap/stations/{stationId}` | Update swap station | Yes (ADMIN) |
+| `DELETE` | `/api/admin/battery-swap/stations/{stationId}` | Delete swap station | Yes (ADMIN) |
+| `POST` | `/api/admin/battery-swap/stations/import-csv` | Bulk import CSV | Yes (ADMIN) |
 | `GET` | `/api/admin/battery-swap/change-requests` | List swap CRs | Yes (ADMIN) |
+| `GET` | `/api/admin/battery-swap/change-requests/{id}` | Get swap CR detail | Yes (ADMIN) |
 | `POST` | `/api/admin/battery-swap/change-requests/{id}/approve` | Approve swap CR | Yes (ADMIN) |
 | `POST` | `/api/admin/battery-swap/change-requests/{id}/reject` | Reject swap CR | Yes (ADMIN) |
+| `POST` | `/api/admin/battery-swap/change-requests/{id}/publish` | Publish swap CR | Yes (ADMIN) |
+| `POST` | `/api/admin/battery-swap/change-requests` | Create swap CR | Yes (ADMIN) |
+| `PUT` | `/api/admin/battery-swap/change-requests/{id}` | Update draft swap CR | Yes (ADMIN) |
 
 ---
 
-## 4.22 File Upload API (Common)
+## 4.19 Admin Web API — Collaborator Management
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/files/presign-upload` | Get presigned upload URL | Yes |
-| `GET` | `/api/files/{key}` | Download file (presigned view URL) | Yes |
-
-**`POST /api/files/presign-upload`**
-
-Request:
-```json
-{
-  "filename": "verification_photo.jpg",
-  "contentType": "image/jpeg",
-  "folder": "verification"
-}
-```
-
-Response (200):
-```json
-{
-  "uploadUrl": "https://minio:9000/voltgo/verification/uuid.jpg?X-Amz-Signature=...",
-  "fileKey": "verification/uuid.jpg"
-}
-```
+| `POST` | `/api/admin/collaborators` | Create collaborator profile | Yes (ADMIN) |
+| `POST` | `/api/admin/collaborators/with-account` | Create account + profile | Yes (ADMIN) |
+| `DELETE` | `/api/admin/collaborators/{id}` | Delete collaborator | Yes (ADMIN) |
+| `GET` | `/api/admin/collaborators` | List collaborators (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/collaborators/{id}` | Get collaborator detail | Yes (ADMIN) |
+| `GET` | `/api/admin/collaborators/performance` | Get performance (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/collaborators/{id}/performance` | Get collaborator performance | Yes (ADMIN) |
 
 ---
 
-## 4.23 WebSocket Endpoints
+## 4.20 Admin Web API — Contract Management
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/admin/contracts` | Create contract | Yes (ADMIN) |
+| `GET` | `/api/admin/contracts` | Get contracts by collaborator | Yes (ADMIN) |
+| `GET` | `/api/admin/contracts/{id}` | Get contract detail | Yes (ADMIN) |
+| `PUT` | `/api/admin/contracts/{id}` | Update contract | Yes (ADMIN) |
+| `POST` | `/api/admin/contracts/{id}/terminate` | Terminate contract | Yes (ADMIN) |
+
+---
+
+## 4.21 Admin Web API — Verification Tasks
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/admin/verification-tasks` | Create verification task | Yes (ADMIN) |
+| `GET` | `/api/admin/verification-tasks` | List tasks (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/verification-tasks/{id}` | Get task detail | Yes (ADMIN) |
+| `POST` | `/api/admin/verification-tasks/{id}/assign` | Assign task | Yes (ADMIN) |
+| `GET` | `/api/admin/verification-tasks/{id}/collaborator-candidates` | Get candidates (paginated) | Yes (ADMIN) |
+| `DELETE` | `/api/admin/verification-tasks/{id}` | Delete task | Yes (ADMIN) |
+| `POST` | `/api/admin/verification-tasks/{id}/review` | Submit review | Yes (ADMIN) |
+
+---
+
+## 4.22 Admin Web API — Issues Management
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/issues` | List issues | Yes (ADMIN) |
+| `GET` | `/api/admin/issues/{id}` | Get issue detail | Yes (ADMIN) |
+| `POST` | `/api/admin/issues/{id}/acknowledge` | Acknowledge issue | Yes (ADMIN) |
+| `POST` | `/api/admin/issues/{id}/resolve` | Resolve issue | Yes (ADMIN) |
+| `POST` | `/api/admin/issues/{id}/reject` | Reject issue | Yes (ADMIN) |
+
+---
+
+## 4.23 Admin Web API — Audit Logs
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/audit` | Query audit logs (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/stations/{stationId}/audit` | Get station audit logs | Yes (ADMIN) |
+| `GET` | `/api/admin/change-requests/{id}/audit` | Get CR audit logs | Yes (ADMIN) |
+
+---
+
+## 4.24 Admin Web API — Registration Requests
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/registration-requests` | List requests (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/registration-requests/{id}` | Get request detail | Yes (ADMIN) |
+| `POST` | `/api/admin/registration-requests/{id}/approve` | Approve (creates account) | Yes (ADMIN) |
+| `POST` | `/api/admin/registration-requests/{id}/reject` | Reject with reason | Yes (ADMIN) |
+| `GET` | `/api/admin/registration-requests/pending-count` | Get pending count | Yes (ADMIN) |
+
+---
+
+## 4.25 Admin Web API — Loyalty Administration
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/loyalty/dashboard` | Get loyalty dashboard stats | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/users` | List loyalty users (paginated) | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/users/{userId}` | Get user loyalty profile | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/users/{userId}/history` | Get point history (paginated) | Yes (ADMIN) |
+| `POST` | `/api/admin/loyalty/users/{userId}/adjust` | Adjust points manually | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/badges` | List all badges | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/ratings` | List ratings (paginated) | Yes (ADMIN) |
+| `PUT` | `/api/admin/loyalty/ratings/{id}/hide` | Hide rating | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/vouchers` | List voucher definitions | Yes (ADMIN) |
+| `POST` | `/api/admin/loyalty/vouchers` | Create voucher definition | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/vouchers/{id}` | Get voucher detail | Yes (ADMIN) |
+| `PATCH` | `/api/admin/loyalty/vouchers/{id}/status` | Update voucher status | Yes (ADMIN) |
+| `DELETE` | `/api/admin/loyalty/vouchers/{id}` | Delete voucher | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/vouchers/{id}/stats` | Get voucher stats | Yes (ADMIN) |
+| `GET` | `/api/admin/loyalty/redemptions` | List redemptions (paginated) | Yes (ADMIN) |
+
+---
+
+## 4.26 Admin Web API — Files
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/admin/files/presign-view` | Get presigned view URL | Yes (ADMIN) |
+
+---
+
+## 4.27 WebSocket Endpoints
 
 | Endpoint | Protocol | Description | Auth |
 |---|---|---|---|
@@ -564,7 +486,7 @@ Server pushes swap codes and slot status updates to connected simulator clients.
 
 ---
 
-## 4.24 Error Response Format
+## 4.28 Error Response Format
 
 All error responses follow this structure:
 
@@ -574,7 +496,7 @@ All error responses follow this structure:
   "status": 400,
   "error": "Bad Request",
   "message": "Charger unit is not available for the selected time slot",
-  "path": "/api/bookings"
+  "path": "/api/ev/bookings"
 }
 ```
 
@@ -584,9 +506,45 @@ Common HTTP status codes used:
 |---|---|
 | 200 | OK |
 | 201 | Created |
+| 204 | No Content (DELETE success) |
 | 400 | Bad Request (validation error) |
 | 401 | Unauthorized (missing/invalid token) |
 | 403 | Forbidden (insufficient role) |
 | 404 | Not Found |
 | 409 | Conflict (e.g., double-booking, slot already taken) |
 | 500 | Internal Server Error |
+
+---
+
+## 4.29 API Count Summary
+
+| Category | Count |
+|---|---|
+| Authentication | 2 |
+| Public | 6 |
+| EV User — Stations | 6 |
+| EV User — Booking | 7 |
+| EV User — Battery Swap | 9 |
+| EV User — Change Requests & Issues | 10 |
+| EV User — AI Recommendations | 2 |
+| EV User — Loyalty | 17 |
+| EV User — Notifications | 4 |
+| EV User — Files | 2 |
+| Collaborator Mobile | 18 |
+| Collaborator Web | 10 |
+| Admin — Dashboard | 5 |
+| Admin — Stations | 5 + 2 CSV |
+| Admin — Trust | 8 |
+| Admin — Change Requests | 6 |
+| Admin — Battery Swap Stations | 13 |
+| Admin — Collaborators | 7 |
+| Admin — Contracts | 5 |
+| Admin — Verification Tasks | 7 |
+| Admin — Issues | 5 |
+| Admin — Audit Logs | 3 |
+| Admin — Registration Requests | 5 |
+| Admin — Loyalty | 14 |
+| Admin — Files | 1 |
+| **Total REST Endpoints** | **~162** |
+
+*Note: Some endpoints share the same path with different HTTP methods, so the total unique route paths is lower than the endpoint count.*

@@ -17,7 +17,7 @@ class HomeScreen extends ConsumerWidget {
     return AdminScaffold(
       title: 'Dashboard',
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -227,7 +227,7 @@ class HomeScreen extends ConsumerWidget {
                       description:
                           'View and recalculate trust scores for each charging station',
                       color: AdminTheme.primaryTeal,
-                      onTap: () => context.push('/stations/trust'),
+                      onTap: () => context.push('/trust/charging'),
                     ),
                     _buildActionCard(
                       context,

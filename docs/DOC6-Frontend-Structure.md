@@ -4,38 +4,22 @@
 
 ## 6.1 Repository Structure
 
-The Flutter code is organized as a monorepo under `apps/` and `shared/`:
+The Flutter code is organized as a monorepo under `apps/` and `apps/shared/`:
 
 ```
 apps/
 ├── admin_web/          # Admin web portal (Flutter web)
 ├── collab_mobile/      # Collaborator mobile app
 ├── ev_user_mobile/     # EV user mobile app
-└── hardware_simulator/ # Hardware display simulator
-shared/
+└── hardware_simulator/  # Hardware display simulator (desktop/web)
+apps/shared/
 ├── shared_ui/          # Reusable widgets, theme, common components
-├── shared_auth/        # Auth state, token storage, auth service
-├── shared_network/     # Dio HTTP client, error interceptors
-└── shared_api/         # Generated API client from OpenAPI spec
+├── shared_auth/         # Auth state, token storage, auth service
+├── shared_network/      # Dio HTTP client, error interceptors
+└── shared_api/         # Typed API client from api_client_factory.dart
 ```
 
-Each app follows the same internal structure:
-
-```
-lib/
-└── src/
-    ├── main.dart           # App entry point
-    ├── app.dart             # MaterialApp configuration
-    ├── models/              # Data classes (freezed/manual)
-    ├── providers/           # Riverpod providers (business logic)
-    ├── repositories/        # Data access layer (calls shared_api)
-    ├── routing/            # GoRouter configuration
-    ├── screens/             # Full-page screens
-    │   └── [feature]/
-    │       ├── screen.dart
-    │       └── widgets/     # Screen-specific widgets
-    └── widgets/             # Shared widgets (also in shared_ui)
-```
+**Note:** There is NO `melos.yaml` in this project. The monorepo is managed by placing all apps and shared packages under the `apps/` directory.
 
 ---
 
@@ -45,9 +29,9 @@ lib/
 
 Provides authentication infrastructure consumed by all apps.
 
-- **`auth_state.dart`** — Defines `AuthState` (userId, email, role, token, status) and `AuthStateNotifier` (Riverpod StateNotifier). Handles login, logout, token refresh.
-- **`token_storage.dart`** — Platform-adaptive token storage using `SharedPreferences` on mobile and `html` `localStorage` on web. Reads `VoltGoEnv.tokenKey` for key name.
-- **`auth_service.dart`** — Dio-based HTTP calls to `/api/auth/login` and `/api/auth/register`. On success, persists token via `TokenStorage` and updates `AuthStateNotifier`.
+- **`auth_service.dart`** — Dio-based HTTP calls to `/auth/login` and `/auth/register`. On success, persists token via `TokenStorage` and updates `AuthStateNotifier`.
+- **`token_storage.dart`** — Platform-adaptive token storage using `SharedPreferences` on mobile and `html` `localStorage` on web. Also handles `vehicle_settings_storage.dart` for vehicle configuration.
+- **`auth_state.dart`** — Defines `AuthState` (userId, email, role, token, status) and `AuthStateNotifier` (Riverpod StateNotifier). Handles login, logout.
 
 ### `shared_network`
 
@@ -64,19 +48,28 @@ Provides the configured Dio HTTP client.
 
 Reusable visual components used across all apps.
 
-- **`theme/app_theme.dart`** — Defines `VoltGoTheme` using Material 3 `ColorScheme.fromSeed`. Primary seed color: `#2E7D32` (green energy theme). Text theme, `ElevatedButtonTheme`, `AppBarTheme`, and `InputDecorationTheme` customized.
-- **`widgets/badges/score_badge.dart`** — Displays trust/risk scores as colored chips (green for high trust, orange for medium, red for low).
-- **`widgets/scaffold/app_scaffold.dart`** — Reusable `Scaffold` with optional `AppBar`, `bottomNavigationBar`, and `body`. Supports a loading overlay state via `isLoading`.
+- **`theme/app_theme.dart`** — Defines `VoltGoTheme` using Material 3 `ColorScheme.fromSeed`. Primary seed color: `#2E7D32` (green energy theme).
+- **`widgets/badges/score_badge.dart`** — Displays trust/risk scores as colored chips.
+- **`widgets/inputs/search_field.dart`** — Reusable search input widget.
+- **`widgets/cards/audit_card.dart`** — Audit log card widget.
+- **`widgets/buttons/primary_button.dart`** — Reusable primary button.
+- **`utils/error_formatter.dart`** — Error formatting utilities.
 
 ### `shared_api`
 
-Auto-generated from OpenAPI spec (via `openapi-generator-cli`). Provides typed API client classes for all endpoints, request DTOs, and response DTOs. All apps depend on this package for type-safe API calls.
+Typed API client classes for all endpoints. All typed methods are defined in `api_client_factory.dart`:
+- `AuthApiClient` — `/auth/**`
+- `EvUserMobileApiClient` — `/api/ev/**`
+- `CollaboratorMobileApiClient` — `/api/collab/mobile/**` and `/api/mobile/collab/**`
+- `CollaboratorWebApiClient` — `/api/collab/web/**`
+- `PublicApiClient` — `/api/public/**`
+- `AdminWebApiClient` — `/api/admin/**`
 
 ---
 
 ## 6.3 State Management — Riverpod
 
-**Architecture pattern:** All app state is managed via Riverpod providers. The pattern is:
+**Architecture pattern:** All app state is managed via Riverpod providers.
 
 1. **Model** (`models/`) — Plain Dart classes representing API responses.
 2. **Repository** (`repositories/`) — Calls `shared_api`, handles raw JSON → model mapping.
@@ -85,18 +78,11 @@ Auto-generated from OpenAPI spec (via `openapi-generator-cli`). Provides typed A
 Example pattern (from `ev_user_mobile`):
 
 ```dart
-// Model
-class NearbyStation {
-  final String id, name, address;
-  final double latitude, longitude, distanceMeters;
-  // ...
-}
-
 // Repository
 class StationRepository {
   final ApiClient _api;
-  Future<List<NearbyStation>> getNearby(double lat, double lng, double radius) async {
-    final response = await _api.getNearbyStations(...);
+  Future<List<NearbyStation>> getNearby(...) async {
+    final response = await _api.ev.getStations(...);
     return NearbyStation.fromJson(response);
   }
 }
@@ -111,264 +97,202 @@ final nearbyStationsProvider = FutureProvider.family<List<NearbyStation>, (doubl
 - `authStateProvider` — Global auth state (token, user info, role).
 - `apiClientProvider` — Configured Dio instance.
 - `tokenStorageProvider` — Platform-adaptive token persistence.
-- Feature-specific providers (e.g., `nearbyStationsProvider`, `bookingListProvider`, `loyaltyProfileProvider`).
+- Feature-specific providers per app.
 
 ---
 
 ## 6.4 Navigation — GoRouter
 
-GoRouter provides declarative routing with role-based guards. The router is configured in each app's `routing/` directory.
+GoRouter provides declarative routing with role-based guards.
 
 **Key features:**
-- **Deep linking:** Routes map directly to URLs (web) or paths (mobile).
-- **Route guards:** `Redirect` callback checks `authStateProvider`. Unauthenticated users redirect to `/login`. Role mismatches redirect to `/unauthorized`.
-- **Shell routes:** Admin web uses nested routes with `ShellRoute` for persistent side navigation.
-- **Path parameters:** `/stations/:id`, `/bookings/:id`, etc.
-
-**Route structure example (admin_web):**
-
-```
-/login
-/
-  /dashboard
-  /stations
-    /stations/list
-    /stations/:id
-    /stations/create
-  /change-requests
-    /change-requests/list
-    /change-requests/:id
-  /collaborators
-  /verification
-  /loyalty
-  /issues
-  /audit-log
-```
-
-**Route structure example (ev_user_mobile):**
-
-```
-/splash
-/login
-/register
-/register?ref=CODE
-/home (tab bar)
-  /map (Tab 1)
-  /bookings (Tab 2)
-  /loyalty (Tab 3)
-  /profile (Tab 4)
-/stations/nearby
-/stations/:id
-/stations/:id/book
-/battery-swap/stations
-/battery-swap/:id/reserve
-/battery-swap/:id/swap-flow
-```
+- Deep linking: Routes map directly to URLs (web) or paths (mobile).
+- Route guards: `Redirect` callback checks `authStateProvider`. Unauthenticated users redirect to `/login`.
+- Shell routes: Admin web uses nested routes with `ShellRoute` for persistent side navigation.
+- Path parameters: `/stations/:id`, `/bookings/:id`, etc.
 
 ---
 
-## 6.5 Navigation Flow Diagram (PlantUML)
-
-```plantuml
-@startuml
-skinparam activity {
-  BackgroundColor #E8F5E9
-  BorderColor #2E7D32
-  FontSize 11
-}
-
-start
-
-:App Launch];
-:Load .env config];
-:Initialize TokenStorage];
-:Check stored JWT token];
-
-if (Token exists?) then (yes)
-  :Validate token];
-  if (Valid & non-expired?) then (yes)
-    :Restore AuthState];
-    :Load role from JWT];
-    if (Role == ADMIN) then (yes)
-      :Redirect to /dashboard];
-    elseif (Role == COLLABORATOR) then (yes)
-      :Redirect to /tasks;
-    else (EV_USER)
-      :Redirect to /home/map;
-    endif
-  else (no)
-    :Redirect to /login;
-  endif
-else (no)
-  :Redirect to /login;
-endif
-
-:Login Screen];
-partition "User enters credentials" {
-  :POST /api/auth/login];
-  if (Success) then (yes)
-    :Store JWT in TokenStorage];
-    :Update AuthStateNotifier];
-    :Redirect based on role];
-  else (no)
-    :Show error message];
-    :Stay on /login;
-  endif
-}
-
-partition "EV User App Flow" {
-  :Home / Map Screen];
-  :Tap station marker];
-  :Station Detail Screen];
-  if (User taps "Book") then (yes)
-    :Availability Screen];
-    :Select time slot];
-    :Confirm Booking;
-    :Booking CONFIRMED;
-  else (no)
-    :Back to Map;
-  endif
-  if (User taps "Battery Swap") then (yes)
-    :Swap Station List];
-    :Reserve Swap;
-    :Confirm Arrival;
-    :Start Swap (receive code);
-    :Hardware verifies code;
-    :Pay (mock);
-    :Swap COMPLETED;
-  endif
-}
-
-partition "Collaborator App Flow" {
-  :Task List Screen];
-  :Accept Task;
-  :Navigate to Station;
-  :GPS Check-in;
-  :Upload Evidence Photos;
-  :Submit Verification;
-}
-
-partition "Admin Web Flow" {
-  :Dashboard Screen];
-  if (Menu: Change Requests) then (yes)
-    :CR List Screen];
-    :Select CR;
-    :Review Risk Score & Details;
-    if (Approve) then (yes)
-      :Publish Changes;
-    else (Reject)
-      :Enter rejection reason;
-    endif
-  endif
-  if (Menu: Collaborators) then (yes)
-    :Collaborator List;
-    :View Performance;
-    :Assign Verification Task;
-  endif
-}
-
-stop
-
-@enduml
-```
-
----
-
-## 6.6 Key Screens by Application
+## 6.5 Key Screens by Application
 
 ### EV User Mobile (`ev_user_mobile`)
 
-| Screen | Description |
-|---|---|
-| **Splash** | App logo, env loading |
-| **Login / Register** | Email+password auth, referral code on register |
-| **Home / Map** | OpenStreetMap with station markers (charging + swap), filter panel |
-| **Station Detail** | Station info, services, availability calendar, trust score badge, book/rate buttons |
-| **Booking Flow** | Time slot selection, price summary, payment (mock), confirmation |
-| **My Bookings** | List of HOLD/CONFIRMED/CANCELLED/EXPIRED bookings |
-| **Battery Swap Stations** | Nearby swap stations with availability |
-| **Swap Reserve** | Reserve flow, arrival confirmation, swap code display |
-| **AI Recommendations** | Personalized station suggestions with estimated times |
-| **Loyalty** | Points, tier, badges, vouchers, referral code |
-| **Profile** | Edit name/phone, change password, FCM token, logout |
+**Screens (29 total):**
+
+| Screen | File | Description |
+|---|---|---|
+| Splash | `splash_screen.dart` | App logo, env loading |
+| Login | `login_screen.dart` | Email+password auth |
+| Register | `register_screen.dart` | Registration with optional referral code |
+| Home Map | `home_map_screen.dart` | OpenStreetMap with station markers, routing |
+| Station Detail | `station_detail_screen.dart` | Station info, availability, book/rate buttons |
+| Booking | `create_booking_with_charger_unit_screen.dart` | Time slot selection and booking |
+| Booking Detail | `booking_detail_screen.dart` | Booking info and actions |
+| Booking List | `booking_list_screen.dart` | List of user bookings |
+| Recommendation | `recommendation_screen.dart` | AI-powered personalized recommendations |
+| Battery Swap | `battery_swap_screen.dart` | Swap stations list |
+| Battery Swap Reservation | `battery_swap_reservation_screen.dart` | Reserve flow |
+| Battery Swap Booking Sheet | `battery_swap_booking_sheet.dart` | Swap booking bottom sheet |
+| Battery Swap CR Detail | `battery_swap_change_request_detail_screen.dart` | Swap CR detail |
+| Change Request List | `change_request_list_screen.dart` | User's change requests |
+| Change Request Detail | `change_request_detail_screen.dart` | CR detail |
+| Change Request Create | `change_request_create_screen.dart` | Submit new CR |
+| My Issues | `my_issues_screen.dart` | User's reported issues |
+| Loyalty Home | `loyalty_home_screen.dart` | Points, tier overview |
+| My Vouchers | `loyalty/my_vouchers_screen.dart` | Redeemed vouchers |
+| Voucher Catalog | `loyalty/voucher_catalog_screen.dart` | Available vouchers to redeem |
+| Voucher Detail | `loyalty/voucher_detail_screen.dart` | Voucher detail |
+| Badge Collection | `badge_collection_screen.dart` | Earned badges |
+| Point History | `point_history_screen.dart` | Points transaction history |
+| Rate Station | `rate_station_screen.dart` | Submit station rating |
+| Referral | `referral_screen.dart` | Referral code management |
+| Profile | `profile_screen.dart` | View/edit profile, password change |
+| Edit Profile | `edit_profile_screen.dart` | Edit profile form |
+| Notifications | `notifications_screen.dart` | User notifications |
+| Forbidden | `forbidden_screen.dart` | Access denied screen |
+
+**Providers (10 total):**
+`auth_state_provider`, `booking_providers`, `battery_swap_change_request_providers`, `change_request_providers`, `file_viewer_providers`, `issue_providers`, `loyalty_providers`, `notification_provider`, `profile_providers`, `routing_provider`, `station_providers`
+
+**Repositories (6 total):**
+`booking_repository`, `battery_swap_change_request_repository`, `change_request_repository`, `issue_repository`, `profile_repository`, `station_repository`
+
+---
 
 ### Admin Web (`admin_web`)
 
-| Screen | Description |
-|---|---|
-| **Dashboard** | Stats cards, booking trend chart (fl_chart), issue pie chart, collaborator leaderboard |
-| **Station List** | Paginated table, search, filter by status, bulk import CSV |
-| **Station Detail / Edit** | Form with tabs: info, ports, services, versions, audit log |
-| **Change Requests** | List with status filter, risk score badge, approve/reject/publish actions |
-| **Collaborators** | Table with performance metrics, GPS location map, contract management |
-| **Verification Tasks** | Task creation, SLA tracking, evidence photo gallery |
-| **Trust Scores** | Station trust overview table, factor breakdown chart |
-| **Battery Swap Trust** | Swap station trust with category risk bars |
-| **Loyalty Admin** | Badge CRUD, voucher CRUD, rating moderation, leaderboard |
-| **Issues** | Issue list with category filter, resolution form |
-| **Audit Log** | Full-text search across admin actions |
-| **Registration Requests** | Review ID card images, approve/reject |
+**Screens (54+ total) — organized in `screens/` and `screens/[feature]/`:**
+
+| Screen | Location | Description |
+|---|---|---|
+| Login | `screens/login_screen.dart` | Admin login |
+| Home/Dashboard | `screens/home_screen.dart` | Overview stats |
+| Analytics Dashboard | `screens/analytics_dashboard_screen.dart` | Detailed analytics |
+| Station List | `screens/stations_list_screen.dart` | Paginated station table |
+| Unified Stations List | `screens/unified_stations_list_screen.dart` | Combined station list |
+| Station Detail | `screens/station_detail_screen.dart` | Station edit/view |
+| Create Station | `screens/create_station_screen.dart` | Create charging station |
+| CSV Import | `screens/csv_import_screen.dart` | Bulk import CSV |
+| Change Requests | `screens/change_requests_screen.dart` | CR list |
+| Unified CRs | `screens/unified_change_requests_screen.dart` | Combined CR list |
+| CR Detail | `screens/change_request_detail_screen.dart` | CR review |
+| CR Audit | `screens/change_request_audit_screen.dart` | CR audit log |
+| Collaborators List | `screens/collaborators_list_screen.dart` | Collaborator table |
+| Collaborator Detail | `screens/collaborator_detail_screen.dart` | Collaborator profile |
+| Collaborator Management | `screens/collaborator_management_screen.dart` | Full management |
+| Collaborator Performance | `screens/collaborator_performance_screen.dart` | Performance overview |
+| Collaborator Performance Detail | `screens/collaborator_performance_detail_screen.dart` | Individual performance |
+| Contract Detail | `screens/contract_detail_screen.dart` | Contract view |
+| Verification Tasks List | `screens/verification_tasks_list_screen.dart` | Task list |
+| Verification Task Detail | `screens/verification_task_detail_screen.dart` | Task review |
+| Station Audit | `screens/station_audit_screen.dart` | Station audit log |
+| Audit Query | `screens/audit_query_screen.dart` | Cross-entity audit search |
+| Station Trust | `screens/station_trust_screen.dart` | Trust score management |
+| Swap Trust Dashboard | `screens/swap_trust_dashboard_screen.dart` | Battery swap trust |
+| Unified Trust Dashboard | `screens/unified_trust_dashboard_screen.dart` | Combined trust overview |
+| Issues List | `screens/issues_list_screen.dart` | Issue table |
+| Issue Detail | `screens/issue_detail_screen.dart` | Issue resolution |
+| Registration Requests List | `screens/registration_requests_list_screen.dart` | Collaborator applications |
+| Registration Request Detail | `screens/registration_request_detail_screen.dart` | Application review |
+| Profile | `screens/profile_screen.dart` | Admin profile |
+| Edit Profile | `screens/edit_profile_screen.dart` | Edit profile |
+| Battery Swap Stations | `screens/battery_swap_stations_screen.dart` | Swap station list |
+| Battery Swap Stations List | `screens/battery_swap_stations_list_screen.dart` | Alternative swap list |
+| Battery Swap Station Detail | `screens/battery_swap_station_detail_screen.dart` | Swap station edit |
+| Create Battery Swap Station | `screens/battery_swap/create_battery_swap_station_screen.dart` | Create swap station |
+| Battery Swap CSV Import | `screens/battery_swap/battery_swap_csv_import_screen.dart` | Import CSV |
+| Battery Swap CR List | `screens/battery_swap_cr_list_screen.dart` | Swap CR list |
+| Battery Swap CR Detail | `screens/battery_swap_cr_detail_screen.dart` | Swap CR review |
+| Loyalty Dashboard | `screens/loyalty/loyalty_dashboard_screen.dart` | Loyalty overview |
+| User Loyalty List | `screens/loyalty/user_loyalty_list_screen.dart` | All loyalty users |
+| User Loyalty Detail | `screens/loyalty/user_loyalty_detail_screen.dart` | User loyalty profile |
+| Rating Moderation | `screens/loyalty/rating_moderation_screen.dart` | Rate moderation |
+| Voucher Management | `screens/loyalty/voucher_management_screen.dart` | Voucher CRUD |
+| Charging Stations | `screens/charging_stations_screen.dart` | Charging station management |
+| Charging Stations List | `screens/charging_stations_list_screen.dart` | Alternative list |
+
+**Models (19 total):**
+`admin_change_request`, `admin_issue`, `admin_station`, `admin_verification_task`, `audit_log`, `battery_swap_change_request`, `battery_swap_station`, `battery_swap_trust`, `collaborator_candidate`, `collaborator_performance`, `collaborator_profile`, `contract`, `dashboard_stats`, `pagination_response`, `presign_view_response`, `registration_request`, `simulator_models`, `station_trust`, `station_trust_summary`
+
+**Providers (18+ total):**
+`audit_log_providers`, `battery_swap_cr_providers`, `battery_swap_station_providers`, `battery_swap_trust_providers`, `change_request_providers`, `collaborator_performance_providers`, `collaborator_providers`, `contract_providers`, `dashboard_providers`, `file_viewer_providers`, `issue_providers`, `loyalty_providers`, `profile_providers`, `registration_request_providers`, `station_providers`, `station_trust_providers`, `verification_task_providers`
+
+**Repositories (4 total):**
+`audit_log_repository`, `profile_repository`, `station_trust_repository`
+
+---
 
 ### Collaborator Mobile (`collab_mobile`)
 
+**Screens (15 total):**
+
 | Screen | Description |
 |---|---|
-| **Splash / Login** | Email+password auth |
-| **Task List** | Assigned verification tasks with SLA countdown |
-| **Task Detail** | Station info, checklist items |
-| **Check-in** | GPS capture + Haversine distance display |
-| **Photo Upload** | Camera/gallery picker, category selection |
-| **Task Submit** | Review checklist, submit for admin review |
-| **Contracts** | Active/expired contract list |
-| **Profile** | Edit profile, avatar upload |
+| `splash_screen.dart` | App initialization |
+| `login_screen.dart` | Email+password auth |
+| `register_screen.dart` | Registration form |
+| `registration_form_screen.dart` | Full registration details |
+| `registration_pending_screen.dart` | Pending approval screen |
+| `dashboard_overview_screen.dart` | KPI overview |
+| `task_list_screen.dart` | Assigned verification tasks |
+| `task_detail_screen.dart` | Task info and actions |
+| `swap_task_list_screen.dart` | Battery swap tasks |
+| `swap_verification_task_detail_screen.dart` | Swap task detail |
+| `contracts_screen.dart` | Contract list |
+| `profile_screen.dart` | Profile view |
+| `edit_profile_screen.dart` | Edit profile |
+| `notifications_screen.dart` | Notifications |
+| `forbidden_screen.dart` | Access denied |
+
+**Providers (6 total):**
+`battery_swap_task_providers`, `contracts_provider`, `dashboard_provider`, `notification_provider`, `profile_providers`, `task_providers`
+
+**Repositories (2 total):**
+`profile_repository`, `task_repository`
+
+---
 
 ### Hardware Simulator (`hardware_simulator`)
 
-| Screen | Description |
-|---|---|
-| **Device Login** | Enter deviceKey from station registration |
-| **Station Display** | Live slot status (AVAILABLE/OCCUPIED), swap code display, battery level bars |
-| **Swap Flow** | Shows incoming swap code, accepts manual confirm |
+**Screens (2 total):**
+- `simulator_screen.dart` — Main simulator display
+- `station_display_screen.dart` — Station display with WebSocket
+
+**Services:**
+- `display_websocket_service.dart` — WebSocket connection for receiving swap codes
 
 ---
 
-## 6.7 Key Flutter Packages and Their Purpose
+## 6.6 Key Flutter Packages and Their Purpose
 
 | Package | Version (range) | Purpose |
 |---|---|---|
-| `flutter_riverpod` | ^2.4 | Reactive state management, compile-time safe providers |
-| `go_router` | ^13.x | Declarative routing with deep links and guards |
-| `dio` | ^5.4 | HTTP client with interceptors, retry, and timeout |
-| `shared_ui` | `../shared/shared_ui` | Custom theme, reusable widgets (badges, scaffold) |
-| `shared_auth` | `../shared/shared_auth` | Auth state, token storage, login service |
-| `shared_network` | `../shared/shared_network` | Dio client factory |
-| `shared_api` | `../shared/shared_api` | Generated OpenAPI client |
-| `flutter_map` | latest | OpenStreetMap map rendering |
-| `latlong2` | latest | Coordinate types, Haversine distance |
-| `fl_chart` | ^0.66 | Admin dashboard charts (line, bar, pie) |
-| `geolocator` | ^11.x | GPS location access |
-| `image_picker` | latest | Camera/gallery photo selection |
-| `cached_network_image` | latest | Image caching for station photos |
-| `file_picker` | latest | CSV file selection for bulk import |
-| `flutter_dotenv` | latest | Environment variable loading from `.env` |
-| `intl` | latest | Date/time formatting |
-| `percent_indicator` | latest | Progress bars for trust scores, loyalty tiers |
-| `url_launcher` | latest | Open external URLs (phone, maps) |
-| `share_plus` | latest | Share referral codes, station links |
-| `freezed_annotation` | ^2.4 | Immutable data classes (used in models) |
-| `json_annotation` | ^4.8 | JSON serialization annotations |
+| `flutter_riverpod` | ^2.4 | Reactive state management |
+| `go_router` | ^13.x | Declarative routing |
+| `dio` | ^5.4 | HTTP client with interceptors |
+| `flutter_map` | ^7.0 | OpenStreetMap rendering |
+| `latlong2` | ^0.9 | Coordinate types, distance |
+| `geolocator` | ^10.1 | GPS location access |
+| `fl_chart` | ^0.68 | Dashboard charts |
+| `file_picker` | ^9.0 | CSV file selection |
+| `flutter_dotenv` | ^5.1 | Environment variables |
+| `intl` | ^0.19 | Date/time formatting |
+| `web_socket_channel` | ^2.4 | WebSocket client |
+| `flutter_secure_storage` | ^9.0 | Secure token storage (shared_auth) |
+| `shared_preferences` | ^2.2 | Token storage fallback |
+| `image_picker` | ^1.1 | Camera/gallery (collab_mobile) |
+| `font_awesome_flutter` | ^10.6 | Icons |
 
 ---
 
-## 6.8 Environment Configuration (`.env`)
+## 6.7 Environment Configuration (`.env`)
 
-Each app uses `flutter_dotenv` to load environment variables from a `.env` file:
+Each app uses `flutter_dotenv` to load environment variables:
 
 ```env
 # EV User Mobile
 API_BASE_URL=http://10.0.2.2:8080/api
 TOKEN_KEY=voltgo_token
-OSRM_BASE_URL=http://router.project-osrm.org
 
 # Admin Web
 API_BASE_URL=http://localhost:8080/api
@@ -380,3 +304,20 @@ WS_BASE_URL=ws://localhost:8080
 # Collaborator Mobile
 API_BASE_URL=http://10.0.2.2:8080/api
 ```
+
+---
+
+## 6.8 Stats Summary
+
+| App | Screens | Providers | Repositories | Models |
+|---|---|---|---|---|
+| `ev_user_mobile` | 29 | 11 | 6 | (in providers) |
+| `admin_web` | 54+ | 18+ | 4 | 19 |
+| `collab_mobile` | 15 | 6 | 2 | (in providers) |
+| `hardware_simulator` | 2 | (display_providers.dart) | 0 | 0 |
+| **Shared** | — | — | — | — |
+| `shared_auth` | — | — | — | — |
+| `shared_network` | — | — | — | — |
+| `shared_ui` | — | — | — | — |
+| `shared_api` | — | — | — | — |
+| **Total** | **~100** | **~35** | **~12** | **~19** |

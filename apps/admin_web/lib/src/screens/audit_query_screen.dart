@@ -135,7 +135,7 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
       title: 'Audit Logs',
       body: mobile
           ? Padding(
-              padding: EdgeInsets.all(responsivePadding(context)),
+              padding: responsivePadding(context),
               child: Column(
                 children: [
                   _buildFilterPanel(theme),
@@ -162,7 +162,7 @@ class _AuditQueryScreenState extends ConsumerState<AuditQueryScreen> {
               ),
             )
           : Padding(
-              padding: EdgeInsets.all(responsivePadding(context)),
+              padding: responsivePadding(context),
               child: Row(
                 children: [
                   Expanded(

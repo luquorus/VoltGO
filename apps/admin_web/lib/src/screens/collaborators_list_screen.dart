@@ -29,7 +29,7 @@ class _CollaboratorsListScreenState extends ConsumerState<CollaboratorsListScree
     return AdminScaffold(
       title: 'Collaborators',
       body: Padding(
-        padding: EdgeInsets.all(responsivePadding(context)),
+        padding: responsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

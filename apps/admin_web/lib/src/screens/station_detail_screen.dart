@@ -46,14 +46,14 @@ class StationDetailScreen extends ConsumerWidget {
   Widget _buildContent(
       BuildContext context, ThemeData theme, WidgetRef ref, AdminStation station) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(responsivePadding(context)),
+      padding: responsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Card
           Card(
             child: Padding(
-              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              padding: responsivePaddingScaled(context, 0.8),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isNarrow = constraints.maxWidth < 500;
@@ -82,7 +82,7 @@ class StationDetailScreen extends ConsumerWidget {
           // Station Info
           Card(
             child: Padding(
-              padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+              padding: responsivePaddingScaled(context, 0.8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -116,7 +116,7 @@ class StationDetailScreen extends ConsumerWidget {
           if (station.services.isNotEmpty)
             Card(
               child: Padding(
-                padding: EdgeInsets.all(responsivePadding(context) * 0.8),
+                padding: responsivePaddingScaled(context, 0.8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
