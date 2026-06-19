@@ -51,6 +51,26 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
   }
 
   @override
+  void didUpdateWidget(covariant StationSearchDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.stationKind != widget.stationKind) {
+      // Station kind changed (CHARGING <-> BATTERY_SWAP). Clear any prior
+      // selection and results so the next search uses the new branch and the
+      // parent form is notified that no station is currently selected.
+      setState(() {
+        _selectedStationId = null;
+        _selectedStationName = null;
+        _stations = [];
+        _error = null;
+        _isSearching = false;
+        _searchController.clear();
+        _showDropdown = false;
+      });
+      widget.onStationSelected(null);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _focusNode.dispose();
@@ -106,15 +126,16 @@ class _StationSearchDropdownState extends ConsumerState<StationSearchDropdown> {
       List<StationOption> stations;
 
       if (widget.stationKind == 'BATTERY_SWAP') {
-        final results = await factory.ev.searchBatterySwapStationsByName(
+        final response = await factory.ev.searchBatterySwapStationsByName(
           name: query.trim(),
-          lat: widget.defaultLat,
-          lng: widget.defaultLng,
-          radiusKm: 50,
+          page: 0,
+          size: 20,
         );
-        stations = results.map((station) {
+        final content = response['content'] as List<dynamic>? ?? [];
+        stations = content.map((item) {
+          final station = item as Map<String, dynamic>;
           return StationOption(
-            id: station['stationId'] as String? ?? station['id'] as String? ?? '',
+            id: station['id'] as String? ?? station['stationId'] as String? ?? '',
             name: station['name'] as String? ?? 'Unknown',
             address: station['address'] as String?,
           );

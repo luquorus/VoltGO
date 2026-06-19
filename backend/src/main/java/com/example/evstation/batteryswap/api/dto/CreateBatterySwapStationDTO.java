@@ -44,8 +44,28 @@ public class CreateBatterySwapStationDTO {
         @DecimalMin(value = "0.1", message = "avgChargePowerKw must be > 0")
         private BigDecimal avgChargePowerKw;
 
+        /**
+         * Battery capacity per slot in kWh. Defaults to 60.0 kWh when not provided.
+         * Must be >= 1 if specified.
+         */
+        @DecimalMin(value = "1.0", message = "batteryCapacityKwh must be >= 1")
+        private BigDecimal batteryCapacityKwh;
+
+        /**
+         * Parking type (e.g. FREE, PAID, STREET_PARKING). Defaults to FREE when not provided.
+         */
+        private String parking;
+
         @Size(max = 1000)
         private String note;
+
+        /**
+         * Optional custom pile layout. If null/empty → default layout is used
+         * (ceil(totalBatteries/6) piles, 6 slots/pile, all slots use batteryCapacityKwh).
+         * If provided, total slots across all piles must match totalBatteries.
+         */
+        @Valid
+        private List<PileTemplateDTO> pileTemplates;
     }
 
     @Data
@@ -55,5 +75,34 @@ public class CreateBatterySwapStationDTO {
 
         @NotNull @DecimalMin("-180") @DecimalMax("180")
         private Double lng;
+    }
+
+    @Data
+    public static class PileTemplateDTO {
+        @NotNull(message = "pileIndex is required")
+        @Min(value = 1, message = "pileIndex must be >= 1")
+        private Integer pileIndex;
+
+        @NotNull(message = "slotsPerPile is required")
+        @Min(value = 1, message = "slotsPerPile must be >= 1")
+        private Integer slotsPerPile;
+
+        /**
+         * Optional slot-level overrides. If null/empty, slots inherit batteryCapacityKwh
+         * from StationDataDTO (or 60.0 kWh if not set there).
+         */
+        @Valid
+        private List<SlotTemplateDTO> slots;
+    }
+
+    @Data
+    public static class SlotTemplateDTO {
+        @NotNull(message = "slotIndex is required")
+        @Min(value = 0, message = "slotIndex must be >= 0")
+        private Integer slotIndex;
+
+        @NotNull(message = "batteryCapacityKwh is required")
+        @DecimalMin(value = "1.0", message = "batteryCapacityKwh must be >= 1")
+        private BigDecimal batteryCapacityKwh;
     }
 }

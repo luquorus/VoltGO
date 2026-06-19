@@ -2,6 +2,9 @@ package com.example.evstation.api.ev_user_mobile.controller;
 
 import com.example.evstation.api.ev_user_mobile.dto.*;
 import com.example.evstation.batteryswap.application.BatterySwapService;
+import com.example.evstation.batteryswap.application.BatterySwapStationAdminService;
+import com.example.evstation.batteryswap.api.dto.BatterySwapStationListDTO;
+import com.example.evstation.common.web.PaginationResponse;
 import com.example.evstation.batteryswap.application.SwapCodeService;
 import com.example.evstation.batteryswap.application.SwapSessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +28,24 @@ public class EvBatterySwapController {
     private final BatterySwapService batterySwapService;
     private final SwapCodeService swapCodeService;
     private final SwapSessionService swapSessionService;
+    private final BatterySwapStationAdminService batterySwapStationAdminService;
+
+    @Operation(
+            summary = "Search published battery-swap stations by name",
+            description = "Search battery-swap stations whose published name matches the query. Used by EV user app for station auto-fill on UPDATE change requests. Mirrors the collab-mobile variant; uses the same admin service for behavior parity."
+    )
+    @GetMapping("/stations/search/by-name")
+    @PreAuthorize("hasRole('EV_USER')")
+    public ResponseEntity<PaginationResponse<BatterySwapStationListDTO>> searchBatterySwapStationsByName(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(Math.max(1, size), 50);
+        PaginationResponse<BatterySwapStationListDTO> response = batterySwapStationAdminService
+                .listStations(safePage, safeSize, name);
+        return ResponseEntity.ok(response);
+    }
 
     @Operation(summary = "List nearby battery swap stations")
     @GetMapping("/stations")

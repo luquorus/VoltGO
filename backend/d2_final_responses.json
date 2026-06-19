@@ -1,0 +1,111 @@
+[
+  {
+    "path": "/healthz",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "status": "UP"
+    },
+    "expect": "(s, b) => s === 200 && b?.status === \"UP\"",
+    "ok": true
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "31da1906-ab15-4eaa-8297-1cf4730ffb4d",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/admin/test",
+      "timestamp": "2026-06-17T15:23:33.415666026Z"
+    },
+    "expect": "(s) => s === 404",
+    "ok": true
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "c32869f7-6750-49b6-8e7b-f378992d56be",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/web/test",
+      "timestamp": "2026-06-17T15:23:33.444716695Z"
+    },
+    "expect": "(s) => s === 404",
+    "ok": true
+  },
+  {
+    "path": "/api/collab/mobile/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "1b34d234-6c83-4ed6-9280-4b81057bdc50",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/mobile/test",
+      "timestamp": "2026-06-17T15:23:33.473645654Z"
+    },
+    "expect": "(s) => s === 404",
+    "ok": true
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "timestamp": "2026-06-17T15:23:33.492140290Z",
+      "message": "Unauthorized: Full authentication is required to access this resource",
+      "code": "EVS-0401"
+    },
+    "expect": "(s) => s === 401 || s === 404",
+    "ok": true
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "0a30cb6f-1703-438b-9e3b-724ce476f36e",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/web/test",
+      "timestamp": "2026-06-17T15:23:33.521259084Z"
+    },
+    "expect": "(s) => s === 404 || s === 403",
+    "ok": true
+  },
+  {
+    "path": "/api/collab/web/me/profile",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "id": "1d1f510d-ac32-43fa-9359-a66dffeae622",
+      "userAccountId": "286c93a9-839b-439c-a4aa-f97d5412742e",
+      "email": "luquorus.author@gmail.com",
+      "fullName": "Nguyen Van Lan",
+      "phone": "0815757108",
+      "createdAt": "2026-06-05T06:38:14.236172Z",
+      "hasActiveContract": true,
+      "location": {
+        "lat": 10.762622,
+        "lng": 106.660172,
+        "updatedAt": "2026-06-17T15:22:01.463464Z",
+        "source": "MOBILE"
+      }
+    },
+    "expect": "(s) => s === 200 || s === 404",
+    "ok": true
+  },
+  {
+    "path": "/api/collab/mobile/me/location",
+    "method": "PUT",
+    "status": 200,
+    "body": {
+      "lat": 10.762622,
+      "lng": 106.660172,
+      "updatedAt": "2026-06-17T15:23:33.609634274Z",
+      "source": "MOBILE"
+    },
+    "expect": "(s) => s === 200",
+    "ok": true
+  }
+]

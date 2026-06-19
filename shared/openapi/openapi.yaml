@@ -803,29 +803,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ============================================
-  # Collaborator Mobile
-  # ============================================
-  /api/collab/mobile/test:
-    get:
-      tags:
-        - Collaborator Mobile
-      summary: Test endpoint
-      description: Test endpoint for Collaborator Mobile API
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Collaborator Mobile API is accessible"
-
-  # ============================================
   # Collaborator Mobile - Verification
   # ============================================
   /api/collab/mobile/tasks:
@@ -928,60 +905,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  # ============================================
-  # Collaborator Mobile - Files
-  # ============================================
-  /api/collab/mobile/files/presign-upload:
-    post:
-      tags:
-        - Collaborator Mobile Files
-      summary: Generate presigned upload URL
-      description: Generate a presigned URL for uploading evidence photos. Client should use this URL to upload file directly to MinIO, then submit evidence with objectKey.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PresignUploadRequest'
-      responses:
-        '200':
-          description: Presigned URL generated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PresignUploadResponse'
-              example:
-                objectKey: "verification/uploads/user-id/1234567890-abc12345.jpg"
-                uploadUrl: "http://minio:9000/voltgo-evidence/verification/uploads/user-id/1234567890-abc12345.jpg?X-Amz-Algorithm=..."
-                expiresAt: "2026-01-08T10:15:00Z"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # ============================================
-  # Collaborator Web
-  # ============================================
-  /api/collab/web/test:
-    get:
-      tags:
-        - Collaborator Web
-      summary: Test endpoint
-      description: Test endpoint for Collaborator Web API
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Collaborator Web API is accessible"
-  
   /api/collab/web/me/profile:
     get:
       tags:
@@ -1105,59 +1028,6 @@ paths:
                 failCount: 3
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-  # ============================================
-  # Collaborator Web - Files
-  # ============================================
-  /api/collab/web/files/presign-view:
-    get:
-      tags:
-        - Collaborator Web Files
-      summary: Generate presigned view URL
-      description: Generate a presigned URL for viewing/downloading files. Collaborator can only view evidence photos belonging to their assigned tasks.
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: objectKey
-          in: query
-          required: true
-          schema:
-            type: string
-          example: "verification/task-123/1234567890-abc12345.jpg"
-      responses:
-        '200':
-          description: Presigned URL generated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PresignViewResponse'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # ============================================
-  # Admin Web
-  # ============================================
-  /api/admin/test:
-    get:
-      tags:
-        - Admin Web
-      summary: Test endpoint
-      description: Test endpoint for Admin Web API
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Admin Web API is accessible"
 
   # ============================================
   # Admin Web - Change Requests
@@ -2753,28 +2623,6 @@ components:
     # ============================================
     # File Storage Schemas
     # ============================================
-    PresignUploadRequest:
-      type: object
-      properties:
-        contentType:
-          type: string
-          default: "image/jpeg"
-          example: "image/jpeg"
-
-    PresignUploadResponse:
-      type: object
-      properties:
-        objectKey:
-          type: string
-          description: Object key (path) in the bucket
-        uploadUrl:
-          type: string
-          format: uri
-          description: Presigned URL for PUT operation
-        expiresAt:
-          type: string
-          format: date-time
-
     PresignViewResponse:
       type: object
       properties:

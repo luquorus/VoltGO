@@ -185,6 +185,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                     .chargingSummary(chargingSummary)
                     .trustScore(trustScore)
                     .supportsBatterySwap(stationSupportsBatterySwap(stationId))
+                    .batterySwap(getBatterySwapSummaryForStation(stationId))
                     .build());
         }
 
@@ -295,6 +296,53 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
         return loadBatterySwapRow(stationId).isPresent();
     }
 
+    /**
+     * Build a BatterySwapSummaryDTO for the station's PUBLISHED version.
+     * Returns null if the station does not support battery swap.
+     */
+    private BatterySwapSummaryDTO getBatterySwapSummaryForStation(UUID stationId) {
+        Optional<Object[]> swapRow = loadBatterySwapRow(stationId);
+        if (swapRow.isEmpty()) {
+            return null;
+        }
+        Object[] row = swapRow.get();
+        Integer totalBatteries = row[0] != null ? ((Number) row[0]).intValue() : null;
+        BigDecimal avgChargePowerKw = row[1] != null ? (BigDecimal) row[1] : null;
+        Integer availableBatteries = row[2] != null ? ((Number) row[2]).intValue() : null;
+
+        // Count total piles + available slots for the PUBLISHED version
+        String q = """
+                SELECT
+                    (SELECT COUNT(*) FROM swap_pile p
+                     WHERE p.station_id = :stationId),
+                    COALESCE((
+                        SELECT COUNT(*) FROM battery_slot s
+                        JOIN swap_pile p ON p.id = s.pile_id
+                        WHERE p.station_id = :stationId
+                          AND s.status = 'AVAILABLE'
+                    ), 0)
+                """;
+        Query nq = entityManager.createNativeQuery(q);
+        nq.setParameter("stationId", stationId);
+        @SuppressWarnings("unchecked")
+        List<Object> rows = nq.getResultList();
+        Integer totalPiles = null;
+        Integer availableSlots = null;
+        if (!rows.isEmpty() && rows.get(0) != null) {
+            Object[] counts = (Object[]) rows.get(0);
+            totalPiles = counts[0] != null ? ((Number) counts[0]).intValue() : null;
+            availableSlots = counts[1] != null ? ((Number) counts[1]).intValue() : null;
+        }
+
+        return BatterySwapSummaryDTO.builder()
+                .totalPiles(totalPiles)
+                .totalSlots(totalBatteries)
+                .availableBatteries(availableBatteries)
+                .availableSlots(availableSlots)
+                .avgChargePowerKw(avgChargePowerKw)
+                .build();
+    }
+
     private ChargingSummaryDTO getChargingSummaryForStationVersion(UUID stationId) {
         String query = """
             SELECT 
@@ -380,12 +428,16 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
     public Page<StationListItemDTO> searchPublishedStationsByName(
             String nameQuery,
             Pageable pageable) {
-        
+
         // Build search query with case-insensitive LIKE
         String searchPattern = "%" + nameQuery.toLowerCase() + "%";
-        
+
+        // Only return stations that have at least one CHARGING service.
+        // Without this filter, battery-swap-only stations (which still have a
+        // row in station_version) would be returned by this endpoint and the
+        // EV user change-request form would surface the wrong station kind.
         String query = """
-            SELECT 
+            SELECT
                 sv.station_id,
                 sv.name,
                 sv.address,
@@ -398,6 +450,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
             FROM station_version sv
             WHERE sv.workflow_status = 'PUBLISHED'
             AND LOWER(sv.name) LIKE :searchPattern
+            AND EXISTS (
+                SELECT 1 FROM station_service ss
+                WHERE ss.station_version_id = sv.id
+                AND ss.service_type = 'CHARGING'
+            )
             ORDER BY sv.name
             LIMIT :limit OFFSET :offset
             """;
@@ -407,6 +464,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
             FROM station_version sv
             WHERE sv.workflow_status = 'PUBLISHED'
             AND LOWER(sv.name) LIKE :searchPattern
+            AND EXISTS (
+                SELECT 1 FROM station_service ss
+                WHERE ss.station_version_id = sv.id
+                AND ss.service_type = 'CHARGING'
+            )
             """;
 
         // Count total
@@ -457,6 +519,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                     .chargingSummary(chargingSummary)
                     .trustScore(trustScore)
                     .supportsBatterySwap(stationSupportsBatterySwap(stationId))
+                    .batterySwap(getBatterySwapSummaryForStation(stationId))
                     .build());
         }
 

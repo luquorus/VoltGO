@@ -9,5 +9,7 @@ import java.util.UUID;
 @Repository
 public interface StationServiceJpaRepository extends JpaRepository<StationServiceEntity, UUID> {
     List<StationServiceEntity> findByStationVersionId(UUID stationVersionId);
+
+    boolean existsByStationVersionIdAndServiceType(UUID stationVersionId, String serviceType);
 }
 

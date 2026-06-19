@@ -129,7 +129,8 @@ Supporting packages that interact with the six core packages:
 
 #### Controllers (API layer)
 - `EvBatterySwapController` (ev_user_mobile) — EV user swap endpoints
-- `AdminBatterySwapStationController`, `AdminBatterySwapChangeRequestController`, `AdminBatterySwapTrustController` (admin_web)
+- `AdminBatterySwapStationController`, `AdminBatterySwapChangeRequestController` (admin_web)
+- `BatterySwapTrustController` (batteryswapchange/web) — public read endpoints for battery-swap trust, plus ADMIN-only `/recalculate` and `/history` (merged 2026-06 from the old `AdminBatterySwapTrustController`)
 - `CollaboratorWebBatterySwapVerificationController`, `CollaboratorMobileBatterySwapVerificationController` (field verification)
 - `CollaboratorChangeRequestController` (collaborator_mobile — **NEW 2026-06**) — exposes CR endpoints for both charging and battery-swap stations, authorised via `@PreAuthorize("hasRole('COLLABORATOR')")`.
 - `AdminBatterySwapVerificationController` (admin review)

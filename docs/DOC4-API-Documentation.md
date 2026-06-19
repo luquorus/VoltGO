@@ -246,7 +246,6 @@ Request:
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/ev/files/presign-upload` | Get presigned upload URL | Yes (EV_USER) |
 | `GET` | `/api/ev/files/presign-view` | Get presigned view URL | Yes (EV_USER) |
 
 ---
@@ -257,7 +256,6 @@ Request:
 |---|---|---|---|
 | `GET` | `/api/collab/mobile/tasks` | Get assigned tasks | Yes (COLLABORATOR) |
 | `POST` | `/api/collab/mobile/tasks/{id}/check-in` | GPS check-in | Yes (COLLABORATOR) |
-| `POST` | `/api/collab/mobile/files/presign-upload` | Get presigned upload URL | Yes (COLLABORATOR) |
 | `POST` | `/api/collab/mobile/files/upload` | Proxy file upload | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/mobile/files/presign-view` | Get presigned view URL | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/mobile/files/view` | Proxy file view (bytes) | Yes (COLLABORATOR) |
@@ -299,7 +297,6 @@ Request:
 | `GET` | `/api/collab/web/tasks/kpi` | Get KPI | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/web/me/profile` | Get profile | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/web/me/contracts` | Get contracts | Yes (COLLABORATOR) |
-| `GET` | `/api/collab/web/files/presign-view` | Get presigned view URL | Yes (COLLABORATOR) |
 | `PUT` | `/api/collab/web/me/location` | Update GPS location | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/web/battery-swap/tasks` | Get battery swap tasks (paginated) | Yes (COLLABORATOR) |
 | `GET` | `/api/collab/web/battery-swap/tasks/{id}` | Get battery swap task detail | Yes (COLLABORATOR) |
@@ -339,11 +336,11 @@ Request:
 | `GET` | `/api/admin/stations/{stationId}/trust` | Get station trust | Yes (ADMIN) |
 | `POST` | `/api/admin/stations/{stationId}/trust/recalculate` | Recalculate trust | Yes (ADMIN) |
 | `GET` | `/api/admin/stations/trust/summary` | Get trust summary | Yes (ADMIN) |
-| `GET` | `/api/admin/battery-swap/trust/{stationId}` | Get battery swap trust | Yes (ADMIN) |
-| `GET` | `/api/admin/battery-swap/trust/{stationId}/breakdown` | Get trust breakdown | Yes (ADMIN) |
-| `GET` | `/api/admin/battery-swap/trust/{stationId}/level` | Get trust level | Yes (ADMIN) |
-| `POST` | `/api/admin/battery-swap/trust/{stationId}/recalculate` | Recalculate swap trust | Yes (ADMIN) |
-| `GET` | `/api/admin/battery-swap/trust/summary` | Get swap trust summary | Yes (ADMIN) |
+| `GET` | `/api/v1/battery-swap/trust/{stationId}` | Get battery swap trust (public) | No |
+| `GET` | `/api/v1/battery-swap/trust/{stationId}/breakdown` | Get trust breakdown (public) | No |
+| `GET` | `/api/v1/battery-swap/trust/{stationId}/level` | Get trust level (public) | No |
+| `POST` | `/api/v1/battery-swap/trust/{stationId}/recalculate` | Recalculate swap trust | Yes (ADMIN) |
+| `GET` | `/api/v1/battery-swap/trust/summary` | Get swap trust summary (public) | No |
 
 ---
 

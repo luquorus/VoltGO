@@ -117,15 +117,20 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
           // Info section: hours, parking, status
           _buildInfoSection(context, theme, operatingHours, parking, publicStatus, visibility),
 
-          // Charging ports list (DC/AC grouped)
-          _buildPortsSection(context, theme, ports),
+          // Charging ports list (DC/AC grouped) — hidden for battery-swap stations,
+          // which have no real charging ports (only a battery swap service).
+          if (!supportsSwap) ...[
+            _buildPortsSection(context, theme, ports),
 
-          if (ports.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildBookChargingButton(context, theme, name),
+            if (ports.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildBookChargingButton(context, theme, name),
+            ],
           ],
 
           if (supportsSwap) ...[
+            const SizedBox(height: 12),
+            _buildBatterySwapSection(context, theme, station),
             const SizedBox(height: 12),
             _buildBatterySwapBookButton(context, theme),
           ],
@@ -353,6 +358,128 @@ class _StationDetailScreenState extends ConsumerState<StationDetailScreen> {
             ),
           );
         }),
+      ],
+    );
+  }
+
+  Widget _buildBatterySwapSection(
+    BuildContext context,
+    ThemeData theme,
+    Map<String, dynamic> station,
+  ) {
+    final batterySwap = station['batterySwap'] as Map<String, dynamic>?;
+    if (batterySwap == null) return const SizedBox.shrink();
+
+    final totalBatteries = batterySwap['totalBatteries'] as int? ?? 0;
+    final availableBatteries = batterySwap['availableBatteries'] as int? ?? 0;
+    final avgPowerKw = (batterySwap['avgChargePowerKw'] as num?)?.toDouble();
+    final swapTrustScore = station['swapTrustScore'] as int?;
+    final swapTrustLevel = station['swapTrustLevel'] as String?;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              FaIcon(
+                FontAwesomeIcons.carBattery,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Battery swap',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (swapTrustScore != null || swapTrustLevel != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SwapTrustBadge(
+                trustScore: swapTrustScore,
+                trustLevel: swapTrustLevel,
+              ),
+            ),
+          const SizedBox(height: 4),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildSwapStat(
+                    theme,
+                    'Ready',
+                    '$availableBatteries',
+                    FontAwesomeIcons.batteryFull,
+                    availableBatteries > 0 ? Colors.green : Colors.orange,
+                  ),
+                  Container(
+                    height: 32,
+                    width: 1,
+                    color: theme.colorScheme.outline.withOpacity(0.2),
+                  ),
+                  _buildSwapStat(
+                    theme,
+                    'Total pins',
+                    '$totalBatteries',
+                    FontAwesomeIcons.layerGroup,
+                    theme.colorScheme.primary,
+                  ),
+                  if (avgPowerKw != null) ...[
+                    Container(
+                      height: 32,
+                      width: 1,
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                    ),
+                    _buildSwapStat(
+                      theme,
+                      'Charge',
+                      '${avgPowerKw.toStringAsFixed(0)} kW',
+                      FontAwesomeIcons.bolt,
+                      theme.colorScheme.secondary,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwapStat(
+    ThemeData theme,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FaIcon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
       ],
     );
   }

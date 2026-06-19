@@ -19,5 +19,7 @@ public class StationListItemDTO {
     private Integer trustScore;
     /** Trạm có BATTERY_SWAP trên version đã publish */
     private Boolean supportsBatterySwap;
+    /** Chi tiết trạm battery swap (null nếu trạm không hỗ trợ) */
+    private BatterySwapSummaryDTO batterySwap;
 }
 

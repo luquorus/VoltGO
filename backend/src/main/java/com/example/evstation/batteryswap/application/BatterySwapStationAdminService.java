@@ -39,7 +39,6 @@ public class BatterySwapStationAdminService {
     private final StationJpaRepository stationRepository;
     private final StationVersionJpaRepository stationVersionRepository;
     private final StationServiceJpaRepository stationServiceRepository;
-    private final ChargingPortJpaRepository chargingPortRepository;
     private final BatterySwapStationVersionJpaRepository bsVersionRepository;
     private final BatterySwapStationStateJpaRepository stateRepository;
     private final SwapPileJpaRepository pileRepository;
@@ -50,8 +49,6 @@ public class BatterySwapStationAdminService {
     private final SwapStationStateApplyService swapStationStateApplyService;
     private final BatterySwapTrustScoringService trustScoringService;
     private final AuditLogJpaRepository auditLogRepository;
-
-    private static final int SLOTS_PER_PILE = 6;
 
     @Transactional(readOnly = true)
     public PaginationResponse<BatterySwapStationListDTO> listStations(int page, int size, String search) {
@@ -138,12 +135,18 @@ public class BatterySwapStationAdminService {
                 ? WorkflowStatus.PUBLISHED
                 : WorkflowStatus.DRAFT;
 
+        // Resolve per-slot battery capacity. Defaults to 60.0 kWh when not provided.
+        BigDecimal batteryCapacityKwh = data.getBatteryCapacityKwh() != null
+                ? data.getBatteryCapacityKwh()
+                : new BigDecimal("60.0");
+
+        // pile templates: use custom layout if provided, otherwise default layout
         List<BatterySwapPileTemplateEntity> newPiles;
-        if (data.getNote() != null && !data.getNote().isBlank()) {
-            // When note contains pile layout spec, parse it (or use default)
-            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), null);
+        if (data.getPileTemplates() != null && !data.getPileTemplates().isEmpty()) {
+            newPiles = buildPileTemplatesFromCreate(data.getPileTemplates(), batteryCapacityKwh, null);
         } else {
-            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), null);
+            newPiles = buildDefaultPileTemplates(
+                    data.getTotalBatteries(), batteryCapacityKwh, null);
         }
 
         BatterySwapStationVersionEntity newBsVersion = BatterySwapStationVersionEntity.builder()
@@ -190,7 +193,7 @@ public class BatterySwapStationAdminService {
                 .address(data.getAddress())
                 .location(location)
                 .operatingHours(data.getOperatingHours())
-                .parking(ParkingType.FREE)
+                .parking(parseParkingType(data.getParking()))
                 .visibility(VisibilityType.PUBLIC)
                 .publicStatus(PublicStatus.ACTIVE)
                 .createdBy(adminId)
@@ -201,16 +204,12 @@ public class BatterySwapStationAdminService {
         stationVersionRepository.save(newStationVersion);
         log.info("Created station version: {}, status={}", newStationVersion.getId(), workflowStatus);
 
-        // 3b. Create StationServiceEntity + default ChargingPortEntity for the swap station.
-        // StationServiceEntity(BATTERY_SWAP) is required so the station is recognised by
-        // SwapStationStateApplyService and by the public station queries (which JOIN
-        // station_service). A default DC ChargingPort is also published so that the
-        // EV user app can render the "Charging ports" section for the station.
-        createSwapStationServiceAndPort(
+        // 3b. Create StationServiceEntity (service_type = BATTERY_SWAP). Swap stations
+        // do not have real charging ports — only the swap service is registered.
+        createSwapStationService(
                 newStationVersion,
                 data.getTotalBatteries(),
-                data.getAvgChargePowerKw(),
-                request.getPublishImmediately());
+                data.getAvgChargePowerKw());
 
         // 4. If publishing immediately, apply runtime state (create piles/slots)
         if (Boolean.TRUE.equals(request.getPublishImmediately())) {
@@ -394,7 +393,10 @@ public class BatterySwapStationAdminService {
         if (data.getPileTemplates() != null && !data.getPileTemplates().isEmpty()) {
             newPiles = buildPileTemplates(data.getPileTemplates(), null);
         } else {
-            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), null);
+            BigDecimal updateBatteryCapacityKwh = data.getBatteryCapacityKwh() != null
+                    ? data.getBatteryCapacityKwh()
+                    : new BigDecimal("60.0");
+            newPiles = buildDefaultPileTemplates(data.getTotalBatteries(), updateBatteryCapacityKwh, null);
         }
 
         BatterySwapStationVersionEntity newBsVersion = BatterySwapStationVersionEntity.builder()
@@ -442,7 +444,7 @@ public class BatterySwapStationAdminService {
                 .address(data.getAddress())
                 .location(location)
                 .operatingHours(data.getOperatingHours())
-                .parking(com.example.evstation.station.domain.ParkingType.FREE)
+                .parking(parseParkingType(data.getParking()))
                 .visibility(com.example.evstation.station.domain.VisibilityType.PUBLIC)
                 .publicStatus(com.example.evstation.station.domain.PublicStatus.ACTIVE)
                 .createdBy(adminId)
@@ -465,12 +467,12 @@ public class BatterySwapStationAdminService {
 
         stationVersionRepository.saveAndFlush(newStationVersion);
 
-        // Create/update StationServiceEntity + default ChargingPortEntity for the swap station
-        createSwapStationServiceAndPort(
+        // Create/update StationServiceEntity (service_type = BATTERY_SWAP). Swap stations
+        // do not have real charging ports — only the swap service is registered.
+        createSwapStationService(
                 newStationVersion,
                 data.getTotalBatteries(),
-                data.getAvgChargePowerKw(),
-                request.getPublishImmediately());
+                data.getAvgChargePowerKw());
 
         if (Boolean.TRUE.equals(request.getPublishImmediately())) {
             try {
@@ -544,6 +546,22 @@ public class BatterySwapStationAdminService {
         return GEOMETRY_FACTORY.createPoint(coordinate);
     }
 
+    /**
+     * Parse the parking string from input into ParkingType enum. Defaults to FREE
+     * when input is null/blank or unrecognized (with a warning log).
+     */
+    private ParkingType parseParkingType(String parking) {
+        if (parking == null || parking.isBlank()) {
+            return ParkingType.FREE;
+        }
+        try {
+            return ParkingType.valueOf(parking.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Unrecognized parking value '{}', defaulting to FREE", parking);
+            return ParkingType.FREE;
+        }
+    }
+
     private List<BatterySwapPileTemplateEntity> buildPileTemplates(
             List<UpdateBatterySwapStationDTO.PileTemplateDTO> templates,
             BatterySwapStationVersionEntity version) {
@@ -573,10 +591,51 @@ public class BatterySwapStationAdminService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Build pile templates from CreateBatterySwapStationDTO. If a slot's batteryCapacityKwh
+     * is not provided, it falls back to the parent station's batteryCapacityKwh
+     * (or 60.0 kWh if neither is set).
+     */
+    private List<BatterySwapPileTemplateEntity> buildPileTemplatesFromCreate(
+            List<CreateBatterySwapStationDTO.PileTemplateDTO> templates,
+            BigDecimal defaultSlotCapacityKwh,
+            BatterySwapStationVersionEntity version) {
+        return templates.stream()
+                .sorted((a, b) -> Integer.compare(a.getPileIndex(), b.getPileIndex()))
+                .map(t -> {
+                    BatterySwapPileTemplateEntity pile = BatterySwapPileTemplateEntity.builder()
+                            .id(UUID.randomUUID())
+                            .pileIndex(t.getPileIndex())
+                            .slotsPerPile(t.getSlotsPerPile())
+                            .stationVersion(version)
+                            .slotTemplates(new ArrayList<>())
+                            .build();
+                    if (t.getSlots() != null) {
+                        for (CreateBatterySwapStationDTO.SlotTemplateDTO slotDto : t.getSlots()) {
+                            BigDecimal slotCapacity = slotDto.getBatteryCapacityKwh() != null
+                                    ? slotDto.getBatteryCapacityKwh()
+                                    : defaultSlotCapacityKwh;
+                            BatterySwapSlotTemplateEntity slot = BatterySwapSlotTemplateEntity.builder()
+                                    .id(UUID.randomUUID())
+                                    .slotIndex(slotDto.getSlotIndex())
+                                    .batteryCapacityKwh(slotCapacity)
+                                    .pileTemplate(pile)
+                                    .build();
+                            pile.getSlotTemplates().add(slot);
+                        }
+                    }
+                    return pile;
+                })
+                .collect(Collectors.toList());
+    }
+
     private List<BatterySwapPileTemplateEntity> buildDefaultPileTemplates(
-            int totalBatteries, BatterySwapStationVersionEntity version) {
+            int totalBatteries, BigDecimal batteryCapacityKwh, BatterySwapStationVersionEntity version) {
         int slotsPerPile = 6;
         int numPiles = (int) Math.ceil((double) totalBatteries / slotsPerPile);
+        BigDecimal slotCapacity = batteryCapacityKwh != null
+                ? batteryCapacityKwh
+                : new BigDecimal("60.0");
         List<BatterySwapPileTemplateEntity> piles = new ArrayList<>();
         for (int i = 0; i < numPiles; i++) {
             int slotsInThisPile = Math.min(slotsPerPile, totalBatteries - (i * slotsPerPile));
@@ -591,7 +650,7 @@ public class BatterySwapStationAdminService {
                 BatterySwapSlotTemplateEntity slot = BatterySwapSlotTemplateEntity.builder()
                         .id(UUID.randomUUID())
                         .slotIndex(j)
-                        .batteryCapacityKwh(new java.math.BigDecimal("60.0"))
+                        .batteryCapacityKwh(slotCapacity)
                         .pileTemplate(pile)
                         .build();
                 pile.getSlotTemplates().add(slot);
@@ -602,17 +661,15 @@ public class BatterySwapStationAdminService {
     }
 
     /**
-     * Create the StationServiceEntity (service_type = BATTERY_SWAP) and a default
-     * ChargingPortEntity for the given station version. This is required so that:
-     *   - SwapStationStateApplyService.applyForVersion() can detect BATTERY_SWAP service.
-     *   - StationQueryRepositoryImpl.findPublishedStationDetail() returns port info.
-     *   - The EV user app displays a non-empty "Charging ports" section.
+     * Create the StationServiceEntity (service_type = BATTERY_SWAP) for the given station
+     * version. Battery swap stations do NOT have real charging ports — only the swap
+     * service is registered. The EV user app shows the "Charging ports" section as
+     * empty / hidden for swap stations and only renders the "Book battery swap" button.
      */
-    private void createSwapStationServiceAndPort(
+    private void createSwapStationService(
             StationVersionEntity newStationVersion,
             int totalBatteries,
-            BigDecimal avgChargePowerKw,
-            Boolean publishImmediately) {
+            BigDecimal avgChargePowerKw) {
         StationServiceEntity swapService = StationServiceEntity.builder()
                 .id(UUID.randomUUID())
                 .stationVersionId(newStationVersion.getId())
@@ -622,22 +679,6 @@ public class BatterySwapStationAdminService {
                 .build();
         stationServiceRepository.save(swapService);
         log.info("Created BATTERY_SWAP station service: {}", swapService.getId());
-
-        if (Boolean.TRUE.equals(publishImmediately)) {
-            int numPiles = (int) Math.ceil((double) totalBatteries / SLOTS_PER_PILE);
-            int portCount = Math.max(1, numPiles);
-            BigDecimal avgPower = avgChargePowerKw != null ? avgChargePowerKw : new BigDecimal("3.5");
-            ChargingPortEntity swapChargingPort = ChargingPortEntity.builder()
-                    .id(UUID.randomUUID())
-                    .stationServiceId(swapService.getId())
-                    .powerType(PowerType.DC)
-                    .powerKw(avgPower)
-                    .portCount(portCount)
-                    .build();
-            chargingPortRepository.save(swapChargingPort);
-            log.info("Created default DC charging port for swap station: portCount={}, powerKw={}",
-                    portCount, avgPower);
-        }
     }
 
     /**

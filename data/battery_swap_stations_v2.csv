@@ -1,0 +1,11 @@
+name,address,latitude,longitude,totalBatteries,avgChargePowerKw,operatingHours,parkingFee,note,batteryCapacityKwh,parking,pileLayout
+Trạm đổi pin Long Biên,Số 1 đường Nguyễn Văn Cừ Long Biên,21.0411,105.8768,30,40.0,06:00-23:00,5000,Trạm lớn ven cầu Long Biên,60.0,FREE,5:6
+Trạm đổi pin Thanh Xuân,174 Quang Trung Hà Đông,20.9717,105.7852,24,38.0,06:00-22:30,3000,Gần Royal City,60.0,PAID,4:6
+Trạm đổi pin Gia Lâm,Khu đô thị Vinhomes Ocean Park Gia Lâm,21.0089,105.9525,16,35.0,24/7,5000,Pin 40 kWh dùng cho VinFast VF e34,40.0,FREE,2:8
+Trạm đổi pin Bắc Từ Liêm,Khu công nghệ cao Hòa Lạc,21.0275,105.7806,30,45.0,05:30-22:00,,Pin 80 kWh cho xe tải nhẹ điện,80.0,STREET_PARKING,6:5
+Trạm đổi pin Đông Anh,Đường Cao Lỗ Đông Anh,21.1358,105.8473,30,32.0,06:00-22:00,2000,Gần sân bay Nội Bài,60.0,FREE,5:6
+Trạm đổi pin Sóc Sơn,Thị trấn Sóc Sơn,21.2578,105.8472,20,30.0,07:00-21:00,,Khu vực ngoại thành,60.0,FREE,
+Trạm đổi pin Hà Đông,24 Quang Trung Hà Đông,20.9710,105.7792,24,38.0,06:00-23:00,4000,Trạm tiêu chuẩn đô thị,60.0,PAID,3:8
+Trạm đổi pin Nam Từ Liêm,Khu đô thị Mỹ Đình,21.0285,105.7675,40,50.0,24/7,6000,Pin 80 kWh trạm công suất cao,80.0,STREET_PARKING,5:8
+Trạm đổi pin Cầu Giấy,165 Cầu Giấy,21.0293,105.7959,12,28.0,06:00-22:00,3000,Trạm nhỏ trong ngõ,40.0,UNKNOWN,2:6
+Trạm đổi pin Tây Hồ,99 Lạc Long Quân,21.0675,105.8078,18,33.0,06:00-23:30,5000,Pin dung lượng lớn ven Hồ Tây,80.0,FREE,3:6

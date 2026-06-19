@@ -15,7 +15,8 @@ import '../utils/responsive_utils.dart';
 
 /// Unified Stations List Screen with subtabs for Charging and Battery Swap stations
 class UnifiedStationsListScreen extends ConsumerStatefulWidget {
-  const UnifiedStationsListScreen({super.key});
+  final int initialTabIndex;
+  const UnifiedStationsListScreen({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<UnifiedStationsListScreen> createState() => _UnifiedStationsListScreenState();
@@ -28,7 +29,7 @@ class _UnifiedStationsListScreenState extends ConsumerState<UnifiedStationsListS
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
   }
 
   @override
@@ -631,7 +632,7 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
                   DataColumn(label: Text('Location')),
                   DataColumn(label: Text('Status')),
                   DataColumn(label: Text('Batteries')),
-                  DataColumn(label: Text('Piles')),
+                  DataColumn(label: Text('Piles × Pins')),
                   DataColumn(label: Text('Trust')),
                   DataColumn(label: Text('Pending CRs')),
                   DataColumn(label: Text('Actions')),
@@ -665,7 +666,10 @@ class _BatterySwapStationsTabState extends ConsumerState<_BatterySwapStationsTab
                       DataCell(Text(
                           station.totalBatteries != null ? '${station.availableBatteries ?? '?'}/${station.totalBatteries}' : 'N/A',
                           style: TextStyle(fontWeight: FontWeight.bold, color: _getBatteryColor(station.availableBatteries, station.totalBatteries)))),
-                      DataCell(Text(station.totalPiles?.toString() ?? 'N/A')),
+                      DataCell(Text(
+                          (station.totalPiles != null && station.totalSlots != null)
+                              ? '${station.totalPiles} × ${station.totalSlots! ~/ station.totalPiles!}'
+                              : 'N/A')),
                       DataCell(_buildTrustBadge(theme, station)),
                       DataCell(Text(station.pendingCRs.toString())),
                       DataCell(Row(

@@ -22,7 +22,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -37,12 +36,6 @@ public class CollaboratorWebController {
     private final ContractService contractService;
     private final CollaboratorLocationService locationService;
     private final CollaboratorProfileJpaRepository collaboratorRepository;
-
-    @Operation(summary = "Test endpoint", description = "Test endpoint for Collaborator Web API")
-    @GetMapping("/test")
-    public ResponseEntity<Map<String, String>> test() {
-        return ResponseEntity.ok(Map.of("message", "Collaborator Web API is accessible"));
-    }
 
     @Operation(
         summary = "Get my profile",

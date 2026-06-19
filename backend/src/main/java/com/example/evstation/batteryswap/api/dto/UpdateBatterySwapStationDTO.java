@@ -72,6 +72,13 @@ public class UpdateBatterySwapStationDTO {
         private BigDecimal avgChargePowerKw;
 
         /**
+         * Battery capacity per slot in kWh. Defaults to 60.0 kWh when not provided.
+         * Must be >= 1 if specified.
+         */
+        @DecimalMin(value = "1.0", message = "batteryCapacityKwh must be >= 1")
+        private BigDecimal batteryCapacityKwh;
+
+        /**
          * Optional note.
          */
         @Size(max = 1000, message = "note must be at most 1000 characters")

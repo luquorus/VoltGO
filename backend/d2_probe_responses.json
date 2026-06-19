@@ -1,0 +1,130 @@
+[
+  {
+    "path": "/healthz",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "status": "UP"
+    }
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "message": "Unauthorized: Full authentication is required to access this resource",
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T14:53:37.891094859Z"
+    }
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "message": "Unauthorized: Full authentication is required to access this resource",
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T14:53:37.891081913Z"
+    }
+  },
+  {
+    "path": "/api/collab/mobile/test",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "message": "Unauthorized: Full authentication is required to access this resource",
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T14:53:37.895454888Z"
+    }
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "message": "Admin Web API is accessible"
+    }
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "dec330af-8a24-48d2-a8ca-492dae8ce93f",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.904303750Z"
+    }
+  },
+  {
+    "path": "/api/collab/mobile/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "e7d2d5fc-bbd6-49ad-82de-6cca45e3ed81",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.904531268Z"
+    }
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "21b5921b-44c1-488b-be8a-2ff675fd3572",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.906804220Z"
+    }
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "message": "Collaborator Web API is accessible"
+    }
+  },
+  {
+    "path": "/api/collab/mobile/test",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "message": "Collaborator Mobile API is accessible"
+    }
+  },
+  {
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "5df55cdc-bf2d-4657-94a2-0adc29d5f20c",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.905625802Z"
+    }
+  },
+  {
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "1c363551-ffca-4b56-9480-02b279db6536",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.904167532Z"
+    }
+  },
+  {
+    "path": "/api/collab/mobile/test",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "858873cb-f21c-4749-b6ea-1f414cd8357b",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T14:53:37.907666397Z"
+    }
+  }
+]

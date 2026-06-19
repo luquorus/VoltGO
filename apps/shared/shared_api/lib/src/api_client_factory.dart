@@ -396,29 +396,22 @@ class EvUserMobileApiClient extends BaseApiClient {
     return get<Map<String, dynamic>>('/api/ev/battery-swap/stations/$stationId');
   }
 
-  /// Search battery swap stations by name (uses nearby search + client-side filter).
-  /// Falls back to a wide-radius query to capture all published stations.
-  Future<List<Map<String, dynamic>>> searchBatterySwapStationsByName({
+  /// GET /api/ev/battery-swap/stations/search/by-name?name=...&page=&size=
+  /// Mirrors the collab-mobile variant at /api/collab/mobile/battery-swap-stations/search/by-name
+  /// and reuses the same backend service for behavior parity.
+  Future<Map<String, dynamic>> searchBatterySwapStationsByName({
     required String name,
-    required double lat,
-    required double lng,
-    double radiusKm = 50,
-  }) async {
-    final results = await getBatterySwapStations(
-      lat: lat,
-      lng: lng,
-      radiusKm: radiusKm,
+    int page = 0,
+    int size = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/ev/battery-swap/stations/search/by-name',
+      queryParameters: {
+        'name': name,
+        'page': page,
+        'size': size,
+      },
     );
-    final lowerName = name.toLowerCase();
-    return (results as List<dynamic>)
-        .map((e) => e as Map<String, dynamic>)
-        .where((s) {
-          final stationName = s['name'] as String? ?? '';
-          final address = s['address'] as String? ?? '';
-          return stationName.toLowerCase().contains(lowerName) ||
-              address.toLowerCase().contains(lowerName);
-        })
-        .toList();
   }
 
   /// POST /api/ev/battery-swap/reservations
@@ -532,14 +525,6 @@ class EvUserMobileApiClient extends BaseApiClient {
   // ============================================
   // File Upload Endpoints
   // ============================================
-
-  /// POST /api/ev/files/presign-upload
-  Future<Map<String, dynamic>> presignUpload({String? contentType}) {
-    return post<Map<String, dynamic>>(
-      '/api/ev/files/presign-upload',
-      data: contentType != null ? {'contentType': contentType} : null,
-    );
-  }
 
   /// GET /api/ev/files/presign-view?objectKey=...
   Future<Map<String, dynamic>> presignView(String objectKey, {int expiresInMinutes = 60}) {
@@ -792,16 +777,6 @@ class CollaboratorMobileApiClient extends BaseApiClient {
         'lng': lng,
         if (deviceNote != null) 'deviceNote': deviceNote,
         if (checklistAnswers != null) 'checklistAnswers': checklistAnswers,
-      },
-    );
-  }
-
-  /// POST /api/collab/mobile/files/presign-upload
-  Future<Map<String, dynamic>> presignUpload({String? contentType}) {
-    return post<Map<String, dynamic>>(
-      '/api/collab/mobile/files/presign-upload',
-      queryParameters: {
-        if (contentType != null) 'contentType': contentType,
       },
     );
   }
@@ -1172,18 +1147,6 @@ class CollaboratorWebApiClient extends BaseApiClient {
   /// GET /api/collab/web/me/contracts
   Future<List<dynamic>> getContracts() {
     return get<List<dynamic>>('/api/collab/web/me/contracts');
-  }
-
-  /// GET /api/collab/web/files/presign-view
-  Future<Map<String, dynamic>> presignView({
-    required String objectKey,
-  }) {
-    return get<Map<String, dynamic>>(
-      '/api/collab/web/files/presign-view',
-      queryParameters: {
-        'objectKey': objectKey,
-      },
-    );
   }
 
   /// PUT /api/collab/web/me/location
@@ -1757,31 +1720,37 @@ class AdminWebApiClient extends BaseApiClient {
 
   // ============================================
   // Battery Swap Trust Endpoints
+  //
+  // As of 2026-06 these were consolidated under /api/v1/battery-swap/trust.
+  // The previously separate /api/admin/battery-swap/trust/* controller was
+  // removed; the merged v1 controller is public for read endpoints and
+  // ADMIN-only for /recalculate and /history. This client is still used by
+  // the admin web app, so the methods automatically carry the ADMIN JWT.
   // ============================================
 
-  /// GET /api/admin/battery-swap/trust/{stationId}
+  /// GET /api/v1/battery-swap/trust/{stationId}
   Future<Map<String, dynamic>> getBatterySwapTrust(String stationId) {
-    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId');
+    return get<Map<String, dynamic>>('/api/v1/battery-swap/trust/$stationId');
   }
 
-  /// GET /api/admin/battery-swap/trust/{stationId}/breakdown
+  /// GET /api/v1/battery-swap/trust/{stationId}/breakdown
   Future<Map<String, dynamic>> getBatterySwapTrustBreakdown(String stationId) {
-    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId/breakdown');
+    return get<Map<String, dynamic>>('/api/v1/battery-swap/trust/$stationId/breakdown');
   }
 
-  /// GET /api/admin/battery-swap/trust/{stationId}/level
+  /// GET /api/v1/battery-swap/trust/{stationId}/level
   Future<String> getBatterySwapTrustLevel(String stationId) {
-    return get<String>('/api/admin/battery-swap/trust/$stationId/level');
+    return get<String>('/api/v1/battery-swap/trust/$stationId/level');
   }
 
-  /// POST /api/admin/battery-swap/trust/{stationId}/recalculate
+  /// POST /api/v1/battery-swap/trust/{stationId}/recalculate (ADMIN only)
   Future<Map<String, dynamic>> recalculateBatterySwapTrust(String stationId) {
-    return post<Map<String, dynamic>>('/api/admin/battery-swap/trust/$stationId/recalculate');
+    return post<Map<String, dynamic>>('/api/v1/battery-swap/trust/$stationId/recalculate');
   }
 
-  /// GET /api/admin/battery-swap/trust/summary
+  /// GET /api/v1/battery-swap/trust/summary
   Future<Map<String, dynamic>> getBatterySwapTrustSummary() {
-    return get<Map<String, dynamic>>('/api/admin/battery-swap/trust/summary');
+    return get<Map<String, dynamic>>('/api/v1/battery-swap/trust/summary');
   }
 
   // ============================================

@@ -87,7 +87,16 @@ public class AdminBatterySwapStationController {
 
     @Operation(
             summary = "Import battery swap stations from CSV",
-            description = "Import multiple battery swap stations from CSV file. Format: name,address,latitude,longitude,totalBatteries,avgChargePowerKw,operatingHours,parkingFee,note. parkingFee and note are optional."
+            description = "Import multiple battery swap stations from CSV file. " +
+                    "Format (12 columns, header row required): " +
+                    "name,address,latitude,longitude,totalBatteries,avgChargePowerKw,operatingHours," +
+                    "parkingFee,note,batteryCapacityKwh,parking,pileLayout. " +
+                    "Columns 8-12 are optional. " +
+                    "parkingFee, note, batteryCapacityKwh default to empty. " +
+                    "parking defaults to FREE (allowed: FREE, PAID, STREET_PARKING). " +
+                    "pileLayout format: 'pileCount:slotsPerPile' or 'pileCount:slotsPerPile:capacityKwh' " +
+                    "(e.g. '4:6' = 4 piles × 6 slots = 24 batteries, '3:8:60.0' = 3 piles × 8 slots × 60.0 kWh). " +
+                    "If pileLayout is empty, default layout (6 slots/pile) is used."
     )
     @PostMapping(value = "/import-csv", consumes = "multipart/form-data")
     public ResponseEntity<BatterySwapCsvImportResponseDTO> importStationsFromCsv(

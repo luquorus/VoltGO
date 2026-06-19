@@ -511,83 +511,103 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: routingState.needsChargingStop
-                          ? Colors.orange.withOpacity(0.1)
-                          : Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FaIcon(
-                          routingState.needsChargingStop
-                              ? FontAwesomeIcons.batteryHalf
-                              : FontAwesomeIcons.batteryFull,
-                          color: routingState.needsChargingStop
-                              ? Colors.orange
-                              : Colors.green,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${routingState.batteryPercent}% pin · ${routingState.remainingRangeKm?.toStringAsFixed(0) ?? '?'} km',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: routingState.needsChargingStop
-                                ? Colors.orange
-                                : Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (routingState.needsChargingStop) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            ' - Need charging',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ] else ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            ' - Enough for trip',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (stations.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Container(
+                  Flexible(
+                    child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.teal.withOpacity(0.1),
+                        color: routingState.needsChargingStop
+                            ? Colors.orange.withOpacity(0.1)
+                            : Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const FaIcon(
-                            FontAwesomeIcons.bolt,
-                            color: Colors.teal,
+                          FaIcon(
+                            routingState.needsChargingStop
+                                ? FontAwesomeIcons.batteryHalf
+                                : FontAwesomeIcons.batteryFull,
+                            color: routingState.needsChargingStop
+                                ? Colors.orange
+                                : Colors.green,
                             size: 12,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${stations.length} stations along route',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.teal,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              '${routingState.batteryPercent}% pin · ${routingState.remainingRangeKm?.toStringAsFixed(0) ?? '?'} km',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: routingState.needsChargingStop
+                                    ? Colors.orange
+                                    : Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (routingState.needsChargingStop) ...[
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                ' - Need charging',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ] else ...[
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                ' - Enough for trip',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ],
+                      ),
+                    ),
+                  ),
+                  if (stations.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const FaIcon(
+                              FontAwesomeIcons.bolt,
+                              color: Colors.teal,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${stations.length} stations along route',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -1036,10 +1056,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push('/stations/${station.stationId}');
-              },
+              onPressed: () => context.push('/stations/${station.stationId}'),
               icon: const FaIcon(FontAwesomeIcons.arrowRight, size: 14),
               label: const Text('Navigate to Station'),
               style: FilledButton.styleFrom(
@@ -1714,16 +1731,33 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     final maxPowerKw = chargingSummary?['maxPowerKw'] as double? ?? 0.0;
     final dcPorts = chargingSummary?['dcPorts'] as int? ?? 0;
     final acPorts = chargingSummary?['acPorts'] as int? ?? 0;
+    final supportsBatterySwap = station['supportsBatterySwap'] as bool? ?? false;
+    final batterySwap = station['batterySwap'] as Map<String, dynamic>?;
+    final totalPiles = batterySwap?['totalPiles'] as int? ?? 0;
+    final totalSlots = batterySwap?['totalSlots'] as int? ?? 0;
+    final availableBatteries = batterySwap?['availableBatteries'] as int? ?? 0;
 
     return StationCard(
       title: name,
       subtitle: address,
       badges: [
         ScoreBadge(score: trustScore),
-        StatusPill(
-          label: '$totalPorts ports',
-          color: theme.colorScheme.primary,
-        ),
+        // Battery-swap-only stations: show "X piles × Y pins" instead of "0 ports"
+        if (supportsBatterySwap && totalPorts == 0 && totalPiles > 0)
+          StatusPill(
+            label: '$totalPiles × ${totalSlots ~/ totalPiles} piles',
+            color: theme.colorScheme.primary,
+          )
+        else
+          StatusPill(
+            label: '$totalPorts ports',
+            color: theme.colorScheme.primary,
+          ),
+        if (supportsBatterySwap && totalPorts > 0)
+          StatusPill(
+            label: '+ $totalPiles piles',
+            color: Colors.teal,
+          ),
         if (maxPowerKw > 0)
           StatusPill(
             label: 'Up to ${maxPowerKw.toStringAsFixed(0)}kW',
@@ -1739,6 +1773,11 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
             label: '$acPorts AC',
             color: Colors.green,
           ),
+        if (supportsBatterySwap && availableBatteries > 0)
+          StatusPill(
+            label: '$availableBatteries ready',
+            color: Colors.green,
+          ),
       ],
       onTap: () {
         final stationId = station['stationId'] as String? ?? '';
@@ -1751,6 +1790,12 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
 
         if (lat != null && lng != null) {
           _mapController.move(LatLng(lat, lng), 15.0);
+        }
+
+        // Battery-swap-only stations: navigate to battery swap screen
+        if (supportsBatterySwap && totalPorts == 0) {
+          context.push('/battery-swap?stationId=$stationId');
+          return;
         }
 
         // Navigate to station detail

@@ -56,7 +56,6 @@ src/main/java/com/example/evstation/
 │       │   ├── AdminAuditController.java
 │       │   ├── AdminBatterySwapStationController.java
 │       │   ├── AdminBatterySwapChangeRequestController.java
-│       │   ├── AdminBatterySwapTrustController.java
 │       │   ├── AdminRegistrationRequestController.java
 │       │   ├── AdminVerificationController.java
 │       │   └── AdminFileController.java

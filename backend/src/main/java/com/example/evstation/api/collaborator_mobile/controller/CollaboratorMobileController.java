@@ -13,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -25,12 +24,6 @@ import java.util.UUID;
 public class CollaboratorMobileController {
     
     private final CollaboratorLocationService locationService;
-    
-    @Operation(summary = "Test endpoint", description = "Test endpoint for Collaborator Mobile API")
-    @GetMapping("/test")
-    public ResponseEntity<Map<String, String>> test() {
-        return ResponseEntity.ok(Map.of("message", "Collaborator Mobile API is accessible"));
-    }
 
     @Operation(
         summary = "Update my location (GPS)",

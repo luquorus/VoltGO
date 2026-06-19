@@ -1,7 +1,6 @@
 package com.example.evstation.api.collaborator_mobile.controller;
 
 import com.example.evstation.api.common.dto.FileDownloadResult;
-import com.example.evstation.api.common.dto.PresignUploadResponseDTO;
 import com.example.evstation.api.common.dto.PresignViewResponseDTO;
 import com.example.evstation.api.common.dto.ProxyUploadResponseDTO;
 import com.example.evstation.common.file.FileService;
@@ -33,16 +32,6 @@ public class CollabMobileFileController {
 
     private final FileService fileService;
     private final VerificationService verificationService;
-
-    @PostMapping("/presign-upload")
-    public ResponseEntity<PresignUploadResponseDTO> getPresignUploadUrl(
-            @RequestParam(required = false) String contentType) {
-
-        String objectKey = "collab/uploads/" + UUID.randomUUID() + resolveExtension(contentType);
-        String url = fileService.generatePresignedUploadUrl(objectKey, 60);
-        Instant expiresAt = Instant.now().plus(60, ChronoUnit.MINUTES);
-        return ResponseEntity.ok(new PresignUploadResponseDTO(objectKey, url, expiresAt));
-    }
 
     /**
      * Proxy upload endpoint — backend receives the file and forwards to MinIO.

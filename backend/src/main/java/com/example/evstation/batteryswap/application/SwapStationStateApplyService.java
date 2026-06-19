@@ -125,6 +125,7 @@ public class SwapStationStateApplyService {
                 for (int j = 0; j < slotsInThisPile; j++) {
                     BatterySlotEntity slot = BatterySlotEntity.builder()
                             .slotIndex(j)
+                            .batteryCapacityKwh(new BigDecimal("60.0"))
                             .batteryChargePercent(0)   // starts empty, needs charging
                             .status(BatterySlotStatus.CHARGING)
                             .chargingStartedAt(now)     // begins charging immediately
@@ -208,8 +209,12 @@ public class SwapStationStateApplyService {
                         slotTemplateRepository.findByPileTemplateIdOrderBySlotIndex(pileTemplate.getId());
 
                 for (BatterySwapSlotTemplateEntity slotTemplate : slotTemplates) {
+                    BigDecimal slotCapacity = slotTemplate.getBatteryCapacityKwh() != null
+                            ? slotTemplate.getBatteryCapacityKwh()
+                            : new BigDecimal("60.0");
                     BatterySlotEntity slot = BatterySlotEntity.builder()
                             .slotIndex(slotTemplate.getSlotIndex())
+                            .batteryCapacityKwh(slotCapacity)
                             .batteryChargePercent(0)
                             .status(BatterySlotStatus.CHARGING)
                             .chargingStartedAt(now)

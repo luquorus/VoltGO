@@ -28,7 +28,15 @@ class _CreateBatterySwapStationScreenState
   final _parkingFeeController = TextEditingController();
   final _totalBatteriesController = TextEditingController(text: '20');
   final _avgChargePowerKwController = TextEditingController(text: '35.0');
+  final _batteryCapacityKwhController = TextEditingController(text: '60.0');
+  final _parkingController = TextEditingController(text: 'FREE');
   final _noteController = TextEditingController();
+
+  // Custom pile layout (optional). When null/empty → use default (6 slots/pile).
+  final _useCustomPileLayout = ValueNotifier<bool>(false);
+  final _pileCountController = TextEditingController(text: '4');
+  final _slotsPerPileController = TextEditingController(text: '6');
+  final _layoutBatteryCapacityKwhController = TextEditingController(text: '60.0');
 
   bool _isSubmitting = false;
 
@@ -42,7 +50,13 @@ class _CreateBatterySwapStationScreenState
     _parkingFeeController.dispose();
     _totalBatteriesController.dispose();
     _avgChargePowerKwController.dispose();
+    _batteryCapacityKwhController.dispose();
+    _parkingController.dispose();
     _noteController.dispose();
+    _useCustomPileLayout.dispose();
+    _pileCountController.dispose();
+    _slotsPerPileController.dispose();
+    _layoutBatteryCapacityKwhController.dispose();
     super.dispose();
   }
 
@@ -69,6 +83,8 @@ class _CreateBatterySwapStationScreenState
         'operatingHours': _operatingHoursController.text.trim(),
         'totalBatteries': int.parse(_totalBatteriesController.text.trim()),
         'avgChargePowerKw': double.parse(_avgChargePowerKwController.text.trim()),
+        'batteryCapacityKwh': double.parse(_batteryCapacityKwhController.text.trim()),
+        'parking': _parkingController.text.trim(),
         'publishImmediately': true,
       };
 
@@ -81,6 +97,31 @@ class _CreateBatterySwapStationScreenState
       final note = _noteController.text.trim();
       if (note.isNotEmpty) {
         stationData['note'] = note;
+      }
+
+      // Custom pile layout (optional). Only include if user toggled it on AND
+      // pileCount × slotsPerPile matches totalBatteries.
+      if (_useCustomPileLayout.value) {
+        final pileCount = int.tryParse(_pileCountController.text.trim()) ?? 0;
+        final slotsPerPile = int.tryParse(_slotsPerPileController.text.trim()) ?? 0;
+        final totalBatteries = int.parse(_totalBatteriesController.text.trim());
+        if (pileCount > 0 && slotsPerPile > 0 && pileCount * slotsPerPile == totalBatteries) {
+          final layoutCapacity =
+              double.tryParse(_layoutBatteryCapacityKwhController.text.trim()) ??
+                  double.parse(_batteryCapacityKwhController.text.trim());
+          final piles = <Map<String, dynamic>>[];
+          for (var i = 0; i < pileCount; i++) {
+            piles.add({
+              'pileIndex': i + 1,
+              'slotsPerPile': slotsPerPile,
+            });
+          }
+          stationData['pileTemplates'] = piles;
+          stationData['batteryCapacityKwh'] = layoutCapacity;
+        } else {
+          throw Exception(
+              'Pile layout mismatch: $pileCount × $slotsPerPile != $totalBatteries');
+        }
       }
 
       await factory.admin.createBatterySwapStation(stationData);
@@ -286,6 +327,26 @@ class _CreateBatterySwapStationScreenState
                           return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: _parkingController.text,
+                        decoration: const InputDecoration(
+                          labelText: 'Parking Type',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'FREE', child: Text('Free parking')),
+                          DropdownMenuItem(value: 'PAID', child: Text('Paid parking')),
+                          DropdownMenuItem(
+                              value: 'STREET_PARKING',
+                              child: Text('Street parking')),
+                          DropdownMenuItem(
+                              value: 'UNKNOWN', child: Text('Unknown / Other')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) _parkingController.text = v;
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -343,6 +404,103 @@ class _CreateBatterySwapStationScreenState
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _batteryCapacityKwhController,
+                        decoration: const InputDecoration(
+                          labelText: 'Battery Capacity per slot (kWh) *',
+                          helperText: 'Default 60.0 kWh. Used for all slots unless overridden below.',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Battery capacity is required';
+                          }
+                          final n = double.tryParse(value.trim());
+                          if (n == null || n < 1) {
+                            return 'Must be at least 1 kWh';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _useCustomPileLayout,
+                        builder: (context, useCustom, _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SwitchListTile(
+                              title: const Text('Use custom pile layout'),
+                              subtitle: Text(useCustom
+                                  ? 'Pile × slots must multiply to totalBatteries'
+                                  : 'Default: 6 slots per pile'),
+                              value: useCustom,
+                              onChanged: (v) {
+                                _useCustomPileLayout.value = v;
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            if (useCustom) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _pileCountController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Pile count',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (!useCustom) return null;
+                                        final n = int.tryParse(value?.trim() ?? '');
+                                        if (n == null || n < 1) {
+                                          return 'Must be >= 1';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _slotsPerPileController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Slots per pile',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (!useCustom) return null;
+                                        final n = int.tryParse(value?.trim() ?? '');
+                                        if (n == null || n < 1) {
+                                          return 'Must be >= 1';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _layoutBatteryCapacityKwhController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Slot capacity in this layout (kWh)',
+                                  helperText:
+                                      'Optional. Defaults to batteryCapacityKwh above.',
+                                  border: OutlineInputBorder(),
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

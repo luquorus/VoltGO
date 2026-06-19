@@ -41,7 +41,7 @@ import '../screens/loyalty/voucher_redemptions_screen.dart';
 import '../screens/battery_swap/create_battery_swap_station_screen.dart';
 import '../screens/battery_swap/battery_swap_csv_import_screen.dart';
 import '../screens/charging_stations_screen.dart';
-import '../screens/battery_swap_stations_screen.dart';
+import '../screens/unified_stations_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -153,7 +153,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Battery Swap Stations (slash pattern) — parent so static children match before :id
       GoRoute(
         path: '/battery-swap/stations',
-        builder: (_, __) => const BatterySwapStationsScreen(),
+        builder: (_, __) => const UnifiedStationsListScreen(initialTabIndex: 1),
         routes: [
           GoRoute(
             path: 'create',
@@ -175,7 +175,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Battery Swap Stations (hyphen pattern) — parent so static children match before :id
       GoRoute(
         path: '/battery-swap-stations',
-        builder: (_, __) => const BatterySwapStationsScreen(),
+        builder: (_, __) => const UnifiedStationsListScreen(initialTabIndex: 1),
         routes: [
           GoRoute(
             path: 'create',

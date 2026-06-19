@@ -687,10 +687,12 @@ class StationRepository {
   }
 
   /// Get battery swap trust data for a station
-  /// GET /api/ev/battery-swap/trust/{stationId}
+  /// GET /api/v1/battery-swap/trust/{stationId}
+  /// (Public endpoint merged 2026-06; the previous path /api/ev/.../trust
+  ///  never had a backend handler and would 404.)
   Future<Map<String, dynamic>> getSwapTrust(String stationId) async {
     try {
-      final response = await _dio!.get('$_baseUrl/api/ev/battery-swap/trust/$stationId');
+      final response = await _dio!.get('$_baseUrl/api/v1/battery-swap/trust/$stationId');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       if (e.response != null) {

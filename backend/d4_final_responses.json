@@ -1,0 +1,712 @@
+[
+  {
+    "id": 1,
+    "group": "LIVE_EV",
+    "label": "GET /api/ev/files/presign-view (EV) → 200 or 500",
+    "path": "/api/ev/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "viewUrl": "http://minio:9000/voltgo/anykey?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20260617%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260617T162355Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=b0f75cc8f886e0c5ec55d870b495c42eaa2f6a971b069bd936271573b43b1e56",
+      "expiresAt": "2026-06-17T17:23:55.478804350Z"
+    },
+    "bodyShort": "{\"viewUrl\":\"http://minio:9000/voltgo/anykey?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20260617%2Fus-east",
+    "ok": true
+  },
+  {
+    "id": 2,
+    "group": "LIVE_EV",
+    "label": "GET /api/ev/files/presign-view (anon) → 401",
+    "path": "/api/ev/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T16:23:55.634892080Z",
+      "message": "Unauthorized: Full authentication is required to access this resource"
+    },
+    "bodyShort": "body.message=Unauthorized: Full authentication is required to access this resource",
+    "ok": true
+  },
+  {
+    "id": 3,
+    "group": "LIVE_EV",
+    "label": "GET /api/ev/files/presign-view (admin) → 403",
+    "path": "/api/ev/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "cf83571c-e7ce-4fcf-b2f5-077415241ef9",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:55.677462325Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 4,
+    "group": "LIVE_EV",
+    "label": "GET /api/ev/files/presign-view (collab) → 403",
+    "path": "/api/ev/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "58d62327-ba32-49d2-828e-4d719f574653",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:55.715414900Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 5,
+    "group": "LIVE_ADMIN",
+    "label": "GET /api/admin/files/presign-view (admin) → 200 or 500",
+    "path": "/api/admin/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "viewUrl": "http://minio:9000/voltgo/anykey?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20260617%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260617T162355Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=b0f75cc8f886e0c5ec55d870b495c42eaa2f6a971b069bd936271573b43b1e56",
+      "expiresAt": "2026-06-17T17:23:55.746560130Z"
+    },
+    "bodyShort": "{\"viewUrl\":\"http://minio:9000/voltgo/anykey?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20260617%2Fus-east",
+    "ok": true
+  },
+  {
+    "id": 6,
+    "group": "LIVE_ADMIN",
+    "label": "GET /api/admin/files/presign-view (EV) → 403",
+    "path": "/api/admin/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "a5990c4f-39fd-4bb4-b79b-b140571bd42b",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:55.778262553Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 7,
+    "group": "LIVE_ADMIN",
+    "label": "GET /api/admin/files/presign-view (collab) → 403",
+    "path": "/api/admin/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "d435d923-1e4b-4e15-9d04-a115242e71ef",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:55.806374013Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 8,
+    "group": "LIVE_ADMIN",
+    "label": "GET /api/admin/files/presign-view (anon) → 401",
+    "path": "/api/admin/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T16:23:55.826733549Z",
+      "message": "Unauthorized: Full authentication is required to access this resource"
+    },
+    "bodyShort": "body.message=Unauthorized: Full authentication is required to access this resource",
+    "ok": true
+  },
+  {
+    "id": 9,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "POST /api/collab/mobile/files/upload (collab, real file) → 200 + objectKey",
+    "path": "/api/collab/mobile/files/upload",
+    "method": "POST",
+    "status": 200,
+    "body": {
+      "objectKey": "collab/uploads/dc779bd7-beaf-4196-90e3-2219d6b087a2.jpg"
+    },
+    "bodyShort": "body.objectKey=collab/uploads/dc779bd7-beaf-4196-90e3-2219d6b087a2.jpg uploadUrl=",
+    "ok": true
+  },
+  {
+    "id": 10,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "POST /api/collab/mobile/files/upload (EV) → 403",
+    "path": "/api/collab/mobile/files/upload",
+    "method": "POST",
+    "status": 403,
+    "body": {
+      "traceId": "08704d72-e2e0-421d-b701-27702df5bd81",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:56.021879623Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 11,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "GET /api/collab/mobile/files/presign-view (collab, fake key) → 403 ownership",
+    "path": "/api/collab/mobile/files/presign-view?objectKey=collab/uploads/nonexistent.jpg",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "0c76616f-a122-4c4a-805f-4f29bcd81800",
+      "code": "EVS-0005",
+      "message": "You cannot view this evidence file",
+      "timestamp": "2026-06-17T16:23:56.079450755Z"
+    },
+    "bodyShort": "body.message=You cannot view this evidence file",
+    "ok": true
+  },
+  {
+    "id": 12,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "GET /api/collab/mobile/files/presign-view (EV) → 403",
+    "path": "/api/collab/mobile/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "7bc01594-1b54-410a-8de0-0b8aed899c28",
+      "code": "EVS-0005",
+      "message": "Access denied: Access Denied",
+      "timestamp": "2026-06-17T16:23:56.115328676Z"
+    },
+    "bodyShort": "body.message=Access denied: Access Denied",
+    "ok": true
+  },
+  {
+    "id": 13,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "GET /api/collab/mobile/files/presign-view (anon) → 401",
+    "path": "/api/collab/mobile/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T16:23:56.140571764Z",
+      "message": "Unauthorized: Full authentication is required to access this resource"
+    },
+    "bodyShort": "body.message=Unauthorized: Full authentication is required to access this resource",
+    "ok": true
+  },
+  {
+    "id": 14,
+    "group": "LIVE_COLLAB_MOBILE",
+    "label": "GET /api/collab/mobile/files/view (collab, fake key) → 403 ownership",
+    "path": "/api/collab/mobile/files/view?objectKey=collab/uploads/nonexistent.jpg",
+    "method": "GET",
+    "status": 403,
+    "body": {
+      "traceId": "9832af4f-bf4d-4efd-8bea-b924cb7b4bd8",
+      "code": "EVS-0005",
+      "message": "You cannot view this evidence file",
+      "timestamp": "2026-06-17T16:23:56.179393506Z"
+    },
+    "bodyShort": "body.message=You cannot view this evidence file",
+    "ok": true
+  },
+  {
+    "id": 15,
+    "group": "REMOVED",
+    "label": "REMOVED POST /api/ev/files/presign-upload (EV) → 404",
+    "path": "/api/ev/files/presign-upload",
+    "method": "POST",
+    "status": 404,
+    "body": {
+      "traceId": "b6221f8d-d018-4b50-95f2-1aaeca898825",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: POST /api/ev/files/presign-upload",
+      "timestamp": "2026-06-17T16:23:56.256481891Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: POST /api/ev/files/presign-upload",
+    "ok": true
+  },
+  {
+    "id": 16,
+    "group": "REMOVED",
+    "label": "REMOVED POST /api/ev/files/presign-upload (anon) → 401 or 404",
+    "path": "/api/ev/files/presign-upload",
+    "method": "POST",
+    "status": 401,
+    "body": {
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T16:23:56.297454782Z",
+      "message": "Unauthorized: Full authentication is required to access this resource"
+    },
+    "bodyShort": "body.message=Unauthorized: Full authentication is required to access this resource",
+    "ok": true
+  },
+  {
+    "id": 17,
+    "group": "REMOVED",
+    "label": "REMOVED GET /api/collab/web/files/presign-view (collab) → 404",
+    "path": "/api/collab/web/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "6ee98da0-a483-45ba-bd2c-df342da34060",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/web/files/presign-view",
+      "timestamp": "2026-06-17T16:23:56.335411455Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: GET /api/collab/web/files/presign-view",
+    "ok": true
+  },
+  {
+    "id": 18,
+    "group": "REMOVED",
+    "label": "REMOVED GET /api/collab/web/files/presign-view (admin) → 404",
+    "path": "/api/collab/web/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "69c614d6-968c-4827-8d56-df59f9ea6a85",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/web/files/presign-view",
+      "timestamp": "2026-06-17T16:23:56.365021750Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: GET /api/collab/web/files/presign-view",
+    "ok": true
+  },
+  {
+    "id": 19,
+    "group": "REMOVED",
+    "label": "REMOVED GET /api/collab/web/files/presign-view (anon) → 401 or 404",
+    "path": "/api/collab/web/files/presign-view?objectKey=anykey",
+    "method": "GET",
+    "status": 401,
+    "body": {
+      "code": "EVS-0401",
+      "timestamp": "2026-06-17T16:23:56.388031917Z",
+      "message": "Unauthorized: Full authentication is required to access this resource"
+    },
+    "bodyShort": "body.message=Unauthorized: Full authentication is required to access this resource",
+    "ok": true
+  },
+  {
+    "id": 20,
+    "group": "REMOVED",
+    "label": "REMOVED POST /api/collab/mobile/files/presign-upload (collab) → 404",
+    "path": "/api/collab/mobile/files/presign-upload",
+    "method": "POST",
+    "status": 404,
+    "body": {
+      "traceId": "9b336760-73bd-40af-954a-dfe79c002a89",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: POST /api/collab/mobile/files/presign-upload",
+      "timestamp": "2026-06-17T16:23:56.415996248Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: POST /api/collab/mobile/files/presign-upload",
+    "ok": true
+  },
+  {
+    "id": 21,
+    "group": "REMOVED",
+    "label": "REMOVED POST /api/collab/mobile/files/presign-upload (EV) → 404",
+    "path": "/api/collab/mobile/files/presign-upload",
+    "method": "POST",
+    "status": 404,
+    "body": {
+      "traceId": "c2bdf25a-6a3e-428e-a492-3ef9dfdd0507",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: POST /api/collab/mobile/files/presign-upload",
+      "timestamp": "2026-06-17T16:23:56.446342561Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: POST /api/collab/mobile/files/presign-upload",
+    "ok": true
+  },
+  {
+    "id": 22,
+    "group": "REGRESSION",
+    "label": "/healthz (anon) → 200",
+    "path": "/healthz",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "status": "UP"
+    },
+    "bodyShort": "{\"status\":\"UP\"}",
+    "ok": true
+  },
+  {
+    "id": 23,
+    "group": "REGRESSION",
+    "label": "POST /api/ev/routing/route (EV) → 200 (D3)",
+    "path": "/api/ev/routing/route",
+    "method": "POST",
+    "status": 200,
+    "body": {
+      "distanceMeters": 2318,
+      "durationSeconds": 187,
+      "polyline": [
+        {
+          "lat": 10.762561,
+          "lng": 106.660185
+        },
+        {
+          "lat": 10.762591,
+          "lng": 106.660329
+        },
+        {
+          "lat": 10.762834,
+          "lng": 106.660261
+        },
+        {
+          "lat": 10.76292,
+          "lng": 106.660236
+        },
+        {
+          "lat": 10.763009,
+          "lng": 106.660211
+        },
+        {
+          "lat": 10.763317,
+          "lng": 106.660124
+        },
+        {
+          "lat": 10.763403,
+          "lng": 106.660096
+        },
+        {
+          "lat": 10.763494,
+          "lng": 106.660071
+        },
+        {
+          "lat": 10.763703,
+          "lng": 106.660071
+        },
+        {
+          "lat": 10.763824,
+          "lng": 106.66005
+        },
+        {
+          "lat": 10.763898,
+          "lng": 106.660176
+        },
+        {
+          "lat": 10.764105,
+          "lng": 106.660568
+        },
+        {
+          "lat": 10.764253,
+          "lng": 106.660847
+        },
+        {
+          "lat": 10.764288,
+          "lng": 106.660913
+        },
+        {
+          "lat": 10.764368,
+          "lng": 106.661063
+        },
+        {
+          "lat": 10.764421,
+          "lng": 106.661161
+        },
+        {
+          "lat": 10.764463,
+          "lng": 106.661241
+        },
+        {
+          "lat": 10.764505,
+          "lng": 106.661319
+        },
+        {
+          "lat": 10.764565,
+          "lng": 106.661432
+        },
+        {
+          "lat": 10.764628,
+          "lng": 106.661554
+        },
+        {
+          "lat": 10.764677,
+          "lng": 106.661641
+        },
+        {
+          "lat": 10.764904,
+          "lng": 106.662073
+        },
+        {
+          "lat": 10.765096,
+          "lng": 106.662427
+        },
+        {
+          "lat": 10.765268,
+          "lng": 106.66275
+        },
+        {
+          "lat": 10.765335,
+          "lng": 106.662873
+        },
+        {
+          "lat": 10.765379,
+          "lng": 106.662958
+        },
+        {
+          "lat": 10.765437,
+          "lng": 106.663066
+        },
+        {
+          "lat": 10.765676,
+          "lng": 106.663515
+        },
+        {
+          "lat": 10.765906,
+          "lng": 106.663948
+        },
+        {
+          "lat": 10.765954,
+          "lng": 106.664038
+        },
+        {
+          "lat": 10.765997,
+          "lng": 106.664118
+        },
+        {
+          "lat": 10.766383,
+          "lng": 106.664808
+        },
+        {
+          "lat": 10.766587,
+          "lng": 106.665185
+        },
+        {
+          "lat": 10.766667,
+          "lng": 106.665271
+        },
+        {
+          "lat": 10.766745,
+          "lng": 106.665389
+        },
+        {
+          "lat": 10.766792,
+          "lng": 106.665471
+        },
+        {
+          "lat": 10.76771,
+          "lng": 106.667084
+        },
+        {
+          "lat": 10.769132,
+          "lng": 106.669806
+        },
+        {
+          "lat": 10.76919,
+          "lng": 106.669904
+        },
+        {
+          "lat": 10.769264,
+          "lng": 106.670104
+        },
+        {
+          "lat": 10.769315,
+          "lng": 106.670204
+        },
+        {
+          "lat": 10.769446,
+          "lng": 106.670445
+        },
+        {
+          "lat": 10.769592,
+          "lng": 106.670707
+        },
+        {
+          "lat": 10.769633,
+          "lng": 106.67078
+        },
+        {
+          "lat": 10.769723,
+          "lng": 106.670955
+        },
+        {
+          "lat": 10.769737,
+          "lng": 106.670993
+        },
+        {
+          "lat": 10.769758,
+          "lng": 106.671049
+        },
+        {
+          "lat": 10.769807,
+          "lng": 106.67111
+        },
+        {
+          "lat": 10.769922,
+          "lng": 106.671325
+        },
+        {
+          "lat": 10.770013,
+          "lng": 106.671494
+        },
+        {
+          "lat": 10.770135,
+          "lng": 106.671722
+        },
+        {
+          "lat": 10.770287,
+          "lng": 106.672004
+        },
+        {
+          "lat": 10.770459,
+          "lng": 106.672325
+        },
+        {
+          "lat": 10.77062,
+          "lng": 106.672625
+        },
+        {
+          "lat": 10.770802,
+          "lng": 106.672974
+        },
+        {
+          "lat": 10.770847,
+          "lng": 106.673059
+        },
+        {
+          "lat": 10.770903,
+          "lng": 106.673156
+        },
+        {
+          "lat": 10.770973,
+          "lng": 106.673064
+        },
+        {
+          "lat": 10.770922,
+          "lng": 106.672971
+        },
+        {
+          "lat": 10.770891,
+          "lng": 106.672919
+        },
+        {
+          "lat": 10.770284,
+          "lng": 106.671818
+        },
+        {
+          "lat": 10.770088,
+          "lng": 106.671446
+        },
+        {
+          "lat": 10.770667,
+          "lng": 106.671157
+        },
+        {
+          "lat": 10.771714,
+          "lng": 106.6706
+        },
+        {
+          "lat": 10.772203,
+          "lng": 106.67034
+        },
+        {
+          "lat": 10.772516,
+          "lng": 106.670169
+        },
+        {
+          "lat": 10.772597,
+          "lng": 106.670125
+        }
+      ],
+      "recommendedStations": [],
+      "optimalStation": null,
+      "needsChargingStop": false,
+      "remainingRangeKm": 150,
+      "routeDistanceKm": 2.318,
+      "summary": {
+        "distanceKm": 2.318,
+        "durationMinutes": 4,
+        "viaRoad": true,
+        "hasChargingStations": false,
+        "needsChargingRecommendation": false,
+        "primaryRecommendationReason": null
+      },
+      "boundingBox": {
+        "minLat": 10.762561,
+        "maxLat": 10.772597,
+        "minLng": 106.66005,
+        "maxLng": 106.673156
+      }
+    },
+    "bodyShort": "{\"distanceMeters\":2318,\"durationSeconds\":187,\"polyline\":[{\"lat\":10.762561,\"lng\":106.660185},{\"lat\":10.762591,\"lng\":106.6",
+    "ok": true
+  },
+  {
+    "id": 24,
+    "group": "REGRESSION",
+    "label": "GET /api/v1/routing/debug/stations-along-route (EV) → 404 (D3)",
+    "path": "/api/v1/routing/debug/stations-along-route?originLat=10.7&originLng=106.6&destLat=10.8&destLng=106.7",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "32fd3db8-dffe-425c-9d79-3d0792927827",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/v1/routing/debug/stations-along-route",
+      "timestamp": "2026-06-17T16:23:59.173035630Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: GET /api/v1/routing/debug/stations-along-route",
+    "ok": true
+  },
+  {
+    "id": 25,
+    "group": "REGRESSION",
+    "label": "GET /api/admin/test (admin) → 404 (D2)",
+    "path": "/api/admin/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "e1c689e8-52fe-4453-a8a0-fd3192f35653",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/admin/test",
+      "timestamp": "2026-06-17T16:23:59.197926240Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: GET /api/admin/test",
+    "ok": true
+  },
+  {
+    "id": 26,
+    "group": "REGRESSION",
+    "label": "GET /api/collab/web/test (collab) → 404 (D2)",
+    "path": "/api/collab/web/test",
+    "method": "GET",
+    "status": 404,
+    "body": {
+      "traceId": "37f30056-7d96-4ee9-a017-8fb561bd47f8",
+      "code": "EVS-0003",
+      "message": "Endpoint not found: GET /api/collab/web/test",
+      "timestamp": "2026-06-17T16:23:59.219739137Z"
+    },
+    "bodyShort": "body.message=Endpoint not found: GET /api/collab/web/test",
+    "ok": true
+  },
+  {
+    "id": 27,
+    "group": "REGRESSION",
+    "label": "GET /api/v1/battery-swap/trust/{id} (anon, real id) → 200 (D1)",
+    "path": "/api/v1/battery-swap/trust/f1000000-0000-0000-0000-000000000011",
+    "method": "GET",
+    "status": 200,
+    "body": {
+      "stationId": "f1000000-0000-0000-0000-000000000011",
+      "score": 88,
+      "breakdown": {
+        "userRating": 4,
+        "uptimeScore": 92,
+        "swapSuccessRate": 95,
+        "responseTimeScore": 86
+      },
+      "updatedAt": "2026-06-02T17:18:52.529540Z",
+      "level": "GOOD"
+    },
+    "bodyShort": "{\"stationId\":\"f1000000-0000-0000-0000-000000000011\",\"score\":88,\"breakdown\":{\"userRating\":4,\"uptimeScore\":92,\"swapSuccess",
+    "ok": true
+  }
+]

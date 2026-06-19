@@ -78,9 +78,6 @@ public class SecurityConfig {
                         // Debug endpoints - public (for troubleshooting)
                         .requestMatchers("/debug/**").permitAll()
 
-                        // Routing debug endpoints - public in dev/staging (guarded by @Profile)
-                        .requestMatchers("/api/v1/routing/debug/**").permitAll()
-
                         // Public API endpoints (no auth required — station display screen)
                         .requestMatchers("/api/public/**").permitAll()
 
