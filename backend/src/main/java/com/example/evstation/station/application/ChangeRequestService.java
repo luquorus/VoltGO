@@ -93,7 +93,7 @@ public class ChangeRequestService {
                 .address(data.getAddress())
                 .location(location)
                 .operatingHours(data.getOperatingHours())
-                .parking(data.getParking())
+                .parking(data.getParking() != null ? data.getParking() : ParkingType.UNKNOWN)
                 .visibility(data.getVisibility())
                 .publicStatus(data.getPublicStatus())
                 .createdBy(userId)

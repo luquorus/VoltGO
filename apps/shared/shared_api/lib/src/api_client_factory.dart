@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_network/shared_network.dart';
-import 'package:shared_auth/shared_auth.dart';
 
 /// API Client Factory
 /// 
@@ -491,11 +490,6 @@ class EvUserMobileApiClient extends BaseApiClient {
   /// POST /api/ev/change-requests/{id}/submit
   Future<Map<String, dynamic>> submitChangeRequest(String id) {
     return post<Map<String, dynamic>>('/api/ev/change-requests/$id/submit');
-  }
-
-  /// PUT /api/ev/change-requests/{id}
-  Future<Map<String, dynamic>> updateChangeRequest(String id, Map<String, dynamic> data) {
-    return put<Map<String, dynamic>>('/api/ev/change-requests/$id', data: data);
   }
 
   // ============================================

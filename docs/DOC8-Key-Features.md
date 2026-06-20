@@ -138,6 +138,7 @@ An EV driver locates a nearby battery swap station on the map, reserves a batter
 **1. Nearby Swap Stations (`BatterySwapService.getNearbySwapStations`)**
 - Native PostGIS SQL: `ST_DWithin(location, ST_MakePoint(lng, lat)::geography, radius)`.
 - Returns stations sorted by distance, enriched with `total_batteries`, `available_batteries`, `base_price`.
+- **Updated 2026-06-20:** JOIN strategy refactored from `bsv.id = sv.id` (incorrect for V124/V125 VoltGo seed data, where `bsv.id != sv.id`) to `bsv.station_id = sv.station_id` + `JOIN station` + `JOIN station_service WHERE service_type = 'BATTERY_SWAP'`. Response now includes `providerId` (nullable) for each station so admin UI can attribute VoltGo-owned vs partner-imported stations. SQL named parameters `:lat/:lng` replaced with positional `?` to avoid conflicts with PostGIS `::text` casts (Hibernate binds them in `setParameter()` order).
 
 **2. Reservation (`BatterySwapService.reserve`)**
 - Finds an `AVAILABLE` battery slot at the station (random if multiple).
@@ -269,6 +270,8 @@ A user or **collaborator** submits a change request (e.g., updates station hours
 > **2026-06 update:** Collaborators can now create and submit change requests for both charging and battery-swap stations through a new *Requests* tab in the collaborator mobile app. Each CR passes through the same risk engine and notifies the submitter on every admin decision (approve / reject / publish).
 >
 > **2026-06-14 update:** The Create-CR form now supports *station search & auto-fill* — collaborators type a station name and pick a match to pre-populate name/address/GPS/hours/ports (and battery-swap details if the station supports the service).
+>
+> **2026-06-20 update:** `stationData.parking` is now optional in `CreateChangeRequestDTO` (no `@NotNull`). The service layer in `ChangeRequestService` falls back to `ParkingType.UNKNOWN` if the user omits parking. Rationale: a CR may only edit hours / address / ports and shouldn't be forced to pick a parking type.
 
 ### Backend Logic
 

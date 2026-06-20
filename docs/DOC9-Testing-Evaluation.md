@@ -55,6 +55,19 @@ These should be executed end-to-end before each release. The full checklist is m
 13. **Self-assign — battery swap** — Repeat (12) with a battery-swap CR. Expect the same `409 Conflict`.
 14. **Self-assign audit log** — Open the audit log for the task that was blocked in (12)/(13). Expect a row with action `BLOCK_SELF_ASSIGN` and metadata listing `taskId`, `attemptedAssignee`, `crSubmitter`, `crKind`, `changeRequestId`, and the `reason` field.
 
+### Manual test cases for **EV User mobile Home Map redesign + Ratings & Reviews + providerId/parking** (NEW 2026-06-20)
+
+15. **Home Map single search bar** — Open the EV user app, navigate to *Home Map*. Type a station name in the search bar. Expect: a list of suggested stations appears (debounced ~500ms). Type a destination address. Expect: route suggestions appear in the same bar. The two are merged in one input.
+16. **Tab Charging does not show battery-swap-only stations** — Switch the bottom sheet to *Charging* mode. Expect: the list shows only stations with charging ports. Battery-swap-only stations (no `station_service` row of `CHARGING` type) should not appear even if they are within the radius.
+17. **Filter bottom sheet** — Tap the *Filter* icon. Expect: a modal bottom sheet appears (not an AlertDialog) with 3 sections: *Distance* (chips 2/5/10/20 km + slider 1–50 km), *Minimum power* (chips Any/22 kW+/50 kW+/100 kW+), *Charger type* (chips Any/AC/DC Fast). Apply filters and verify the list refreshes.
+18. **Selected Station Preview** — Tap a station marker on the map. Expect: a large preview card appears with name, address, distance, trust score, ports/batteries, and 2 action buttons *Route* (Outlined) + *Book* (Filled). For battery-swap-only stations the second button shows *Reserve* with a battery icon.
+19. **Ratings & Reviews on charging station detail** — Open a charging station detail page. Scroll to the bottom. Expect: a *Ratings & Reviews* section rendered by the reusable `StationRatingSection` widget showing average rating, star count, and a per-star breakdown. If the user is eligible to rate, the button reads *Rate this station*; otherwise *View all ratings*.
+20. **Ratings & Reviews on battery swap screen** — Open the Battery Swap tab → tap a station. Scroll to the bottom. Expect: the same *Ratings & Reviews* widget appears in `compact` mode.
+21. **Change Request with no parking** — In the EV user app, create a new Change Request for an existing charging station. Do **not** select a value in the *Parking* dropdown. Submit. Expect: 200 OK (previously would have been 400 because `parking` was `@NotNull`).
+22. **Change Request with explicit parking** — Create a Change Request and pick *STREET_PARKING* from the new dropdown. Submit. Expect: 200 OK. Verify the new station version (if approved) has `parking = STREET_PARKING` in DB.
+23. **`BatterySwapStationDTO.providerId` present** — Hit `GET /api/ev/battery-swap/stations?lat=…&lng=…&radiusKm=…` with a valid EV user JWT. Expect: every item has a `providerId` field (may be `null` for legacy records). For a station created by the admin via the admin UI, expect `providerId == adminId`.
+24. **VoltGo seed battery-swap stations visible** — `GET /api/ev/battery-swap/stations` should now return V124/V125 VoltGo-seeded stations (previously these were dropped because the old `bsv.id = sv.id` join did not match for seed data).
+
 ### Flutter `widget_test.dart` Files
 
 Each app has a default `widget_test.dart` created by `flutter create`. These are the default counter app tests and do not test any actual application code:

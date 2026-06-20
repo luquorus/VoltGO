@@ -21,14 +21,14 @@
 
 ### EV User Features (Mobile App — `ev_user_mobile`)
 
-- **Station Map & Search:** OpenStreetMap-based interactive map showing nearby charging and battery swap stations. Filter by name, distance, power type.
+- **Station Map & Search:** OpenStreetMap-based interactive map showing nearby charging and battery swap stations. Filter by name, distance, power type. *(Updated 2026-06-20: Redesigned Home Map with single search bar, modal filter sheet, and clean bottom-sheet switching between Nearby and Route modes; tab Charging no longer mixes with battery-swap stations.)*
 - **Station Navigation:** Route calculation via OSRM to navigate drivers to stations.
 - **Charging Booking:** Reserve a charging slot at a station for a specific time window. Booking enters `HOLD` state with a 15-minute expiry, then auto-converts to `CONFIRMED` or `EXPIRED`.
 - **Battery Swap Reservation:** Reserve a battery and slot at a swap station. Workflow: reserve → confirm arrival → start swap (receive 6-digit swap code) → pay (mock) → complete → verify.
 - **Station Availability:** Real-time charger unit status (AVAILABLE, OCCUPIED, OUT_OF_SERVICE) via API.
-- **Change Request:** Submit suggested edits to station data (name, address, ports, hours) for admin review. The same workflow is also available to collaborators (see *Collaborator Features* below).
+- **Change Request:** Submit suggested edits to station data (name, address, ports, hours) for admin review. The same workflow is also available to collaborators (see *Collaborator Features* below). *(Updated 2026-06-20: `parking` is now optional in Create CR payload; service falls back to `ParkingType.UNKNOWN`.)*
 - **Issue Reporting:** Report station discrepancies (wrong address, broken charger, etc.).
-- **Station Rating:** Rate a station after charging. Ratings go through admin moderation before publication.
+- **Station Rating:** Rate a station after charging. Ratings go through admin moderation before publication. *(Updated 2026-06-20: Reusable `StationRatingSection` widget now embedded in both charging station detail and battery swap screen; Rate vs View-all button toggles based on `eligibleStationsForRatingProvider`.)*
 - **Loyalty Program:** Earn points per completed booking/swap. Redeem points for vouchers. Earn badges (5 tiers: Bronze → Silver → Gold → Platinum → Diamond). Referral program with bonus points for both parties.
 - **Voucher Catalog:** Browse and redeem vouchers at participating stations.
 - **AI Recommendations:** Personalized station recommendations based on vehicle battery level, capacity, and target charge level.
@@ -54,7 +54,7 @@
 - **Collaborator Management:** View collaborator profiles, contracts, GPS locations, performance metrics (total bookings, verifications, avg response time).
 - **Verification Task Management:** Create, assign, and review verification tasks. SLA deadline tracking. Evidence photo review.
 - **Issue Management:** View and resolve user-reported station issues. Categorize by type.
-- **Battery Swap Station Management:** Full CRUD for swap stations. CSV bulk import. Change request workflow.
+- **Battery Swap Station Management:** Full CRUD for swap stations. CSV bulk import. Change request workflow. *(Updated 2026-06-19: New fields `batteryCapacityKwh`, `parking`, `pileTemplates`; `STREET_PARKING` enum added; CSV import extended from 9 → 12 columns.)*
 - **Battery Swap Trust Scoring:** Trust score for swap stations with breakdown by location, data accuracy, operations, financial, safety, and provider factors.
 - **Loyalty Administration:** Manage badge definitions and tiers, create/manage vouchers, moderate user ratings, view loyalty leaderboard.
 - **Audit Log:** Full-text search across all admin actions (entity type, action type, actor, timestamp, details).

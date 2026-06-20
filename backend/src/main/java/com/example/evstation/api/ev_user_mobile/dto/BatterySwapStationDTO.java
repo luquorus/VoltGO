@@ -26,4 +26,6 @@ public class BatterySwapStationDTO {
     private Integer totalPiles;
     private Integer availableSlots;
     private Integer totalSlots;
+    /** Provider sở hữu trạm (NULL nếu import CSV trước khi áp dụng P1 fix). */
+    private String providerId;
 }

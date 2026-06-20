@@ -44,6 +44,8 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
   final _operatingHoursController = TextEditingController();
   String? _visibility;
   String? _publicStatus;
+  // Parking: PAID / FREE / STREET_PARKING / UNKNOWN
+  String? _parking;
 
   // Charging station services
   List<ServiceData> _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
@@ -357,6 +359,10 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
 
         _buildDropdown(theme, 'Public Status', _publicStatus, ['ACTIVE', 'INACTIVE', 'MAINTENANCE'],
             (v) => setState(() => _publicStatus = v)),
+        const SizedBox(height: 16),
+
+        _buildDropdown(theme, 'Parking', _parking, ['PAID', 'FREE', 'STREET_PARKING', 'UNKNOWN'],
+            (v) => setState(() => _parking = v)),
         const SizedBox(height: 24),
 
         Text(
@@ -892,6 +898,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
         _operatingHoursController.text = stationData['operatingHours'] as String? ?? '';
         _visibility = stationData['visibility'] as String?;
         _publicStatus = stationData['publicStatus'] as String?;
+        _parking = stationData['parking'] as String?;
 
         // Load services (preferred) or legacy ports list
         final servicesRaw = stationData['services'] as List<dynamic>?;
@@ -999,6 +1006,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     _operatingHoursController.clear();
     _visibility = null;
     _publicStatus = null;
+    _parking = null;
     _totalBatteriesController.text = '20';
     _avgChargePowerKwController.text = '35.0';
     setState(() {
@@ -1014,6 +1022,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
     _operatingHoursController.clear();
     _visibility = null;
     _publicStatus = null;
+    _parking = null;
     setState(() {
       _services = [ServiceData(type: 'CHARGING', chargingPorts: [])];
     });
@@ -1119,6 +1128,7 @@ class _ChangeRequestCreateScreenState extends ConsumerState<ChangeRequestCreateS
       },
       'visibility': _visibility ?? 'PUBLIC',
       'publicStatus': _publicStatus ?? 'ACTIVE',
+      'parking': _parking ?? 'UNKNOWN',
       'services': _services.map((service) {
         final serviceData = <String, dynamic>{
           'type': service.type,

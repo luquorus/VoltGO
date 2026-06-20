@@ -143,30 +143,37 @@ class _ChangeRequestCard extends StatelessWidget {
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    '${_typeLabel(cr.type)} • #${cr.id.length >= 8 ? cr.id.substring(0, 8) : cr.id}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  Expanded(
+                    child: Text(
+                      '${_typeLabel(cr.type)} • #${cr.id.length >= 8 ? cr.id.substring(0, 8) : cr.id}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
                     ),
                   ),
-                  const Spacer(),
-                  if (cr.createdAt != null)
-                    Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.calendar,
-                          size: 12,
+                  if (cr.createdAt != null) ...[
+                    const SizedBox(width: 8),
+                    FaIcon(
+                      FontAwesomeIcons.calendar,
+                      size: 12,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        _formatDateTime(cr.createdAt!),
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDateTime(cr.createdAt!),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
                     ),
+                  ],
                 ],
               ),
             ],

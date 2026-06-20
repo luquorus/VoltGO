@@ -3,7 +3,7 @@
 > Danh sách toàn bộ API endpoint liên quan đến **station** (trạm sạc + trạm đổi pin) trong hệ thống VoltGO.
 > Bao gồm: truy vấn, chi tiết, khuyến nghị, đặt chỗ, đổi pin, change request, quản trị, audit log, issue, AI, trust score…
 >
-> **Cập nhật:** 18/06/2026
+> **Cập nhật:** 20/06/2026 — Thêm filter `service_type = CHARGING` cho `1.1`/`1.3`, thêm `providerId` cho `2.1`/`2.2`/`18.1`/`18.2`, bỏ `@NotNull` cho `parking` trong `4.1`/`4.5`
 
 ---
 
@@ -39,9 +39,9 @@
 
 | # | Method | Endpoint | Chức năng |
 |---|--------|----------|-----------|
-| 1.1 | `GET` | `/api/ev/stations` | Tìm trạm đã publish trong bán kính (cả charging-only, battery-swap-only, hybrid). Query: `lat`, `lng`, `radiusKm`, `minPowerKw?`, `hasAC?`, `page?`, `size?`. Trả về `PaginationResponse<StationListItemDTO>`. Mỗi item có: `chargingSummary` (charging ports), `batterySwap` (piles/pins — null nếu trạm không hỗ trợ), `supportsBatterySwap` (bool). |
+| 1.1 | `GET` | `/api/ev/stations` | Tìm trạm đã publish trong bán kính (cả charging-only, battery-swap-only, hybrid). Query: `lat`, `lng`, `radiusKm`, `minPowerKw?`, `hasAC?`, `page?`, `size?`. Trả về `PaginationResponse<StationListItemDTO>`. Mỗi item có: `chargingSummary` (charging ports), `batterySwap` (piles/pins — null nếu trạm không hỗ trợ), `supportsBatterySwap` (bool). **Filter bổ sung (2026-06-20):** chỉ trả về trạm có `station_service.service_type = 'CHARGING'` (dùng `EXISTS` subquery) — tránh trả trạm swap-only khi user ở tab Charging. |
 | 1.2 | `GET` | `/api/ev/stations/{stationId}` | Lấy chi tiết trạm đã publish. Nếu trạm hỗ trợ battery swap, `batterySwap` (SwapServiceInfoDTO) chứa `totalBatteries`, `avgChargePowerKw`, `availableBatteries`. |
-| 1.3 | `GET` | `/api/ev/stations/search/by-name` | Tìm trạm theo tên (case-insensitive, partial match). Chỉ trả về bản PUBLISHED. Cùng schema `StationListItemDTO` như 1.1. |
+| 1.3 | `GET` | `/api/ev/stations/search/by-name` | Tìm trạm theo tên (case-insensitive, partial match). Chỉ trả về bản PUBLISHED. Cùng schema `StationListItemDTO` như 1.1. **Filter bổ sung (2026-06-20):** giống 1.1, chỉ trả trạm có `CHARGING` service. |
 | 1.4 | `POST` | `/api/ev/stations/recommendations` | Gợi ý trạm tối ưu dựa trên mức pin, dung lượng pin, mức pin mục tiêu. Tối ưu tổng thời gian (đi + sạc). Body: `RecommendationRequestDTO`. |
 | 1.5 | `GET` | `/api/ev/stations/{stationId}/charger-units` | Lấy danh sách charger units (active) của một trạm. Trả về `List<ChargerUnitDTO>`. |
 | 1.6 | `GET` | `/api/ev/stations/{stationId}/availability` | Lấy ma trận khả dụng của các slot theo ngày. Query: `date` (YYYY-MM-DD), `tz?`, `slotMinutes?` (mặc định 30), `powerType?`, `minPowerKw?`. |
@@ -55,8 +55,8 @@
 
 | # | Method | Endpoint | Chức năng |
 |---|--------|----------|-----------|
-| 2.1 | `GET` | `/api/ev/battery-swap/stations` | Danh sách trạm đổi pin gần vị trí hiện tại. Query: `lat`, `lng`, `radiusKm?` (mặc định 15). |
-| 2.2 | `GET` | `/api/ev/battery-swap/stations/{stationId}` | Chi tiết trạm đổi pin kèm swap piles và slots. |
+| 2.1 | `GET` | `/api/ev/battery-swap/stations` | Danh sách trạm đổi pin gần vị trí hiện tại. Query: `lat`, `lng`, `radiusKm?` (mặc định 15). **Cập nhật 2026-06-20:** JOIN đổi từ `bsv.id = sv.id` → `bsv.station_id = sv.station_id` + filter `station_service.service_type = 'BATTERY_SWAP'`. Response giờ có thêm field `providerId` (String, nullable) cho mỗi trạm. |
+| 2.2 | `GET` | `/api/ev/battery-swap/stations/{stationId}` | Chi tiết trạm đổi pin kèm swap piles và slots. **Cập nhật 2026-06-20:** response có thêm `providerId`. |
 | 2.3 | `POST` | `/api/ev/battery-swap/reservations` | Đặt chỗ (reserve) một slot đổi pin. Body: `BatterySwapReserveRequestDTO`. |
 | 2.4 | `POST` | `/api/ev/battery-swap/reservations/{id}/confirm-arrival` | User xác nhận đã đến trạm. |
 | 2.5 | `POST` | `/api/ev/battery-swap/reservations/{id}/start` | Bắt đầu đổi pin, sinh swap code (Flow 2 — code required), broadcast tới simulator. |
@@ -96,7 +96,7 @@
 
 | # | Method | Endpoint | Chức năng |
 |---|--------|----------|-----------|
-| 4.1 | `POST` | `/api/ev/change-requests` | Tạo CR (CREATE_STATION hoặc UPDATE_STATION). Status khởi tạo là DRAFT. |
+| 4.1 | `POST` | `/api/ev/change-requests` | Tạo CR (CREATE_STATION hoặc UPDATE_STATION). Status khởi tạo là DRAFT. **Cập nhật 2026-06-20:** field `stationData.parking` bỏ `@NotNull` — optional. Service fallback `ParkingType.UNKNOWN` nếu null. |
 | 4.2 | `POST` | `/api/ev/change-requests/{id}/submit` | Submit CR từ DRAFT → PENDING (chạy risk engine). |
 | 4.3 | `GET` | `/api/ev/change-requests/mine` | Danh sách CR của user hiện tại. |
 | 4.4 | `GET` | `/api/ev/change-requests/{id}` | Chi tiết một CR (chỉ nếu thuộc về user). |
@@ -105,7 +105,7 @@
 
 | # | Method | Endpoint | Chức năng |
 |---|--------|----------|-----------|
-| 4.5 | `POST` | `/api/ev/battery-swap-change-requests` | Tạo CR cho trạm đổi pin (CREATE / UPDATE). Status khởi tạo DRAFT. |
+| 4.5 | `POST` | `/api/ev/battery-swap-change-requests` | Tạo CR cho trạm đổi pin (CREATE / UPDATE). Status khởi tạo DRAFT. **Cập nhật 2026-06-20:** tương tự 4.1, field `parking` optional. |
 | 4.6 | `GET` | `/api/ev/battery-swap-change-requests` | Lấy tất cả battery-swap CR của user hiện tại. |
 | 4.7 | `GET` | `/api/ev/battery-swap-change-requests/{id}` | Chi tiết một battery-swap CR. |
 | 4.8 | `POST` | `/api/ev/battery-swap-change-requests/{id}/submit` | Submit CR battery-swap từ DRAFT → PENDING (chạy risk engine). |
@@ -351,8 +351,8 @@
 
 | # | Method | Endpoint | Chức năng |
 |---|--------|----------|-----------|
-| 18.1 | `GET` | `/api/public/battery-swap/stations` | Danh sách tất cả trạm đổi pin đã publish (cho màn hình hiển thị công cộng). |
-| 18.2 | `GET` | `/api/public/battery-swap/stations/{stationId}` | Chi tiết trạm đổi pin (kèm piles & slots). |
+| 18.1 | `GET` | `/api/public/battery-swap/stations` | Danh sách tất cả trạm đổi pin đã publish (cho màn hình hiển thị công cộng). **Cập nhật 2026-06-20:** response giờ có thêm field `providerId` (String, nullable) cho mỗi trạm. Cùng JOIN refactor như `2.1`. |
+| 18.2 | `GET` | `/api/public/battery-swap/stations/{stationId}` | Chi tiết trạm đổi pin (kèm piles & slots). **Cập nhật 2026-06-20:** response có thêm `providerId`. |
 | 18.3 | `GET` | `/api/public/battery-swap/stations/{stationId}/piles` | Piles & slots của trạm (cho hardware simulator / display screen). |
 | 18.4 | `GET` | `/api/public/device/stations/{stationId}/key` | Lấy / đăng ký device key cho trạm (dùng cho simulator/display). Query: `deviceName?`. Trả về `{stationId, deviceKey, wsEndpoint}`. |
 | 18.5 | `GET` | `/api/public/battery-swap/stations/{stationId}/active-code` | Swap code đang active (PENDING) của trạm — polling fallback. |

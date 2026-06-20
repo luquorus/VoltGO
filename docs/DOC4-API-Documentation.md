@@ -76,8 +76,8 @@ Request:
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/public/battery-swap/stations` | Get all battery swap stations | No |
-| `GET` | `/api/public/battery-swap/stations/{stationId}` | Get swap station detail | No |
+| `GET` | `/api/public/battery-swap/stations` | Get all battery swap stations (response giờ có field `providerId`) | No |
+| `GET` | `/api/public/battery-swap/stations/{stationId}` | Get swap station detail (response giờ có field `providerId`) | No |
 | `GET` | `/api/public/battery-swap/stations/{stationId}/piles` | Get station piles | No |
 | `GET` | `/api/public/battery-swap/stations/{stationId}/active-code` | Get active swap code | No |
 | `POST` | `/api/public/registration-requests` | Submit collaborator registration | No |
@@ -99,6 +99,8 @@ Request:
 **`GET /api/ev/stations?lat=X&lng=Y&radiusKm=Z`**
 
 Query params: `lat`, `lng`, `radiusKm`, `minPowerKw`, `hasAC`, `page`, `size`
+
+> **Cập nhật 2026-06-20:** response chỉ chứa trạm có `station_service.service_type = 'CHARGING'` (filter bằng `EXISTS` subquery ở SQL layer). Mỗi item có thêm field `batterySwap` (nullable, summary cho trạm hybrid/swap) và `supportsBatterySwap` (bool). Cùng schema `StationListItemDTO` cho cả `/api/ev/stations/search/by-name`.
 
 Response (200):
 ```json
@@ -143,8 +145,8 @@ Query params: `date` (YYYY-MM-DD), `tz`, `slotMinutes`, `powerType`, `minPowerKw
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/ev/battery-swap/stations` | Get nearby swap stations | Yes (EV_USER) |
-| `GET` | `/api/ev/battery-swap/stations/{stationId}` | Get swap station detail | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap/stations` | Get nearby swap stations (response giờ có field `providerId`) | Yes (EV_USER) |
+| `GET` | `/api/ev/battery-swap/stations/{stationId}` | Get swap station detail (response giờ có field `providerId`) | Yes (EV_USER) |
 | `POST` | `/api/ev/battery-swap/reservations` | Reserve a battery swap | Yes (EV_USER) |
 | `POST` | `/api/ev/battery-swap/reservations/{id}/confirm-arrival` | Confirm arrival | Yes (EV_USER) |
 | `POST` | `/api/ev/battery-swap/reservations/{id}/start` | Start swap (generates 6-digit code) | Yes (EV_USER) |
@@ -152,6 +154,30 @@ Query params: `date` (YYYY-MM-DD), `tz`, `slotMinutes`, `powerType`, `minPowerKw
 | `POST` | `/api/ev/battery-swap/reservations/{id}/cancel` | Cancel reservation | Yes (EV_USER) |
 | `POST` | `/api/ev/battery-swap/reservations/{id}/pay` | Pay for swap (mock) | Yes (EV_USER) |
 | `GET` | `/api/ev/battery-swap/reservations/mine` | Get user's reservations | Yes (EV_USER) |
+
+**`GET /api/ev/battery-swap/stations?lat=X&lng=Y&radiusKm=Z`**
+
+Query params: `lat`, `lng`, `radiusKm` (default 15)
+
+> **Cập nhật 2026-06-20:** JOIN đổi từ `bsv.id = sv.id` (sai cho V124/V125 seed) → `bsv.station_id = sv.station_id` + `JOIN station_service WHERE service_type = 'BATTERY_SWAP'`. Response giờ có thêm field `providerId` (String, nullable) cho mỗi trạm — admin UI dùng để phân biệt trạm VoltGo seed với trạm partner nhập qua CSV. Trạm seed V124/V125 trước đây bị drop giờ hiển thị đúng.
+
+Response (200):
+```json
+[
+  {
+    "stationId": "uuid",
+    "name": "Trạm đổi pin A",
+    "address": "456 Đường DEF, Quận 3",
+    "latitude": 10.7700,
+    "longitude": 106.6900,
+    "distanceKm": 1.4,
+    "totalPiles": 6,
+    "totalSlots": 30,
+    "availableSlots": 12,
+    "providerId": "admin-uuid-hoặc-null"
+  }
+]
+```
 
 **`POST /api/ev/battery-swap/reservations`**
 
@@ -172,12 +198,11 @@ Request:
 
 | Method | Path | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/ev/change-requests` | Submit station change request | Yes (EV_USER) |
+| `POST` | `/api/ev/change-requests` | Submit station change request (field `stationData.parking` giờ optional, default `UNKNOWN`) | Yes (EV_USER) |
 | `GET` | `/api/ev/change-requests/mine` | Get user's change requests | Yes (EV_USER) |
 | `GET` | `/api/ev/change-requests/{id}` | Get CR detail | Yes (EV_USER) |
 | `POST` | `/api/ev/change-requests/{id}/submit` | Submit CR for review | Yes (EV_USER) |
-| `PUT` | `/api/ev/change-requests/{id}` | Update CR draft | Yes (EV_USER) |
-| `POST` | `/api/ev/battery-swap-change-requests` | Submit battery swap CR | Yes (EV_USER) |
+| `POST` | `/api/ev/battery-swap-change-requests` | Submit battery swap CR (field `parking` giờ optional) | Yes (EV_USER) |
 | `GET` | `/api/ev/battery-swap-change-requests` | Get battery swap CRs | Yes (EV_USER) |
 | `GET` | `/api/ev/battery-swap-change-requests/{id}` | Get battery swap CR detail | Yes (EV_USER) |
 | `POST` | `/api/ev/battery-swap-change-requests/{id}/submit` | Submit battery swap CR | Yes (EV_USER) |

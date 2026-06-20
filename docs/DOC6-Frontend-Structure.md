@@ -124,19 +124,19 @@ GoRouter provides declarative routing with role-based guards.
 | Splash | `splash_screen.dart` | App logo, env loading |
 | Login | `login_screen.dart` | Email+password auth |
 | Register | `register_screen.dart` | Registration with optional referral code |
-| Home Map | `home_map_screen.dart` | OpenStreetMap with station markers, routing |
-| Station Detail | `station_detail_screen.dart` | Station info, availability, book/rate buttons |
+| Home Map | `home_map_screen.dart` | OpenStreetMap với station markers, routing *(Redesigned 2026-06-20: 1 search bar, modal filter sheet, 2-mode bottom sheet, SelectedStationPreview khi chọn trạm)* |
+| Station Detail | `station_detail_screen.dart` | Station info, availability, book/rate buttons *(Updated 2026-06-20: tích hợp `StationRatingSection` ở compact mode)* |
 | Booking | `create_booking_with_charger_unit_screen.dart` | Time slot selection and booking |
 | Booking Detail | `booking_detail_screen.dart` | Booking info and actions |
 | Booking List | `booking_list_screen.dart` | List of user bookings |
 | Recommendation | `recommendation_screen.dart` | AI-powered personalized recommendations |
-| Battery Swap | `battery_swap_screen.dart` | Swap stations list |
+| Battery Swap | `battery_swap_screen.dart` | Swap stations list *(Updated 2026-06-20: tích hợp `StationRatingSection` ở compact mode ở main screen + station detail sheet)* |
 | Battery Swap Reservation | `battery_swap_reservation_screen.dart` | Reserve flow |
 | Battery Swap Booking Sheet | `battery_swap_booking_sheet.dart` | Swap booking bottom sheet |
 | Battery Swap CR Detail | `battery_swap_change_request_detail_screen.dart` | Swap CR detail |
 | Change Request List | `change_request_list_screen.dart` | User's change requests |
 | Change Request Detail | `change_request_detail_screen.dart` | CR detail |
-| Change Request Create | `change_request_create_screen.dart` | Submit new CR |
+| Change Request Create | `change_request_create_screen.dart` | Submit new CR *(Updated 2026-06-20: thêm dropdown Parking với 4 options PAID/FREE/STREET_PARKING/UNKNOWN, auto-fill từ station detail)* |
 | My Issues | `my_issues_screen.dart` | User's reported issues |
 | Loyalty Home | `loyalty_home_screen.dart` | Points, tier overview |
 | My Vouchers | `loyalty/my_vouchers_screen.dart` | Redeemed vouchers |
@@ -154,32 +154,39 @@ GoRouter provides declarative routing with role-based guards.
 **Providers (10 total):**
 `auth_state_provider`, `booking_providers`, `battery_swap_change_request_providers`, `change_request_providers`, `file_viewer_providers`, `issue_providers`, `loyalty_providers`, `notification_provider`, `profile_providers`, `routing_provider`, `station_providers`
 
+> **Update 2026-06-20:** `station_providers` thêm `.where((s) => s['supportsBatterySwap'] != true)` trong `StationSearchNotifier` (search by name + 2 nearby modes) để tab Charging không trộn trạm battery-swap-only.
+
 **Repositories (6 total):**
 `booking_repository`, `battery_swap_change_request_repository`, `change_request_repository`, `issue_repository`, `profile_repository`, `station_repository`
+
+**Custom Widgets (2026-06-20 — 4 mới):**
+- `widgets/compact_station_card.dart` — `CompactStationCard` (charging/hybrid, tối đa 3 badge) + `CompactSwapStationCard` (swap-only).
+- `widgets/filter_bottom_sheet.dart` — `HomeMapFilterState` + `FilterBottomSheet` (modal sheet thay cho AlertDialog cũ).
+- `widgets/selected_station_preview.dart` — `SelectedStationPreview` (preview card lớn khi user chọn 1 station trên map).
+- `widgets/rating/station_rating_section.dart` — `StationRatingSection` widget dùng chung cho cả charging + battery swap screen, watch `stationRatingSummaryProvider` + `eligibleStationsForRatingProvider`.
 
 ---
 
 ### Admin Web (`admin_web`)
 
-**Screens (54+ total) — organized in `screens/` and `screens/[feature]/`:**
+**Screens (52 total) — organized in `screens/` and `screens/[feature]/`:**
 
 | Screen | Location | Description |
 |---|---|---|
 | Login | `screens/login_screen.dart` | Admin login |
 | Home/Dashboard | `screens/home_screen.dart` | Overview stats |
 | Analytics Dashboard | `screens/analytics_dashboard_screen.dart` | Detailed analytics |
-| Station List | `screens/stations_list_screen.dart` | Paginated station table |
-| Unified Stations List | `screens/unified_stations_list_screen.dart` | Combined station list |
+| Charging Stations | `screens/charging_stations_screen.dart` | Charging station management |
+| Charging Stations List | `screens/charging_stations_list_screen.dart` | Paginated charging station table |
+| Unified Stations List | `screens/unified_stations_list_screen.dart` | Combined station list (charging + battery swap tabs) |
 | Station Detail | `screens/station_detail_screen.dart` | Station edit/view |
 | Create Station | `screens/create_station_screen.dart` | Create charging station |
 | CSV Import | `screens/csv_import_screen.dart` | Bulk import CSV |
-| Change Requests | `screens/change_requests_screen.dart` | CR list |
-| Unified CRs | `screens/unified_change_requests_screen.dart` | Combined CR list |
+| Unified Change Requests | `screens/unified_change_requests_screen.dart` | Combined CR list (charging + battery swap tabs) |
 | CR Detail | `screens/change_request_detail_screen.dart` | CR review |
 | CR Audit | `screens/change_request_audit_screen.dart` | CR audit log |
-| Collaborators List | `screens/collaborators_list_screen.dart` | Collaborator table |
+| Collaborators | `screens/collaborator_management_screen.dart` | Collaborator management |
 | Collaborator Detail | `screens/collaborator_detail_screen.dart` | Collaborator profile |
-| Collaborator Management | `screens/collaborator_management_screen.dart` | Full management |
 | Collaborator Performance | `screens/collaborator_performance_screen.dart` | Performance overview |
 | Collaborator Performance Detail | `screens/collaborator_performance_detail_screen.dart` | Individual performance |
 | Contract Detail | `screens/contract_detail_screen.dart` | Contract view |
@@ -187,17 +194,14 @@ GoRouter provides declarative routing with role-based guards.
 | Verification Task Detail | `screens/verification_task_detail_screen.dart` | Task review |
 | Station Audit | `screens/station_audit_screen.dart` | Station audit log |
 | Audit Query | `screens/audit_query_screen.dart` | Cross-entity audit search |
-| Station Trust | `screens/station_trust_screen.dart` | Trust score management |
-| Swap Trust Dashboard | `screens/swap_trust_dashboard_screen.dart` | Battery swap trust |
-| Unified Trust Dashboard | `screens/unified_trust_dashboard_screen.dart` | Combined trust overview |
+| Charging Trust | `screens/charging_trust_dashboard_screen.dart` | Trust score management |
+| Swap Trust | `screens/battery_swap_trust_dashboard_screen.dart` | Battery swap trust |
 | Issues List | `screens/issues_list_screen.dart` | Issue table |
 | Issue Detail | `screens/issue_detail_screen.dart` | Issue resolution |
 | Registration Requests List | `screens/registration_requests_list_screen.dart` | Collaborator applications |
 | Registration Request Detail | `screens/registration_request_detail_screen.dart` | Application review |
 | Profile | `screens/profile_screen.dart` | Admin profile |
 | Edit Profile | `screens/edit_profile_screen.dart` | Edit profile |
-| Battery Swap Stations | `screens/battery_swap_stations_screen.dart` | Swap station list |
-| Battery Swap Stations List | `screens/battery_swap_stations_list_screen.dart` | Alternative swap list |
 | Battery Swap Station Detail | `screens/battery_swap_station_detail_screen.dart` | Swap station edit |
 | Create Battery Swap Station | `screens/battery_swap/create_battery_swap_station_screen.dart` | Create swap station |
 | Battery Swap CSV Import | `screens/battery_swap/battery_swap_csv_import_screen.dart` | Import CSV |
@@ -208,8 +212,6 @@ GoRouter provides declarative routing with role-based guards.
 | User Loyalty Detail | `screens/loyalty/user_loyalty_detail_screen.dart` | User loyalty profile |
 | Rating Moderation | `screens/loyalty/rating_moderation_screen.dart` | Rate moderation |
 | Voucher Management | `screens/loyalty/voucher_management_screen.dart` | Voucher CRUD |
-| Charging Stations | `screens/charging_stations_screen.dart` | Charging station management |
-| Charging Stations List | `screens/charging_stations_list_screen.dart` | Alternative list |
 
 **Models (19 total):**
 `admin_change_request`, `admin_issue`, `admin_station`, `admin_verification_task`, `audit_log`, `battery_swap_change_request`, `battery_swap_station`, `battery_swap_trust`, `collaborator_candidate`, `collaborator_performance`, `collaborator_profile`, `contract`, `dashboard_stats`, `pagination_response`, `presign_view_response`, `registration_request`, `simulator_models`, `station_trust`, `station_trust_summary`

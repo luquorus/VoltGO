@@ -12,7 +12,7 @@ class SplashScreen extends ConsumerWidget {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (authState.isAuthenticated && authState.role == 'ADMIN') {
-        context.go('/home');
+        context.go('/dashboard');
       } else if (authState.isAuthenticated) {
         context.go('/forbidden');
       } else {

@@ -41,8 +41,7 @@ public class CreateChangeRequestDTO {
         private LocationDTO location;
         
         private String operatingHours;
-        
-        @NotNull(message = "Parking type is required")
+
         private ParkingType parking;
         
         @NotNull(message = "Visibility is required")

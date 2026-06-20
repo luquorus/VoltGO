@@ -114,12 +114,17 @@ public class BatterySwapStationAdminService {
         CreateBatterySwapStationDTO.StationDataDTO data = request.getStationData();
 
         // 1. Create StationEntity
+        // Use the admin's id as the station's provider_id so we can later
+        // distinguish VoltGo-owned stations (V124 seed sets a real provider)
+        // from partner stations imported via CSV. Before this fix, provider_id
+        // was left NULL, making it impossible to attribute a station to a provider.
         StationEntity station = StationEntity.builder()
                 .id(UUID.randomUUID())
+                .providerId(adminId)
                 .createdAt(Instant.now())
                 .build();
         stationRepository.save(station);
-        log.info("Created station entity: {}", station.getId());
+        log.info("Created station entity: {} (provider={})", station.getId(), adminId);
 
         // 1b. Initialize trust record with score 50
         try {

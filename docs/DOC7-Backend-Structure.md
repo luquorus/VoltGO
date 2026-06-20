@@ -69,7 +69,7 @@ src/main/java/com/example/evstation/
 │   ├── booking/                       # Booking business logic
 │   │   └── BookingService.java
 │   ├── battery_swap/                  # Battery swap core
-│   │   ├── BatterySwapService.java
+│   │   ├── BatterySwapService.java    # Updated 2026-06-20: JOIN refactor + providerId field
 │   │   ├── SwapSessionService.java
 │   │   ├── SwapCodeService.java
 │   │   ├── BatteryChargingSimulationJob.java
@@ -94,7 +94,7 @@ src/main/java/com/example/evstation/
 │   ├── station/
 │   │   └── StationService.java
 │   ├── change_request/
-│   │   └── ChangeRequestService.java
+│   │   └── ChangeRequestService.java   # Updated 2026-06-20: parking fallback UNKNOWN
 │   ├── collaborator/
 │   │   ├── CollaboratorRegistrationRequestService.java
 │   │   └── CollaboratorService.java

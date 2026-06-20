@@ -47,7 +47,7 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
 
         // Build base query with PostGIS ST_DWithin
         StringBuilder queryBuilder = new StringBuilder("""
-            SELECT 
+            SELECT
                 sv.station_id,
                 sv.name,
                 sv.address,
@@ -63,6 +63,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 CAST(sv.location AS geography),
                 CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
                 :radiusMeters
+            )
+            AND EXISTS (
+                SELECT 1 FROM station_service ss
+                WHERE ss.station_version_id = sv.id
+                AND ss.service_type = 'CHARGING'
             )
             """);
 
@@ -99,6 +104,11 @@ public class StationQueryRepositoryImpl implements StationQueryRepository {
                 CAST(sv.location AS geography),
                 CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
                 :radiusMeters
+            )
+            AND EXISTS (
+                SELECT 1 FROM station_service ss
+                WHERE ss.station_version_id = sv.id
+                AND ss.service_type = 'CHARGING'
             )
             """);
         

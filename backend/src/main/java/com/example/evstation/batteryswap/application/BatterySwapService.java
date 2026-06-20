@@ -100,6 +100,17 @@ public class BatterySwapService {
 
     @Transactional
     public List<BatterySwapStationDTO> getNearbySwapStations(double lat, double lng, double radiusKm) {
+        // Join via station.station_id (not bsv.id == sv.id) because:
+        //   - V124/V125 VoltGo seed uses bsv.id != sv.id by design
+        //     (bsv.id is the swap-config version, sv.id is the public station version).
+        //   - Stations imported via admin create both rows with the same id (admin
+        //     service sets StationVersionEntity.id = BatterySwapStationVersionEntity.id),
+        //     so a JOIN on bsv.id == sv.id would silently drop the seeded VoltGo stations.
+        // Also filter on station_service.service_type = 'BATTERY_SWAP' to ensure the
+        // station is actually registered as a battery-swap station at the service layer.
+        // Use positional ? placeholders (no number suffix) to avoid Spring/Hibernate
+        // named-param parsing conflicts with PostGIS `::text` casts. Hibernate binds
+        // them in order of setParameter() calls.
         String sql = """
                 SELECT sv.station_id,
                        sv.name,
@@ -108,21 +119,31 @@ public class BatterySwapService {
                        ST_X(CAST(sv.location AS geometry)) as lng,
                        CAST(ST_Distance(
                              CAST(sv.location AS geography),
-                             CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
-                       ) AS DOUBLE PRECISION) / 1000.0 as distance_km
-                FROM battery_swap_station_version bsv
-                JOIN station_version sv ON sv.id = bsv.id AND sv.workflow_status = 'PUBLISHED'
-                WHERE ST_DWithin(
+                             CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography)
+                       ) AS DOUBLE PRECISION) / 1000.0 as distance_km,
+                       CAST(s.provider_id AS varchar) AS provider_id
+                FROM station_version sv
+                JOIN station s ON s.id = sv.station_id
+                JOIN station_service ss ON ss.station_version_id = sv.id
+                    AND ss.service_type = 'BATTERY_SWAP'
+                JOIN battery_swap_station_version bsv ON bsv.station_id = sv.station_id
+                    AND bsv.workflow_status = 'PUBLISHED'
+                WHERE sv.workflow_status = 'PUBLISHED'
+                AND ST_DWithin(
                         CAST(sv.location AS geography),
-                        CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
-                        :radiusMeters
+                        CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography),
+                        ?
                 )
                 ORDER BY distance_km ASC
                 """;
         Query query = entityManager.createNativeQuery(sql);
-        query.setParameter("lat", lat);
-        query.setParameter("lng", lng);
-        query.setParameter("radiusMeters", radiusKm * 1000.0);
+        // ST_MakePoint(lng, lat) — bind lng first, then lat
+        query.setParameter(1, lng);
+        query.setParameter(2, lat);
+        // ST_DWithin: ST_MakePoint(lng, lat), radius_meters
+        query.setParameter(3, lng);
+        query.setParameter(4, lat);
+        query.setParameter(5, radiusKm * 1000.0);
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
 
@@ -159,6 +180,7 @@ public class BatterySwapService {
                     .totalPiles(piles.size())
                     .availableSlots((int) availableSlots)
                     .totalSlots(totalSlots)
+                    .providerId(Objects.toString(row[6], null))
                     .build());
         }
         return results;
@@ -268,14 +290,22 @@ public class BatterySwapService {
      */
     @Transactional(readOnly = true)
     public List<BatterySwapStationDTO> listAllSwapStations() {
+        // Same join strategy as getNearbySwapStations — see comment there for the
+        // reason we don't join bsv.id = sv.id.
         String sql = """
                 SELECT sv.station_id,
                        sv.name,
                        sv.address,
                        ST_Y(CAST(sv.location AS geometry)) as lat,
-                       ST_X(CAST(sv.location AS geometry)) as lng
-                FROM battery_swap_station_version bsv
-                JOIN station_version sv ON sv.id = bsv.id AND sv.workflow_status = 'PUBLISHED'
+                       ST_X(CAST(sv.location AS geometry)) as lng,
+                       CAST(s.provider_id AS varchar) AS provider_id
+                FROM station_version sv
+                JOIN station s ON s.id = sv.station_id
+                JOIN station_service ss ON ss.station_version_id = sv.id
+                    AND ss.service_type = 'BATTERY_SWAP'
+                JOIN battery_swap_station_version bsv ON bsv.station_id = sv.station_id
+                    AND bsv.workflow_status = 'PUBLISHED'
+                WHERE sv.workflow_status = 'PUBLISHED'
                 ORDER BY sv.name ASC
                 """;
         @SuppressWarnings("unchecked")
@@ -310,6 +340,7 @@ public class BatterySwapService {
                     .totalPiles(piles.size())
                     .availableSlots((int) availableSlots)
                     .totalSlots(totalSlots)
+                    .providerId(Objects.toString(row[5], null))
                     .build());
         }
         return results;

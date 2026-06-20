@@ -139,6 +139,7 @@ class StationSearchNotifier extends StateNotifier<StationSearchState> {
 
       final content = (response['content'] as List<dynamic>?)
               ?.map((e) => e as Map<String, dynamic>)
+              .where((s) => s['supportsBatterySwap'] != true)
               .toList() ??
           [];
 
@@ -190,6 +191,7 @@ class StationSearchNotifier extends StateNotifier<StationSearchState> {
 
       final content = (response['content'] as List<dynamic>?)
               ?.map((e) => e as Map<String, dynamic>)
+              .where((s) => s['supportsBatterySwap'] != true)
               .toList() ??
           [];
 
@@ -236,6 +238,7 @@ class StationSearchNotifier extends StateNotifier<StationSearchState> {
 
       final content = (response['content'] as List<dynamic>?)
               ?.map((e) => e as Map<String, dynamic>)
+              .where((s) => s['supportsBatterySwap'] != true)
               .toList() ??
           [];
 

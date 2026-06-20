@@ -31,8 +31,6 @@ class AdminScaffold extends ConsumerWidget {
     final isTabletScreen = screenWidth >= ResponsiveBreakpoints.mobile &&
         screenWidth < ResponsiveBreakpoints.desktop;
 
-    final effectiveSidebarWidth = sidebarWidth(context);
-
     return Scaffold(
       backgroundColor: AdminTheme.surfaceLight,
       drawer: isMobileScreen ? Drawer(child: AdminSidebar(currentRoute: currentRoute)) : null,
@@ -48,10 +46,12 @@ class AdminScaffold extends ConsumerWidget {
           // Main Content
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Top App Bar
                 Container(
                   height: isMobileScreen ? 60 : 70,
+                  width: double.infinity,
                   padding: EdgeInsets.symmetric(horizontal: isMobileScreen ? 12 : 24),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -65,79 +65,52 @@ class AdminScaffold extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
+                      // Hamburger menu — mobile only
                       if (isMobileScreen)
                         IconButton(
                           icon: const Icon(Icons.menu),
                           onPressed: () => Scaffold.of(context).openDrawer(),
                           tooltip: 'Menu',
                         ),
-                      // Title
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isMobileScreen ? 16 : null,
+                      // Title — takes all remaining space, pushes right-side items to far right
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            title,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isMobileScreen ? 16 : null,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
-                      // User Info - hide labels on small screens
-                      if (!isMobileScreen)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AdminTheme.primaryTeal.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.person_rounded,
-                                color: AdminTheme.primaryTeal,
-                                size: 20,
-                              ),
+                      // Account pill + logout + custom actions — always at far right
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Account pill — desktop/tablet only
+                          if (!isMobileScreen)
+                            _AccountPill(email: authState.email, theme: theme),
+                          // Logout button — always visible
+                          IconButton(
+                            icon: Icon(
+                              Icons.logout_rounded,
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              size: 22,
                             ),
-                            const SizedBox(width: 12),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  authState.email ?? 'Admin',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  'Administrator',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 16),
-                          ],
-                        ),
-                      // Logout Button
-                      IconButton(
-                        icon: Icon(
-                          Icons.logout_rounded,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          size: isMobileScreen ? 22 : null,
-                        ),
-                        onPressed: () async {
-                          await ref.read(authStateNotifierProvider.notifier).logout();
-                          if (context.mounted) context.go('/login');
-                        },
-                        tooltip: 'Logout',
+                            onPressed: () async {
+                              await ref.read(authStateNotifierProvider.notifier).logout();
+                              if (context.mounted) context.go('/login');
+                            },
+                            tooltip: 'Logout',
+                          ),
+                          // Custom actions
+                          if (actions != null) ...actions!,
+                        ],
                       ),
-                      // Custom Actions
-                      if (actions != null) ...actions!,
                     ],
                   ),
                 ),
@@ -150,6 +123,60 @@ class AdminScaffold extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AccountPill extends StatelessWidget {
+  final String? email;
+  final ThemeData theme;
+
+  const _AccountPill({required this.email, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AdminTheme.primaryTeal.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_rounded,
+              color: AdminTheme.primaryTeal,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    email ?? 'Admin',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Administrator',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

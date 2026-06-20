@@ -9,6 +9,7 @@ import '../repositories/station_repository.dart';
 import '../widgets/main_scaffold.dart';
 import '../models/battery_swap_models.dart';
 import '../services/battery_swap_websocket_service.dart';
+import '../widgets/rating/station_rating_section.dart';
 import 'battery_swap_booking_sheet.dart';
 
 final _stationDetailProvider =
@@ -450,6 +451,12 @@ class _BatterySwapScreenState extends ConsumerState<BatterySwapScreen> {
                       : 'No batteries ready (charging)',
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+            // Rating & reviews
+            StationRatingSection(
+              stationId: detail.stationId,
+              compact: true,
             ),
           ],
         ),
@@ -1646,6 +1653,12 @@ class _StationDetailSheet extends ConsumerWidget {
                             : 'No batteries ready (charging)',
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Rating & reviews (reused widget, no copy-paste)
+                  StationRatingSection(
+                    stationId: stationId,
+                    compact: true,
                   ),
                   const SizedBox(height: 16),
                 ],

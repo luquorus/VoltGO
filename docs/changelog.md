@@ -4,6 +4,53 @@ Tài liệu này ghi lại các thay đổi quan trọng theo từng milestone/f
 
 ---
 
+## [Unreleased] — Dead Code Cleanup & API Client Fix (2026-06-20)
+
+**Ngày:** 2026-06-20
+**Phạm vi:** Shared API client + Admin web + EV User mobile + Documentation
+**Tính năng:** Loại dead code, sửa API client mismatch, cập nhật documentation.
+
+### Tổng quan thay đổi
+
+#### Shared API Client
+
+|| File | Thay đổi |
+|---|---|
+| `apps/shared/shared_api/lib/src/api_client_factory.dart` | **Xóa** `EvUserMobileApiClient.updateChangeRequest(id, data)` — gọi `PUT /api/ev/change-requests/{id}` nhưng backend `ChangeRequestController.java` không có `@PutMapping` nào. Zero callers trong codebase. Đây là latent bug nếu tương lai có code gọi method này. |
+
+#### Admin Web — Flutter
+
+|| File | Thay đổi |
+|---|---|
+| `lib/main.dart` | **Xóa** 2 unused imports: `go_router.dart` và `shared_ui.dart`. |
+| `screens/stations_list_screen.dart` | **Xóa** — 428 dòng, zero references (không trong router, không được import bởi screen nào). Chức năng đã có trong `ChargingStationsScreen` + `ChargingStationsListScreen`. |
+| `screens/change_requests_screen.dart` | **Xóa** — 396 dòng, zero references. Chức năng đã có trong `UnifiedChangeRequestsScreen` (cả charging lẫn battery swap tabs). |
+
+#### EV User Mobile — Flutter
+
+|| File | Thay đổi |
+|---|---|
+| `lib/main.dart` | **Xóa** 2 unused imports: `go_router.dart` và `dio.dart`. |
+
+#### Documentation
+
+|| File | Thay đổi |
+|---|---|
+| `docs/DOC4-API-Documentation.md` | **Sửa**: xóa dòng `PUT /api/ev/change-requests/{id}` khỏi §4.7 vì endpoint không tồn tại. |
+| `docs/DOC6-Frontend-Structure.md` | **Sửa**: xóa 4 reference đến file đã xóa (`stations_list_screen.dart`, `change_requests_screen.dart`, `battery_swap_stations_screen.dart`, `battery_swap_stations_list_screen.dart`, `station_trust_screen.dart`, `swap_trust_dashboard_screen.dart`, `unified_trust_dashboard_screen.dart`, `collaborators_list_screen.dart`); sửa 3 duplicate charging station rows; cập nhật screen count 54+ → 52; mô tả chính xác hơn. |
+
+### Quyết định thiết kế chính
+
+1. **`updateChangeRequest` — xóa method chứ KHÔNG thêm backend endpoint**: Backend `ChangeRequestController.java` (EV user mobile) không có `PUT` mapping. Thêm endpoint mới là thay đổi business logic, không phải fix bug. Zero callers trong codebase hiện tại — đây là latent dead API client method.
+2. **Xóa screen file chứ KHÔNG chỉ bỏ khỏi router**: `StationsListScreen` và `ChangeRequestsScreen` có zero references (không import, không router). Giữ lại file chỉ gây confusion. Chức năng hoàn toàn được cover bởi `ChargingStationsScreen` + `UnifiedChangeRequestsScreen`.
+3. **Không xóa `PresignUploadResponseDTO.java`**: Zero callers nhưng là orphan từ D4 cleanup đã được ghi nhận trong changelog. Không nằm trong scope cleanup lần này.
+
+### Breaking changes
+
+**Không có** — không có feature nào bị break, không có endpoint bị xóa (vì method đã không có callers).
+
+---
+
 ## [Unreleased] — EV User mobile: thay "0 ports" bằng "X piles × Y pins" cho trạm battery-swap-only
 
 **Ngày:** 2026-06-18
@@ -333,6 +380,97 @@ Không có. Toàn bộ là bổ sung (additive).
 ---
 
 ---
+
+---
+
+## [Unreleased] — EV User mobile UI Redesign: Home Map + Station Detail + Ratings Integration
+
+**Ngày:** 2026-06-19 → 2026-06-20
+**Phạm vi:** Backend (Spring Boot) + EV User mobile (Flutter)
+**Tính năng:**
+1. **Home Map redesign** — đơn giản hoá UI: 1 search bar duy nhất vừa tìm station vừa tìm destination; bottom sheet switch rõ ràng giữa 2 mode (Nearby / Route); modal filter sheet thay cho AlertDialog; preview card lớn khi chọn 1 station (Route / Book / Reserve buttons).
+2. **Tách widget chuyên biệt** — tách 3 widget mới `CompactStationCard`, `CompactSwapStationCard`, `SelectedStationPreview`, `FilterBottomSheet` để giảm lượng code inline trong `home_map_screen.dart` (2716 dòng → cùng kích thước sau khi cấu trúc lại) và tăng khả năng tái sử dụng.
+3. **Reusable `StationRatingSection`** — widget Ratings & Reviews dùng chung cho cả charging station (`station_detail_screen.dart`) và battery swap station (`battery_swap_screen.dart`); sửa logic Rate vs View-all dựa trên `eligibleStationsForRatingProvider`.
+4. **Lọc trạm battery-swap-only ra khỏi list "Charging"** — `StationSearchNotifier` ở cả 3 mode (search by name / nearby / map) thêm `.where((s) => s['supportsBatterySwap'] != true)` để tránh trùng lặp khi user đã chọn tab Battery Swap.
+5. **API filter bổ sung trong `StationQueryRepositoryImpl`** — thêm `EXISTS (SELECT 1 FROM station_service WHERE service_type = 'CHARGING')` vào cả `findPublishedStationsWithinRadius` và `searchPublishedStationsByName` để kết quả "nearby charging" chỉ chứa trạm có `station_service` row `CHARGING` (fix bug trả trạm swap-only khi user lọc theo tab Charging).
+6. **`BatterySwapStationDTO.providerId`** — thêm field `providerId` (nullable) trong response `GET /api/ev/battery-swap/stations`, `getNearbySwapStations` và cả `GET /api/public/battery-swap/stations` (cùng DTO qua `listAllSwapStations`). SQL đổi join: từ `bsv.id = sv.id` (sai cho seed data V124/V125) sang `bsv.station_id = sv.station_id` + filter `station_service.service_type = 'BATTERY_SWAP'`. Khi admin tạo trạm mới, `StationEntity.providerId` được set = adminId (P1 fix — trước đây để NULL).
+7. **Change Request Parking optional** — `CreateChangeRequestDTO.stationData.parking` bỏ `@NotNull`, cho phép user tạo CR mà không chọn parking. Service fallback về `ParkingType.UNKNOWN` nếu null. Mobile form `change_request_create_screen.dart` thêm dropdown Parking (PAID / FREE / STREET_PARKING / UNKNOWN), auto-fill từ station detail, gửi kèm trong payload.
+
+### Tổng quan thay đổi
+
+#### Backend — Java / Spring Boot
+
+| File | Thay đổi |
+|---|---|
+| `batteryswap/application/BatterySwapService.java` | Sửa lớn 2 method `getNearbySwapStations` và `listAllSwapStations`: đổi JOIN `bsv.id = sv.id` → `bsv.station_id = sv.station_id` + JOIN `station` + JOIN `station_service` (filter `service_type = 'BATTERY_SWAP'`). Thêm `s.provider_id` vào SELECT. Đổi named param `:lat/:lng` → positional `?` để tránh conflict với PostGIS `::text` cast. Thêm field `providerId` vào builder. |
+| `batteryswap/application/BatterySwapStationAdminService.java` | Sửa method `createStation`: thêm `.providerId(adminId)` cho `StationEntity` (P1 fix — trước đây NULL). Log thêm `(provider={})`. |
+| `api/ev_user_mobile/dto/BatterySwapStationDTO.java` | Thêm field `providerId` (String, nullable). |
+| `station/infrastructure/jpa/StationQueryRepositoryImpl.java` | Thêm `AND EXISTS (SELECT 1 FROM station_service ss WHERE ss.station_version_id = sv.id AND ss.service_type = 'CHARGING')` vào cả `findPublishedStationsWithinRadius` (nearby) và `searchPublishedStationsByName` (search by name). Trim trailing space trong SQL `SELECT`. |
+| `api/ev_user_mobile/dto/CreateChangeRequestDTO.java` | Bỏ annotation `@NotNull` trên `StationDataDTO.parking` — giờ optional. |
+| `station/application/ChangeRequestService.java` | Sửa `submitChangeRequest`: `.parking(data.getParking() != null ? data.getParking() : ParkingType.UNKNOWN)` thay vì `.parking(data.getParking())` (tránh NPE). |
+
+#### EV User mobile — Flutter
+
+| File | Thay đổi |
+|---|---|
+| `apps/ev_user_mobile/lib/src/widgets/compact_station_card.dart` | **MỚI** — 375 dòng. 2 widget: `CompactStationCard` (charging + hybrid, badge tối đa 3, hiển thị Trust / X ports / Up to Y kW / X available / +N piles cho hybrid) và `CompactSwapStationCard` (battery-swap only, hiển thị N piles / N ready / Y kW avg). Có private `_MiniBadge` widget. |
+| `apps/ev_user_mobile/lib/src/widgets/filter_bottom_sheet.dart` | **MỚI** — 323 dòng. Class `HomeMapFilterState` (immutable, có `copyWith` + `hasActiveFilters` + `activeFilterChips`) + `FilterBottomSheet` (modal bottom sheet thay cho AlertDialog cũ, có slider radius 1-50 km, ChoiceChip cho 2/5/10/20 km, ChoiceChip cho minPower 22/50/100 kW, ChoiceChip cho AC/DC Fast, nút Reset / Cancel / Apply). |
+| `apps/ev_user_mobile/lib/src/widgets/selected_station_preview.dart` | **MỚI** — 348 dòng. `SelectedStationPreview` — card lớn hiển thị khi user chọn 1 station trên map. Có header (icon + name + address + clear), info row (distance / ETA / ports hoặc batteries / power / trust), badges cho hybrid, 2 action buttons Route (OutlinedButton) và Book/Reserve (FilledButton, label đổi theo `isBatterySwapOnly`). |
+| `apps/ev_user_mobile/lib/src/widgets/rating/station_rating_section.dart` | **MỚI** — 195 dòng. `StationRatingSection` — widget Ratings & Reviews dùng chung. Watch `stationRatingSummaryProvider` + `eligibleStationsForRatingProvider`. Có 2 mode: `compact=true` cho sheet/embedded context (padding 0, title nhỏ hơn) và mặc định (padding 24, title lớn). Nút đổi label Rate this station / View all ratings dựa trên eligibility. |
+| `apps/ev_user_mobile/lib/src/providers/station_providers.dart` | Thêm `.where((s) => s['supportsBatterySwap'] != true)` vào 3 response handler của `StationSearchNotifier` (searchByName + 2 searchNearby mode). Đảm bảo tab Charging chỉ trả trạm charging. |
+| `apps/ev_user_mobile/lib/src/screens/home_map_screen.dart` | **Refactor lớn** (3428 dòng diff) — import 4 widget mới; thêm enum `HomeServiceMode { charging, batterySwap }`; redesign bottom sheet switch giữa 2 mode; replace AlertDialog filter bằng `showModalBottomSheet` với `FilterBottomSheet`; replace inline preview card bằng `SelectedStationPreview`; replace inline list card bằng `CompactStationCard` / `CompactSwapStationCard`. |
+| `apps/ev_user_mobile/lib/src/screens/station_detail_screen.dart` | Sửa 135 dòng — bổ sung header cho charging station detail (distance / trust / power badge), refactor action button, integrate `StationRatingSection` (compact mode). |
+| `apps/ev_user_mobile/lib/src/screens/battery_swap_screen.dart` | Thêm 2 instance `StationRatingSection(stationId, compact: true)`: 1 trong main screen `BatterySwapScreenState` (line 452), 1 trong `_StationDetailSheet` (line 1654). Import thêm `../widgets/rating/station_rating_section.dart`. |
+| `apps/ev_user_mobile/lib/src/screens/change_request_create_screen.dart` | Thêm field `String? _parking`; thêm `_buildDropdown` Parking với 4 options; auto-fill `_parking` từ station detail (`_loadFromStationData`); reset trong `_resetChargingForm` và `_resetSwapForm`; thêm `'parking': _parking ?? 'UNKNOWN'` vào JSON payload. |
+| `apps/ev_user_mobile/lib/src/screens/change_request_list_screen.dart` | **Minor UI fix (2026-06-20):** wrap `Text` widget trong `_ChangeRequestCard` bằng `Expanded` / `Flexible` + thêm `maxLines: 1` + `overflow: TextOverflow.ellipsis` + `softWrap: false` cho type/id và date. Trước đây khi `cr.id` dài hoặc status pill rộng, Row tràn ngang gây yellow-black stripe overflow warning. |
+
+### Lý do
+
+- **Home Map UI trước đây** có 2 ô search riêng (station name + destination), filter dùng AlertDialog không mobile-friendly, preview card nhỏ khó thao tác, bottom sheet phức tạp với nhiều nhánh `if/else` inline. Tách widget giúp giảm complexity và tăng testability.
+- **Tab Charging trả cả trạm battery-swap** là bug lộ từ trước V138 (khi seed data có cả 2 loại trạm trong cùng `station_version`). Fix bằng `EXISTS` subquery ở SQL layer + defensive `.where` ở Dart layer.
+- **`BatterySwapStationDTO.providerId`** được yêu cầu bởi admin UI để phân biệt trạm VoltGo seed (provider=VoltGo) với trạm partner import qua CSV. P1 fix set `providerId` khi admin tạo trạm mới.
+- **`ChangeRequestDTO.parking` @NotNull** trước đây ép user phải chọn parking khi tạo CR — không cần thiết vì CR có thể chỉ sửa giờ/địa chỉ/ports. Bỏ @NotNull, service fallback về `UNKNOWN`.
+- **`StationRatingSection` tái sử dụng**: trước đây logic rating bị copy-paste ở 2 nơi (charging detail + battery swap screen). Tách widget + dùng `eligibleStationsForRatingProvider` để quyết định nút Rate vs View-all.
+
+### Tác động
+
+- **API response**: `BatterySwapStationDTO` có thêm `providerId`. `GET /api/ev/stations` (charging) filter bằng `EXISTS station_service` — chỉ trả trạm có `CHARGING` service.
+- **Mobile UI**:
+  - Home Map có 1 search bar duy nhất, filter bottom sheet, 2 mode switch (Charging / Battery Swap), preview card lớn khi select.
+  - 2 detail surface (charging + swap) cùng dùng `StationRatingSection` — consistent UX.
+  - Change Request form có thêm dropdown Parking.
+- **Backend join logic**: 2 method SQL đổi join từ `bsv.id = sv.id` (sai với seed data V124/V125) → `bsv.station_id = sv.station_id`. Trạm seed VoltGO (V124) giờ hiển thị đúng trên `GET /api/ev/battery-swap/stations`.
+
+### Tác động hiệu năng
+
+- 1 subquery `EXISTS` thêm vào 2 query station (nhẹ — index `station_service_station_version_id_idx` đã có).
+- Provider lookup thêm 1 column `s.provider_id` trong SELECT (không đáng kể).
+- `batteryswap/application/BatterySwapService.java` đổi named param → positional `?`. Hibernate vẫn bind theo thứ tự `setParameter(1..5)`.
+
+### Kết quả test
+
+| Test | Kết quả |
+|---|---|
+| `flutter analyze` `ev_user_mobile/lib` | Cần verify — đã viết một số `withOpacity` (pre-existing deprecation) nhưng không có lỗi compile mới |
+| API `GET /api/ev/stations` (tab Charging) | Trả về chỉ trạm có `station_service.service_type = 'CHARGING'` — verify qua response không còn `supportsBatterySwap: true` trộn lẫn |
+| API `GET /api/ev/battery-swap/stations/nearby` | Trả về đủ cả trạm seed V124 (VoltGO) + trạm admin tạo mới, có `providerId` |
+| API `GET /api/public/battery-swap/stations` (anon) | Trả về cùng list với `/api/ev/battery-swap/stations` nhưng không cần JWT; mỗi item có `providerId` |
+| API `POST /api/ev/change-requests` không có `parking` | 200 thay vì 400 — service fallback `UNKNOWN` |
+| Mobile home map: switch tab Charging → Battery Swap | List không còn duplicate (filter qua `supportsBatterySwap != true`) |
+| Mobile station detail: scroll xuống | Hiện `Ratings & Reviews` (StationRatingSection compact) |
+| Mobile battery swap screen: scroll xuống | Hiện `Ratings & Reviews` (StationRatingSection compact) |
+
+### Tài liệu đã cập nhật (2026-06-20)
+
+| Doc | Mục cập nhật |
+|---|---|
+| `docs/DOC1-Project-Overview.md` | §EV User Features — note thêm "Home Map redesigned (2026-06-20)", "Ratings & Reviews integrated", "parking optional trong Create CR" |
+| `docs/DOC4-API-Documentation.md` | §4.4 Station API — blockquote ghi rõ filter `EXISTS` `service_type = CHARGING`, `batterySwap` summary; §4.6 Battery Swap API — đổi description 2 endpoint có `providerId` + response example JSON; §4.3 Public API — note `providerId` cho 2 endpoint public; §4.7 Change Request API — note `parking` optional |
+| `docs/DOC6-Frontend-Structure.md` | §6.5 EV User Mobile — note `Home Map redesigned`, `Station Detail integrated StationRatingSection`, `Battery Swap integrated StationRatingSection`, `Change Request Create added Parking dropdown`; update Providers description (filter `supportsBatterySwap != true`); thêm section "Custom Widgets (2026-06-20 — 4 mới)" |
+| `docs/DOC7-Backend-Structure.md` | §Service layer — note inline trên `BatterySwapService.java` (JOIN refactor + providerId) và `ChangeRequestService.java` (parking fallback UNKNOWN) |
+| `docs/DOC8-Key-Features.md` | §Battery Swap feature — note 2026-06-20 JOIN refactor + providerId; §Change Request feature — note 2026-06-20 parking optional |
+| `docs/DOC9-Testing-Evaluation.md` | §9.2 — bổ sung 10 test case mới (15-24) cho Home Map redesign + Ratings & Reviews + providerId + parking |
+| `docs/station-api-list.md` | §1.1/1.3 — note filter `service_type = CHARGING`; §2.1/2.2 — note JOIN refactor + providerId; §4.1/4.5 — note parking optional; §18.1/18.2 — note providerId cho public endpoints; header "Cập nhật" cập nhật |
 
 ---
 

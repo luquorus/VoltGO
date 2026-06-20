@@ -7,16 +7,26 @@ import 'package:geolocator/geolocator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_ui/shared_ui.dart';
-import 'package:shared_auth/shared_auth.dart';
 import '../providers/station_providers.dart';
 import '../providers/routing_provider.dart';
 import '../widgets/station_marker.dart';
 import '../widgets/main_scaffold.dart';
+import '../widgets/compact_station_card.dart';
+import '../widgets/filter_bottom_sheet.dart';
+import '../widgets/selected_station_preview.dart';
 import '../models/battery_swap_models.dart';
 import '../models/route_models.dart';
 export '../providers/routing_provider.dart' show RouteStatus;
 
-/// Home Map Screen with OpenStreetMap + Leaflet and bottom sheet station list
+/// Service mode the user has selected in the bottom sheet.
+enum HomeServiceMode {
+  charging,
+  batterySwap,
+}
+
+/// Home Map Screen — redesigned with a single search bar, clear service
+/// selector, modal filter sheet, and a cleaner bottom sheet that switches
+/// between Nearby and Route modes.
 class HomeMapScreen extends ConsumerStatefulWidget {
   const HomeMapScreen({super.key});
 
@@ -26,76 +36,102 @@ class HomeMapScreen extends ConsumerStatefulWidget {
 
 class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
   final MapController _mapController = MapController();
+
+  // ── Selected UI state ────────────────────────────────────────────────
   String? _selectedStationId;
-  double _radiusKm = 5.0;
+  HomeServiceMode _serviceMode = HomeServiceMode.charging;
+
+  // ── Filter state ─────────────────────────────────────────────────────
+  HomeMapFilterState _filter = const HomeMapFilterState();
   double _batterySwapRadiusKm = 5.0;
-  double? _minPowerKw;
-  bool? _hasAC;
+
+  // ── Search & location state ──────────────────────────────────────────
   LatLng? _currentLocation;
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _destinationController = TextEditingController();
   bool _isSearchMode = false;
   Timer? _searchDebounce;
-  bool _showBatterySwapMarkers = false;
+
+  // ── Battery swap local cache ─────────────────────────────────────────
   List<BatterySwapStationModel> _batterySwapStations = [];
+
+  // ── Map fit bounds version (prevents stale fit calls) ────────────────
   int _mapFitBoundsVersion = 0;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _destinationController.addListener(_onDestinationChanged);
     _requestLocationAndSearch();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _destinationController.dispose();
     _searchDebounce?.cancel();
     super.dispose();
   }
 
-  void _onDestinationChanged() {
-    final query = _destinationController.text.trim();
-    final notifier = ref.read(routingProvider.notifier);
-    notifier.searchDestination(query);
-  }
+  // ── Search & destination input ───────────────────────────────────────
 
   void _onSearchChanged() {
     _searchDebounce?.cancel();
     final query = _searchController.text.trim();
-    
+
+    // Empty query → reset search state, fall back to nearby search
     if (query.isEmpty) {
-      setState(() {
-        _isSearchMode = false;
-      });
-      // Reset to location-based search
+      setState(() => _isSearchMode = false);
       if (_currentLocation != null) {
-        final notifier = ref.read(stationSearchProvider.notifier);
-        notifier.search(StationSearchParams(
-          lat: _currentLocation!.latitude,
-          lng: _currentLocation!.longitude,
-          radiusKm: _radiusKm,
-          minPowerKw: _minPowerKw,
-          hasAC: _hasAC,
-        ));
+        _triggerNearbySearch();
       }
       return;
     }
 
-    setState(() {
-      _isSearchMode = true;
-    });
+    setState(() => _isSearchMode = true);
 
-    // Debounce search - wait 500ms after user stops typing
+    // Run both place search (for destination) and station-name search in
+    // parallel so the user can find either with one bar. Suggestions are
+    // shown via the routing provider.
+    final notifier = ref.read(routingProvider.notifier);
+    notifier.searchDestination(query);
+
     _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-      if (mounted && query.isNotEmpty) {
-        final notifier = ref.read(stationSearchProvider.notifier);
-        notifier.searchByName(query);
-      }
+      if (!mounted || query.isEmpty) return;
+      final stationNotifier = ref.read(stationSearchProvider.notifier);
+      stationNotifier.searchByName(query);
     });
   }
+
+  void _onDestinationSelected(PlaceSuggestion suggestion) {
+    _searchController.text = suggestion.shortName;
+    _ensureBatteryInfo();
+    ref.read(routingProvider.notifier).selectDestination(suggestion);
+    setState(() => _mapFitBoundsVersion++);
+  }
+
+  void _ensureBatteryInfo() {
+    final routingState = ref.read(routingProvider);
+    if (routingState.batteryPercent == null || routingState.vehicleRangeKm == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showBatterySetupIfNeeded(context, routingState);
+      });
+    }
+  }
+
+  void _onLongPressWithBatterySetup(LatLng point) {
+    _ensureBatteryInfo();
+    ref.read(routingProvider.notifier).selectDestinationByLongPress(point);
+    ref.read(routingProvider.notifier).hideSuggestions();
+    _searchController.text = 'Long press location';
+    setState(() => _mapFitBoundsVersion++);
+  }
+
+  void _clearRoute() {
+    ref.read(routingProvider.notifier).clearRoute();
+    _searchController.clear();
+    setState(() => _mapFitBoundsVersion++);
+  }
+
+  // ── Location & search requests ──────────────────────────────────────
 
   Future<void> _requestLocationAndSearch() async {
     try {
@@ -115,13 +151,11 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-            AppToast.showError(
-                context, 'You denied location permission.');
+            AppToast.showError(context, 'You denied location permission.');
           }
           return;
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
         if (mounted) {
           AppToast.showError(context,
@@ -132,35 +166,33 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
 
       final position = await Geolocator.getCurrentPosition();
       final location = LatLng(position.latitude, position.longitude);
+      setState(() => _currentLocation = location);
 
-      setState(() {
-        _currentLocation = location;
-      });
-
-      // Set origin in routing provider
       ref.read(routingProvider.notifier).setOrigin(location);
-
-      final notifier = ref.read(stationSearchProvider.notifier);
-      await notifier.search(StationSearchParams(
-        lat: position.latitude,
-        lng: position.longitude,
-        radiusKm: _radiusKm,
-        minPowerKw: _minPowerKw,
-        hasAC: _hasAC,
-      ));
-
+      await _triggerNearbySearch();
       _mapController.move(location, 13.0);
 
-      // Also load battery swap stations if the toggle is on
-      if (_showBatterySwapMarkers) {
-        await _loadBatterySwapStations(location.latitude, location.longitude);
-      }
+      // Always preload battery-swap stations so the map shows BOTH
+      // charging and swap markers regardless of the selected tab.
+      await _loadBatterySwapStations(location.latitude, location.longitude);
     } catch (e) {
       if (mounted) {
         AppToast.showError(
             context, 'Could not get location: ${formatApiError(e)}');
       }
     }
+  }
+
+  Future<void> _triggerNearbySearch() async {
+    if (_currentLocation == null) return;
+    final notifier = ref.read(stationSearchProvider.notifier);
+    await notifier.search(StationSearchParams(
+      lat: _currentLocation!.latitude,
+      lng: _currentLocation!.longitude,
+      radiusKm: _filter.radiusKm,
+      minPowerKw: _filter.minPowerKw,
+      hasAC: _filter.hasAC,
+    ));
   }
 
   Future<void> _loadBatterySwapStations(double lat, double lng) async {
@@ -172,72 +204,124 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
         radiusKm: _batterySwapRadiusKm,
       );
       if (mounted) {
-        setState(() {
-          _batterySwapStations = stations;
-        });
+        setState(() => _batterySwapStations = stations);
       }
+    } catch (_) {
+      // Silent — battery swap load failures should not block charging view.
+    }
+  }
+
+  Future<void> _onFilterChanged() async {
+    try {
+      LatLng? location = _currentLocation;
+      if (location == null) {
+        final position = await Geolocator.getCurrentPosition();
+        location = LatLng(position.latitude, position.longitude);
+        if (mounted) setState(() => _currentLocation = location);
+      }
+      final notifier = ref.read(stationSearchProvider.notifier);
+      await notifier.updateFilters(StationSearchParams(
+        lat: location.latitude,
+        lng: location.longitude,
+        radiusKm: _filter.radiusKm,
+        minPowerKw: _filter.minPowerKw,
+        hasAC: _filter.hasAC,
+      ));
+      // Reload battery-swap stations so the map keeps them in sync with
+      // the current location, regardless of the active service-mode tab.
+      await _loadBatterySwapStations(location.latitude, location.longitude);
     } catch (e) {
-      // Non-critical - battery swap stations load failure is silent
+      if (mounted) {
+        AppToast.showError(
+            context, 'Could not apply filters: ${formatApiError(e)}');
+      }
     }
   }
 
-  void _onDestinationSelected(PlaceSuggestion suggestion) {
-    _destinationController.text = suggestion.shortName;
-    _ensureBatteryInfo();
-    ref.read(routingProvider.notifier).selectDestination(suggestion);
+  // ── Service mode switching ──────────────────────────────────────────
+
+  void _onServiceModeChanged(HomeServiceMode mode) {
+    if (mode == _serviceMode) return;
     setState(() {
-      _mapFitBoundsVersion++;
+      _serviceMode = mode;
+      _selectedStationId = null;
     });
+    // The list filters by serviceMode, but the map always shows both
+    // charging and battery-swap markers. Refresh on tab switch so the
+    // list and the radius chip reflect the chosen mode.
+    _loadBatterySwapStationsForCurrentLocation();
   }
 
-  void _ensureBatteryInfo() {
-    final routingState = ref.read(routingProvider);
-    if (routingState.batteryPercent == null || routingState.vehicleRangeKm == null) {
-      // No battery info set yet — show dialog as overlay
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showBatterySetupIfNeeded(context, routingState);
-      });
+  Future<void> _loadBatterySwapStationsForCurrentLocation() async {
+    if (_currentLocation == null) {
+      try {
+        final position = await Geolocator.getCurrentPosition();
+        if (mounted) {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+        }
+      } catch (e) {
+        if (mounted) {
+          AppToast.showError(context,
+              'Could not get location for battery swap search.');
+        }
+        return;
+      }
     }
+    if (_currentLocation == null) return;
+    await _loadBatterySwapStations(
+      _currentLocation!.latitude,
+      _currentLocation!.longitude,
+    );
   }
 
-  void _onLongPressWithBatterySetup(LatLng point) {
-    _ensureBatteryInfo();
-    ref.read(routingProvider.notifier).selectDestinationByLongPress(point);
-    ref.read(routingProvider.notifier).hideSuggestions();
-    _destinationController.text = 'Long press location';
-    setState(() {
-      _mapFitBoundsVersion++;
-    });
-  }
+  // ── Filter bottom sheet ─────────────────────────────────────────────
 
-  void _clearRoute() {
-    ref.read(routingProvider.notifier).clearRoute();
-    _destinationController.clear();
-    setState(() {
-      _mapFitBoundsVersion++;
-    });
-  }
-
-  void _showRecommendedStationSheet(BuildContext context, RecommendedStation station) {
-    showModalBottomSheet(
+  Future<void> _openFilterSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<HomeMapFilterState>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => _RecommendedStationSheet(
-        station: station,
-        onNavigate: () {
-          Navigator.pop(ctx);
-          context.push('/stations/${station.stationId}');
-        },
-      ),
+      builder: (ctx) => FilterBottomSheet(initialFilter: _filter),
     );
+    if (result != null) {
+      setState(() => _filter = result);
+      await _onFilterChanged();
+    }
   }
 
-  Widget _buildMapWidget(List<Marker> markers, List<Marker> swapMarkers, List<Marker> routeStationMarkers) {
+  Future<void> _openBatterySwapFilterSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _BatterySwapFilterSheet(
+        radiusKm: _batterySwapRadiusKm,
+        stations: _batterySwapStations,
+      ),
+    );
+    if (result != null && _currentLocation != null) {
+      setState(() => _batterySwapRadiusKm = result['radiusKm'] as double);
+      await _loadBatterySwapStations(
+        _currentLocation!.latitude,
+        _currentLocation!.longitude,
+      );
+    }
+  }
+
+  // ── Map widget ──────────────────────────────────────────────────────
+
+  Widget _buildMapWidget(
+    List<Marker> markers,
+    List<Marker> swapMarkers,
+    List<Marker> routeStationMarkers,
+  ) {
     final routingState = ref.watch(routingProvider);
-    final initialLocation = _currentLocation ?? const LatLng(21.0285, 105.8542); // Default: Hanoi
+    final initialLocation =
+        _currentLocation ?? const LatLng(21.0285, 105.8542); // Hanoi default
 
     return FlutterMap(
       mapController: _mapController,
@@ -245,30 +329,26 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
         initialCenter: initialLocation,
         initialZoom: 13.0,
         onTap: (tapPosition, point) {
-          // Dismiss suggestions when tapping map
           ref.read(routingProvider.notifier).hideSuggestions();
         },
         onLongPress: (tapPosition, point) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Finding route to ${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}...'),
+              content: Text(
+                'Finding route to ${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}...',
+              ),
               duration: const Duration(seconds: 1),
             ),
           );
           _onLongPressWithBatterySetup(point);
         },
-        onMapEvent: (event) {
-          // Map event handling
-        },
       ),
       children: [
-        // OpenStreetMap tile layer
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.example.ev_user_mobile',
           maxZoom: 19,
         ),
-        // Route polyline
         if (routingState.showRoute && routingState.route != null)
           PolylineLayer(
             polylines: [
@@ -281,16 +361,9 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
               ),
             ],
           ),
-        // Markers layer (normal stations)
-        MarkerLayer(
-          markers: [...markers, ...swapMarkers],
-        ),
-        // Route station markers (orange/amber)
+        MarkerLayer(markers: [...markers, ...swapMarkers]),
         if (routingState.showRoute && routingState.route != null)
-          MarkerLayer(
-            markers: routeStationMarkers,
-          ),
-        // Current location marker
+          MarkerLayer(markers: routeStationMarkers),
         if (_currentLocation != null)
           MarkerLayer(
             markers: [
@@ -306,7 +379,6 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
               ),
             ],
           ),
-        // Destination marker (when route is shown)
         if (routingState.showRoute && routingState.destinationMarker != null)
           MarkerLayer(
             markers: [
@@ -323,44 +395,504 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
   }
 
   void _onMarkerTap(String stationId) {
-    // Navigate to station detail screen
-    context.push('/stations/$stationId');
+    setState(() => _selectedStationId = stationId);
   }
 
   void _onBatterySwapMarkerTap(BatterySwapStationModel station) {
-    context.push('/battery-swap?stationId=${station.stationId}');
+    setState(() => _selectedStationId = station.stationId);
   }
 
-  Future<void> _onFilterChanged() async {
-    try {
-      LatLng? location = _currentLocation;
-      if (location == null) {
-        final position = await Geolocator.getCurrentPosition();
-        location = LatLng(position.latitude, position.longitude);
-        if (mounted) setState(() => _currentLocation = location);
-      }
+  // ── Build ───────────────────────────────────────────────────────────
 
-      final notifier = ref.read(stationSearchProvider.notifier);
-      await notifier.updateFilters(StationSearchParams(
-        lat: location.latitude,
-        lng: location.longitude,
-        radiusKm: _radiusKm,
-        minPowerKw: _minPowerKw,
-        hasAC: _hasAC,
-      ));
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(stationSearchProvider);
+    final routingState = ref.watch(routingProvider);
 
-      if (_showBatterySwapMarkers) {
-        await _loadBatterySwapStations(location.latitude, location.longitude);
+    // Build markers for charging stations
+    final markers = <Marker>[];
+    for (final station in state.stations) {
+      final stationId = station['stationId'] as String? ?? '';
+      final lat = station['lat'] as double?;
+      final lng = station['lng'] as double?;
+      final swap = station['supportsBatterySwap'] == true;
+      if (lat != null && lng != null) {
+        markers.add(
+          Marker(
+            point: LatLng(lat, lng),
+            width: 28,
+            height: 28,
+            child: GestureDetector(
+              onTap: () => _onMarkerTap(stationId),
+              child: StationMarker(isBatterySwap: swap),
+            ),
+          ),
+        );
       }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(
-            context, 'Could not apply filters: ${formatApiError(e)}');
+    }
+
+    // Build battery swap markers — always shown on the map regardless
+    // of the active service-mode tab. The list below is filtered by
+    // serviceMode, but the map shows both types at all times.
+    final swapMarkers = <Marker>[];
+    for (final station in _batterySwapStations) {
+      final lat = station.lat;
+      final lng = station.lng;
+      if (lat != null && lng != null) {
+        swapMarkers.add(
+          Marker(
+            point: LatLng(lat, lng),
+            width: 32,
+            height: 32,
+            child: GestureDetector(
+              onTap: () => _onBatterySwapMarkerTap(station),
+              child: const BatterySwapMapMarker(),
+            ),
+          ),
+        );
       }
+    }
+
+    // Build route recommended-station markers
+    final routeStationMarkers = <Marker>[];
+    if (routingState.showRoute && routingState.route != null) {
+      for (final station in routingState.route!.recommendedStations) {
+        final isOptimal =
+            routingState.route!.optimalStation?.stationId == station.stationId;
+        routeStationMarkers.add(
+          Marker(
+            point: LatLng(station.lat, station.lng),
+            width: isOptimal ? 52 : 44,
+            height: isOptimal ? 52 : 44,
+            child: GestureDetector(
+              onTap: () => _showRecommendedStationSheet(context, station),
+              child: _buildRecommendedMarker(station, isOptimal: isOptimal),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Auto-fit map to route bounds
+    if (routingState.showRoute && routingState.route != null) {
+      final fitVersion = _mapFitBoundsVersion;
+      final polyline = routingState.route!.polyline;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (polyline.isEmpty) return;
+        try {
+          final bounds = LatLngBounds.fromPoints(
+            polyline.map((p) => LatLng(p.lat, p.lng)).toList(),
+          );
+          if (fitVersion == _mapFitBoundsVersion) {
+            _mapController.fitCamera(
+              CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)),
+            );
+          }
+        } catch (_) {}
+      });
+    }
+
+    // Route render diagnostic
+    if (routingState.showRoute && routingState.route != null) {
+      final polyline = routingState.route!.polyline;
+      final stationMarkers = routingState.route!.recommendedStations.length;
+      final seq = routingState.lastRouteSequence;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          if (polyline.isEmpty) {
+            routingState.diagnostics.logRenderFailed(
+                'EMPTY_POLYLINE', 'Polyline has no points', seq);
+          } else {
+            routingState.diagnostics.logRenderSuccess(
+                polyline.length, stationMarkers, seq);
+          }
+        } catch (_) {}
+      });
+    }
+
+    return MainScaffold(
+      showBottomNav: true,
+      child: Stack(
+        children: [
+          _buildMapWidget(markers, swapMarkers, routeStationMarkers),
+
+          // Top search bar (always visible, single source of truth)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: _buildTopSearchBar(context, routingState),
+            ),
+          ),
+
+          // Recommendation card removed — /recommendations screen is broken (white page).
+          // See git history to restore if the destination screen is fixed.
+
+          // Main bottom sheet (Nearby / Route mode)
+          buildBottomSheet(context),
+
+          // Route error sheet
+          if (routingState.status == RouteStatus.error &&
+              routingState.destination != null)
+            DraggableScrollableSheet(
+              initialChildSize: 0.15,
+              minChildSize: 0.08,
+              maxChildSize: 0.25,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  child: _buildRouteErrorSheet(context, routingState),
+                );
+              },
+            ),
+
+          // Loading overlay
+          if (routingState.status == RouteStatus.loading)
+            Container(
+              color: Colors.black26,
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Calculating route...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Top search bar (single source of truth) ─────────────────────────
+
+  Widget _buildTopSearchBar(BuildContext context, RoutingState routingState) {
+    final theme = Theme.of(context);
+    final tealColor = Colors.teal[800] ?? Colors.green[900] ?? Colors.teal;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Main search bar + shared filter icon.
+        // The filter icon opens the filter sheet for the active tab
+        // (Charging → charging filters, Battery Swap → swap radius).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: FaIcon(
+                          FontAwesomeIcons.magnifyingGlass,
+                          color: tealColor,
+                          size: 20,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          onTap: () {
+                            if (routingState.showRoute) {
+                              ref
+                                  .read(routingProvider.notifier)
+                                  .showSuggestionsList();
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search station or destination',
+                            hintStyle: TextStyle(color: Colors.grey[600]),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 0, vertical: 14),
+                          ),
+                          style: TextStyle(color: tealColor),
+                        ),
+                      ),
+                      if (_searchController.text.isNotEmpty ||
+                          routingState.showRoute)
+                        IconButton(
+                          icon: FaIcon(
+                            FontAwesomeIcons.xmark,
+                            color: Colors.grey[600],
+                            size: 16,
+                          ),
+                          onPressed: _clearRoute,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Single, shared filter icon for both tabs. Behaviour
+              // depends on the active service mode.
+              IconButton.filledTonal(
+                onPressed: () =>
+                    _openFilterForActiveTab(context),
+                icon: const FaIcon(FontAwesomeIcons.filter, size: 16),
+                tooltip: _serviceMode == HomeServiceMode.charging
+                    ? 'Filter charging stations'
+                    : 'Filter battery swap radius',
+              ),
+            ],
+          ),
+        ),
+
+        // Battery status pill — shown BELOW the search bar so it
+        // is not occluded by the iPhone status bar / dynamic island.
+        if (routingState.batteryPercent != null &&
+            routingState.vehicleRangeKm != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildBatteryStatusPill(routingState, theme),
+            ),
+          ),
+
+        // Battery-swap radius pill — only in Swap tab. Replaces the
+        // previous floating chip on the map; sits right under the
+        // search bar so it stays clear of iPhone safe-area.
+        if (_serviceMode == HomeServiceMode.batterySwap)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildBatterySwapRadiusChip(),
+            ),
+          ),
+
+        // Suggestions dropdown
+        if (routingState.showSuggestions && routingState.suggestions.isNotEmpty)
+          _buildSuggestionsPanel(routingState, theme, tealColor),
+
+        // Loading indicator for suggestions
+        if (routingState.isSearchingPlaces)
+          _buildSuggestionsLoadingIndicator(theme),
+      ],
+    );
+  }
+
+  void _openFilterForActiveTab(BuildContext context) {
+    if (_serviceMode == HomeServiceMode.charging) {
+      _openFilterSheet(context);
+    } else {
+      _openBatterySwapFilterSheet(context);
     }
   }
 
-  Widget _buildRecommendedMarker(RecommendedStation station, {bool isOptimal = false}) {
+  Widget _buildBatteryStatusPill(RoutingState routingState, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: routingState.needsChargingStop
+            ? Colors.orange.shade50
+            : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: routingState.needsChargingStop
+              ? Colors.orange.shade200
+              : Colors.green.shade200,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FaIcon(
+            routingState.needsChargingStop
+                ? FontAwesomeIcons.batteryHalf
+                : FontAwesomeIcons.batteryFull,
+            color: routingState.needsChargingStop
+                ? Colors.orange.shade700
+                : Colors.green.shade700,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${routingState.batteryPercent}%',
+            style: TextStyle(
+              color: routingState.needsChargingStop
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '~${routingState.remainingRangeKm?.toStringAsFixed(0)} km',
+            style: TextStyle(
+              color: routingState.needsChargingStop
+                  ? Colors.orange.shade600
+                  : Colors.green.shade600,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _showBatterySetupDialog(context, routingState),
+            child: FaIcon(
+              FontAwesomeIcons.pen,
+              color: Colors.grey.shade400,
+              size: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsPanel(
+      RoutingState routingState, ThemeData theme, Color tealColor) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      constraints: const BoxConstraints(maxHeight: 250),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: ListView.builder(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          itemCount: routingState.suggestions.length,
+          itemBuilder: (context, index) {
+            final suggestion = routingState.suggestions[index];
+            return ListTile(
+              leading: FaIcon(
+                FontAwesomeIcons.locationDot,
+                color: tealColor,
+                size: 18,
+              ),
+              title: Text(
+                suggestion.shortName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                suggestion.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              onTap: () => _onDestinationSelected(suggestion),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsLoadingIndicator(ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text('Searching places...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBatterySwapRadiusChip() {
+    return Material(
+      color: Colors.white,
+      elevation: 2,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _openBatterySwapFilterSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FaIcon(
+                FontAwesomeIcons.batteryFull,
+                color: const Color(0xFF00695C),
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${_batterySwapRadiusKm.toStringAsFixed(0)} km · ${_batterySwapStations.length} stations',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF00695C),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const FaIcon(
+                FontAwesomeIcons.chevronDown,
+                size: 10,
+                color: Color(0xFF00695C),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Recommended marker (route mode) ─────────────────────────────────
+
+  Widget _buildRecommendedMarker(RecommendedStation station,
+      {bool isOptimal = false}) {
     return Container(
       width: isOptimal ? 52 : 44,
       height: isOptimal ? 52 : 44,
@@ -430,302 +962,231 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     );
   }
 
-  Widget _buildRouteRecommendationSheet(BuildContext context, RoutingState routingState) {
+  // ── Route-mode bottom sheet (recommendation sheet) ──────────────────
+
+  Widget _buildRouteRecommendationSheet(
+    BuildContext context,
+    RoutingState routingState,
+    ScrollController scrollController,
+  ) {
     final theme = Theme.of(context);
     final route = routingState.route!;
     final summary = route.summary;
     final stations = route.recommendedStations;
     final optimal = route.optimalStation;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+    return Material(
+      color: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.outline.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Route summary header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                FaIcon(
-                  FontAwesomeIcons.route,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        routingState.destinationMarker?.name ??
-                            routingState.destinationName ??
-                            'Route',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${summary.distanceKm.toStringAsFixed(1)} km · ~${summary.durationMinutes} min',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: _clearRoute,
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Battery recommendation status chip
-          if (routingState.batteryPercent != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: routingState.needsChargingStop
-                            ? Colors.orange.withOpacity(0.1)
-                            : Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FaIcon(
-                            routingState.needsChargingStop
-                                ? FontAwesomeIcons.batteryHalf
-                                : FontAwesomeIcons.batteryFull,
-                            color: routingState.needsChargingStop
-                                ? Colors.orange
-                                : Colors.green,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '${routingState.batteryPercent}% pin · ${routingState.remainingRangeKm?.toStringAsFixed(0) ?? '?'} km',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: routingState.needsChargingStop
-                                    ? Colors.orange
-                                    : Colors.green,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (routingState.needsChargingStop) ...[
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                ' - Need charging',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ] else ...[
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                ' - Enough for trip',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (stations.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const FaIcon(
-                              FontAwesomeIcons.bolt,
-                              color: Colors.teal,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                '${stations.length} stations along route',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.teal,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.15),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: Column(
+          // Fill the sheet's allotted height — the parent DraggableScrollableSheet
+          // gives us a finite BoxConstraints via SizedBox.expand, so this Column
+          // will stretch exactly to the panel height. The inner SingleChildScrollView
+          // handles overflow when content exceeds that height.
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            // Drag handle (visual affordance only — DraggableScrollableSheet
+            // accepts drag gestures anywhere on the sheet body).
+            Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 6),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outline.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 12),
-          ] else if (stations.isNotEmpty) ...[
+            // Route summary header (fixed at top of sheet)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  FaIcon(
+                    FontAwesomeIcons.route,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const FaIcon(
-                          FontAwesomeIcons.bolt,
-                          color: Colors.orange,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          '${stations.length} charging stations along route',
+                          routingState.destinationMarker?.name ??
+                              routingState.destinationName ??
+                              'Route',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${summary.distanceKm.toStringAsFixed(1)} km · ~${summary.durationMinutes} min',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                       ],
                     ),
                   ),
+                  TextButton(
+                    onPressed: _clearRoute,
+                    child: const Text('Clear'),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            // Scrollable body — uses the DraggableScrollableSheet's controller
+            // so the sheet drag-handle and the body scroll stay in sync.
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (routingState.batteryPercent != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildBatteryStatusPill(routingState, theme),
+                      )
+                    else if (stations.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const FaIcon(
+                                    FontAwesomeIcons.bolt,
+                                    color: Colors.orange,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${stations.length} charging stations along route',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (stations.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.bolt,
+                              color: theme.colorScheme.onSurface.withOpacity(0.25),
+                              size: 32,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No charging stations found along this route',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Try expanding your search or choosing a different route',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.45),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (stations.isNotEmpty && optimal != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: _buildPrimaryRecommendationCard(context, optimal),
+                      ),
+                    if (stations.isNotEmpty && optimal != null)
+                      const Divider(height: 8),
+                    if (stations.isNotEmpty)
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(left: 16, right: 16, top: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Top ${stations.length} Recommendations',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    theme.colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Lower score = better',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color:
+                                    theme.colorScheme.onSurface.withOpacity(0.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (stations.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: SizedBox(
+                          // Height accommodates the recommended-station
+                          // card content (icon + name + address +
+                          // reason + 2 chip rows + score badge) without
+                          // overflowing. Was 190 which still clipped
+                          // cards on small screens (chip wrap + 2-line
+                          // reason pushed content past 190 → bottom
+                          // overflow ~20px).
+                          height: 220,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: stations.length,
+                            itemBuilder: (context, index) {
+                              final station = stations[index];
+                              return _buildRecommendedStationCard(
+                                  context, station);
+                            },
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
           ],
-          // Station list — empty state
-          if (stations.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.bolt,
-                    color: theme.colorScheme.onSurface.withOpacity(0.25),
-                    size: 32,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No charging stations found along this route',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Try expanding your search or choosing a different route',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.45),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          if (stations.isNotEmpty) ...[
-            // Primary recommendation card (top of list)
-            if (optimal != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _buildPrimaryRecommendationCard(context, optimal),
-              ),
-              const Divider(height: 8),
-            ],
-            // Top 3 list header
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Top ${stations.length} Recommendations',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Lower score = better',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: 150,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: stations.length,
-                itemBuilder: (context, index) {
-                  final station = stations[index];
-                  return _buildRecommendedStationCard(context, station);
-                },
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-        ],
+        ),
       ),
     );
   }
@@ -749,7 +1210,6 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle bar
           Container(
             margin: const EdgeInsets.only(bottom: 12),
             alignment: Alignment.center,
@@ -789,7 +1249,9 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      routingState.errorMessage ?? routingState.errorCode ?? 'Unable to calculate route',
+                      routingState.errorMessage ??
+                          routingState.errorCode ??
+                          'Unable to calculate route',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.65),
                       ),
@@ -815,11 +1277,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    // Re-trigger route calculation
                     if (routingState.destination != null) {
-                      setState(() {
-                        _mapFitBoundsVersion++;
-                      });
+                      setState(() => _mapFitBoundsVersion++);
                       ref.read(routingProvider.notifier).retryRoute();
                     }
                   },
@@ -834,7 +1293,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     );
   }
 
-  Widget _buildRecommendedStationCard(BuildContext context, RecommendedStation station) {
+  Widget _buildRecommendedStationCard(
+      BuildContext context, RecommendedStation station) {
     final theme = Theme.of(context);
     final isOptimal = station.isOptimalStop;
     final color = isOptimal ? Colors.green : Colors.orange;
@@ -858,6 +1318,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
@@ -870,7 +1331,9 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                       ),
                       child: Center(
                         child: FaIcon(
-                          station.isOptimalStop ? FontAwesomeIcons.star : FontAwesomeIcons.bolt,
+                          station.isOptimalStop
+                              ? FontAwesomeIcons.star
+                              : FontAwesomeIcons.bolt,
                           color: Colors.white,
                           size: 14,
                         ),
@@ -898,9 +1361,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                // Recommendation reason
-                if (station.recommendationReason != null)
+                if (station.recommendationReason != null) ...[
+                  const SizedBox(height: 6),
                   Text(
                     station.recommendationReason!,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -910,43 +1372,48 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                const Spacer(),
-                Row(
+                ],
+                const SizedBox(height: 8),
+                // Wrap so chips fall onto a second line on narrow cards
+                // instead of overflowing horizontally.
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
-                    _buildStationChip(Icons.electric_bolt, '${station.totalPowerKw.toStringAsFixed(0)} kW', theme),
-                    const SizedBox(width: 4),
-                    _buildStationChip(Icons.ev_station, '${station.availablePorts}/${station.totalPorts}', theme),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _buildStationChip(Icons.route, '${(station.detourMeters / 1000).toStringAsFixed(1)} km', theme),
-                    if (station.estimatedBatteryAtArrival != null) ...[
-                      const SizedBox(width: 4),
+                    _buildStationChip(Icons.electric_bolt,
+                        '${station.totalPowerKw.toStringAsFixed(0)} kW', theme),
+                    _buildStationChip(Icons.ev_station,
+                        '${station.availablePorts}/${station.totalPorts}', theme),
+                    _buildStationChip(Icons.route,
+                        '${(station.detourMeters / 1000).toStringAsFixed(1)} km',
+                        theme),
+                    if (station.estimatedBatteryAtArrival != null)
                       _buildStationChip(
                         Icons.battery_std,
                         'Pin ~${station.estimatedBatteryAtArrival!.toStringAsFixed(0)}%',
                         theme,
                       ),
-                    ],
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '#${station.score.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '#${station.score.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -966,7 +1433,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+          Icon(icon,
+              size: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)),
           const SizedBox(width: 2),
           Text(
             label,
@@ -980,7 +1448,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     );
   }
 
-  Widget _buildPrimaryRecommendationCard(BuildContext context, RecommendedStation station) {
+  Widget _buildPrimaryRecommendationCard(
+      BuildContext context, RecommendedStation station) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1021,13 +1490,15 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                 ),
               ),
               const Spacer(),
-              FaIcon(FontAwesomeIcons.carBattery, color: Colors.green.shade700, size: 20),
+              FaIcon(FontAwesomeIcons.carBattery,
+                  color: Colors.green.shade700, size: 20),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             station.name,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style:
+                theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           if (station.recommendationReason != null)
@@ -1045,11 +1516,17 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
             spacing: 4,
             runSpacing: 4,
             children: [
-              _buildStationChip(Icons.electric_bolt, '${station.totalPowerKw.toStringAsFixed(0)} kW', theme),
-              _buildStationChip(Icons.route, '${(station.detourMeters / 1000).toStringAsFixed(1)} km detour', theme),
-              _buildStationChip(Icons.ev_station, '${station.availablePorts}/${station.totalPorts} ports', theme),
+              _buildStationChip(Icons.electric_bolt,
+                  '${station.totalPowerKw.toStringAsFixed(0)} kW', theme),
+              _buildStationChip(Icons.route,
+                  '${(station.detourMeters / 1000).toStringAsFixed(1)} km detour',
+                  theme),
+              _buildStationChip(Icons.ev_station,
+                  '${station.availablePorts}/${station.totalPorts} ports', theme),
               if (station.estimatedBatteryAtArrival != null)
-                _buildStationChip(Icons.battery_std, 'Battery ~${station.estimatedBatteryAtArrival!.toStringAsFixed(0)}%', theme),
+                _buildStationChip(Icons.battery_std,
+                    'Battery ~${station.estimatedBatteryAtArrival!.toStringAsFixed(0)}%',
+                    theme),
             ],
           ),
           const SizedBox(height: 8),
@@ -1069,610 +1546,230 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     );
   }
 
-  Future<void> _showBatterySetupDialog(BuildContext context, RoutingState routingState) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _BatterySetupSheet(
-        currentBattery: routingState.batteryPercent ?? 50,
-        currentRange: routingState.vehicleRangeKm ?? 300,
-      ),
-    );
+  // ── Bottom sheet for charging / battery swap lists ──────────────────
 
-    if (result != null && mounted) {
-      final battery = result['battery'] as int;
-      final range = result['range'] as double;
-      ref.read(routingProvider.notifier).setBatteryInfo(battery, range);
-
-      // Re-calculate route with new battery info if destination is set
-      if (routingState.destination != null) {
-        setState(() {
-          _mapFitBoundsVersion++;
-        });
-        ref.read(routingProvider.notifier).selectDestinationByCoordinates(routingState.destination!);
-      }
-    }
-  }
-
-  Future<void> _showBatterySetupIfNeeded(BuildContext context, RoutingState routingState) async {
-    // Only show if battery info is truly missing (not just defaults)
-    if (routingState.batteryPercent == null && routingState.vehicleRangeKm == null) {
-      // First time routing without battery info — prompt user to set it
-      final result = await showModalBottomSheet<Map<String, dynamic>>(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (ctx) => _BatterySetupSheet(
-          currentBattery: 50,
-          currentRange: 300,
-        ),
-      );
-
-      if (result != null && mounted) {
-        final battery = result['battery'] as int;
-        final range = result['range'] as double;
-        ref.read(routingProvider.notifier).setBatteryInfo(battery, range);
-
-        // Re-calculate route with battery info
-        if (routingState.destination != null) {
-          setState(() => _mapFitBoundsVersion++);
-          ref.read(routingProvider.notifier).selectDestinationByCoordinates(routingState.destination!);
-        }
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(stationSearchProvider);
-    final routingState = ref.watch(routingProvider);
+  Widget buildBottomSheet(BuildContext context) {
     final theme = Theme.of(context);
+    final routingState = ref.watch(routingProvider);
+    final state = ref.watch(stationSearchProvider);
 
-    // Build markers from charging stations
-    final markers = <Marker>[];
-    for (final station in state.stations) {
-      final stationId = station['stationId'] as String? ?? '';
-      final lat = station['lat'] as double?;
-      final lng = station['lng'] as double?;
-      final swap = station['supportsBatterySwap'] == true;
-
-      if (lat != null && lng != null) {
-        markers.add(
-          Marker(
-            point: LatLng(lat, lng),
-            width: 28,
-            height: 28,
-            child: GestureDetector(
-              onTap: () => _onMarkerTap(stationId),
-              child: StationMarker(isBatterySwap: swap),
-            ),
-          ),
-        );
-      }
+    // Route mode: when route is shown, use the dedicated route sheet
+    if (routingState.showRoute && routingState.route != null) {
+      return _buildRouteBottomSheet(context, routingState);
     }
 
-    // Add battery swap station markers
-    final swapMarkers = <Marker>[];
-    if (_showBatterySwapMarkers) {
-      for (final station in _batterySwapStations) {
-        final lat = station.lat;
-        final lng = station.lng;
-        if (lat != null && lng != null) {
-          swapMarkers.add(
-            Marker(
-              point: LatLng(lat, lng),
-              width: 32,
-              height: 32,
-              child: GestureDetector(
-                onTap: () => _onBatterySwapMarkerTap(station),
-                child: const BatterySwapMapMarker(),
+    // Otherwise: nearby mode with charging/battery swap list
+    final title = _serviceMode == HomeServiceMode.charging
+        ? (_isSearchMode
+            ? 'Search results'
+            : 'Nearby charging stations (${state.totalElements})')
+        : 'Nearby battery swap stations (${_batterySwapStations.length})';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.4,
+      minChildSize: 0.2,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
-            ),
-          );
-        }
-      }
-    }
-
-    // Build recommended station markers for route
-    final routeStationMarkers = <Marker>[];
-    if (routingState.showRoute && routingState.route != null) {
-      for (final station in routingState.route!.recommendedStations) {
-        final isOptimal = routingState.route!.optimalStation?.stationId == station.stationId;
-        routeStationMarkers.add(
-          Marker(
-            point: LatLng(station.lat, station.lng),
-            width: isOptimal ? 52 : 44,
-            height: isOptimal ? 52 : 44,
-            child: GestureDetector(
-              onTap: () => _showRecommendedStationSheet(context, station),
-              child: _buildRecommendedMarker(station, isOptimal: isOptimal),
-            ),
+            ],
           ),
-        );
-      }
-    }
-
-    // Auto-fit map bounds when route is shown
-    // Use a version counter to prevent stale closures
-    if (routingState.showRoute && routingState.route != null) {
-      final fitVersion = _mapFitBoundsVersion;
-      final polyline = routingState.route!.polyline;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (polyline.isEmpty) {
-          debugPrint('[RoutingMap] fitBounds skipped - empty polyline');
-          return;
-        }
-        try {
-          final bounds = LatLngBounds.fromPoints(
-            polyline.map((p) => LatLng(p.lat, p.lng)).toList(),
-          );
-          // Only fit if this is still the current version
-          if (fitVersion == _mapFitBoundsVersion) {
-            _mapController.fitCamera(
-              CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)),
-            );
-          }
-        } catch (e) {
-          debugPrint('[RoutingMap] fitBounds error: $e');
-        }
-      });
-    }
-
-    // Route rendering diagnostic — fires after build when route is shown
-    if (routingState.showRoute && routingState.route != null) {
-      final polyline = routingState.route!.polyline;
-      final stationMarkers = routingState.route!.recommendedStations.length;
-      final seq = routingState.lastRouteSequence;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        try {
-          if (polyline.isEmpty) {
-            routingState.diagnostics.logRenderFailed(
-              'EMPTY_POLYLINE', 'Polyline has no points', seq);
-          } else {
-            routingState.diagnostics.logRenderSuccess(
-              polyline.length, stationMarkers, seq);
-          }
-        } catch (e, st) {
-          routingState.diagnostics.logRenderFailed(
-            'RENDER_EXCEPTION', e, seq);
-          debugPrint('[RoutingMap] renderDiag error: $e\n$st');
-        }
-      });
-    }
-
-    return MainScaffold(
-      showBottomNav: true,
-      child: Stack(
-        children: [
-          // OSM map background
-          _buildMapWidget(markers, swapMarkers, routeStationMarkers),
-
-          // Destination search bar (above existing search bar)
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: _buildDestinationSearchBar(context, theme, routingState),
-          ),
-
-          // Route recommendation sheet at bottom (show route data or error)
-          if (routingState.showRoute && routingState.route != null)
-            DraggableScrollableSheet(
-              initialChildSize: 0.25,
-              minChildSize: 0.15,
-              maxChildSize: 0.5,
-              builder: (context, scrollController) {
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  child: _buildRouteRecommendationSheet(context, routingState),
-                );
-              },
-            ),
-
-          // Route error bottom sheet — shown when route calculation failed but destination is set
-          if (routingState.status == RouteStatus.error &&
-              routingState.destination != null)
-            DraggableScrollableSheet(
-              initialChildSize: 0.15,
-              minChildSize: 0.08,
-              maxChildSize: 0.25,
-              builder: (context, scrollController) {
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  child: _buildRouteErrorSheet(context, routingState),
-                );
-              },
-            ),
-
-          // Bottom sheet with station list (when no route)
-          if (!routingState.showRoute)
-            DraggableScrollableSheet(
-              initialChildSize: 0.4,
-              minChildSize: 0.2,
-              maxChildSize: 0.9,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Handle bar
-                      Container(
-                        margin: const EdgeInsets.only(top: 12, bottom: 8),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.outline.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      // Header with filters summary
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Charging stations (${state.totalElements})',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                            const Spacer(),
-                            if (_showBatterySwapMarkers)
-                              Badge(
-                                label: Text('${_batterySwapStations.length}'),
-                                child: IconButton(
-                                  icon: FaIcon(
-                                    FontAwesomeIcons.carBattery,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                  tooltip: 'Battery swap markers on',
-                                  onPressed: () => _showBatterySwapFilterSheet(context),
-                                ),
-                              )
-                            else
-                              IconButton(
-                                icon: FaIcon(
-                                  FontAwesomeIcons.carBattery,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                ),
-                                tooltip: 'Show battery swap stations',
-                                onPressed: () => _toggleBatterySwapMarkers(context),
-                              ),
-                            IconButton(
-                              icon: const FaIcon(FontAwesomeIcons.bolt),
-                              tooltip: 'Optimize by time',
-                              onPressed: () => context.push('/recommendations'),
-                            ),
-                            IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.batteryHalf,
-                                color: _showBatterySwapMarkers
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface.withOpacity(0.5),
-                              ),
-                              tooltip: 'Battery swap',
-                              onPressed: () => context.push('/battery-swap'),
-                            ),
-                            IconButton(
-                              icon: const FaIcon(FontAwesomeIcons.filter),
-                              tooltip: 'Filters',
-                              onPressed: () => _showFilterDialog(context),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const Divider(height: 1),
-
-                      // Station list
-                      Expanded(
-                        child: _buildStationList(context, state, scrollController),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-          // Loading indicator when calculating route
-          if (routingState.status == RouteStatus.loading)
-            Container(
-              color: Colors.black26,
-              child: const Center(
-                child: Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Calculating route...'),
-                      ],
-                    ),
-                  ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
+
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Active filter chips
+              if (_serviceMode == HomeServiceMode.charging &&
+                  _filter.hasActiveFilters)
+                _buildActiveFilterChips(theme),
+
+              // Helper line if no filters
+              if (_serviceMode == HomeServiceMode.charging &&
+                  !_filter.hasActiveFilters &&
+                  !_isSearchMode)
+                _buildHelperLine(theme,
+                    'Showing stations near you'),
+
+              if (_serviceMode == HomeServiceMode.batterySwap)
+                _buildHelperLine(theme,
+                    _batterySwapStations.isEmpty
+                        ? 'No swap stations found nearby'
+                        : 'Swap stations near you'),
+
+              // Service mode selector + filter
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SegmentedButton<HomeServiceMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: HomeServiceMode.charging,
+                            icon: FaIcon(FontAwesomeIcons.bolt, size: 14),
+                            label: Text('Charging'),
+                          ),
+                          ButtonSegment(
+                            value: HomeServiceMode.batterySwap,
+                            icon:
+                                FaIcon(FontAwesomeIcons.batteryFull, size: 14),
+                            label: Text('Battery swap'),
+                          ),
+                        ],
+                        selected: {_serviceMode},
+                        onSelectionChanged: (selection) {
+                          _onServiceModeChanged(selection.first);
+                        },
+                        showSelectedIcon: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              // List
+              Expanded(
+                child: _serviceMode == HomeServiceMode.charging
+                    ? _buildChargingStationList(
+                        context, state, scrollController)
+                    : _buildBatterySwapStationList(
+                        context, scrollController),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRouteBottomSheet(
+      BuildContext context, RoutingState routingState) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.3,
+      minChildSize: 0.15,
+      maxChildSize: 0.85,
+      snap: true,
+      snapSizes: const [0.15, 0.4, 0.85],
+      builder: (context, scrollController) {
+        // Fill the sheet's allotted height exactly so the panel stays
+        // bottom-anchored and snap-to-max-height works. The inner
+        // recommendation sheet is responsible for scrolling its own content
+        // when the sheet is at max size.
+        return SizedBox.expand(
+          child: _buildRouteRecommendationSheet(
+            context,
+            routingState,
+            scrollController,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveFilterChips(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          ..._filter.activeFilterChips.map(
+            (label) => Chip(
+              label: Text(
+                label,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              visualDensity: VisualDensity.compact,
             ),
+          ),
+          ActionChip(
+            label: const Text('Clear all',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+            onPressed: () {
+              setState(() => _filter = const HomeMapFilterState());
+              _onFilterChanged();
+            },
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            visualDensity: VisualDensity.compact,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDestinationSearchBar(
-    BuildContext context,
-    ThemeData theme,
-    RoutingState routingState,
-  ) {
-    final tealColor = Colors.teal[800] ?? Colors.green[900] ?? Colors.teal;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Battery status chip (shown when battery info is set)
-        if (routingState.batteryPercent != null && routingState.vehicleRangeKm != null)
-          Container(
-            margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: routingState.needsChargingStop
-                  ? Colors.orange.shade50
-                  : Colors.green.shade50,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: routingState.needsChargingStop
-                    ? Colors.orange.shade200
-                    : Colors.green.shade200,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FaIcon(
-                  routingState.needsChargingStop
-                      ? FontAwesomeIcons.batteryHalf
-                      : FontAwesomeIcons.batteryFull,
-                  color: routingState.needsChargingStop
-                      ? Colors.orange.shade700
-                      : Colors.green.shade700,
-                  size: 14,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${routingState.batteryPercent}%',
-                  style: TextStyle(
-                    color: routingState.needsChargingStop
-                        ? Colors.orange.shade700
-                        : Colors.green.shade700,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '~${routingState.remainingRangeKm?.toStringAsFixed(0)} km',
-                  style: TextStyle(
-                    color: routingState.needsChargingStop
-                        ? Colors.orange.shade600
-                        : Colors.green.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                if (routingState.needsChargingStop) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Need charging',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _showBatterySetupDialog(context, routingState),
-                  child: FaIcon(
-                    FontAwesomeIcons.pen,
-                    color: Colors.grey.shade400,
-                    size: 12,
-                  ),
-                ),
-              ],
+  Widget _buildHelperLine(ThemeData theme, String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          FaIcon(
+            FontAwesomeIcons.circleInfo,
+            size: 12,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
-        // Destination search field
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: FaIcon(
-                  FontAwesomeIcons.locationDot,
-                  color: routingState.showRoute ? Colors.orange : tealColor,
-                  size: 20,
-                ),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _destinationController,
-                  autofocus: false,
-                  onTap: () {
-                    if (routingState.showRoute) {
-                      // Show suggestions even when route is active
-                      ref.read(routingProvider.notifier).showSuggestionsList();
-                    }
-                  },
-                  decoration: InputDecoration(
-                    hintText: routingState.showRoute
-                        ? routingState.destinationName ?? 'Where to?'
-                        : 'Where to?',
-                    hintStyle: TextStyle(color: Colors.grey[600]),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-                  ),
-                  style: TextStyle(color: tealColor),
-                ),
-              ),
-              if (_destinationController.text.isNotEmpty || routingState.showRoute)
-                IconButton(
-                  icon: FaIcon(
-                    FontAwesomeIcons.xmark,
-                    color: Colors.grey[600],
-                    size: 16,
-                  ),
-                  onPressed: _clearRoute,
-                ),
-            ],
-          ),
-        ),
-
-        // Suggestions dropdown
-        if (routingState.showSuggestions && routingState.suggestions.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            constraints: const BoxConstraints(maxHeight: 250),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: routingState.suggestions.length,
-                itemBuilder: (context, index) {
-                  final suggestion = routingState.suggestions[index];
-                  return ListTile(
-                    leading: FaIcon(
-                      FontAwesomeIcons.locationDot,
-                      color: tealColor,
-                      size: 18,
-                    ),
-                    title: Text(
-                      suggestion.shortName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      suggestion.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                    onTap: () => _onDestinationSelected(suggestion),
-                  );
-                },
-              ),
-            ),
-          ),
-
-        // Loading indicator for suggestions
-        if (routingState.isSearchingPlaces)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Searching places...'),
-              ],
-            ),
-          ),
-
-        // Existing station search bar
-        if (!routingState.showRoute)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _buildSearchBar(context, theme),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStationList(
+  Widget _buildChargingStationList(
     BuildContext context,
     StationSearchState state,
     ScrollController scrollController,
   ) {
     if (state.isLoading && state.stations.isEmpty) {
-      return const SkeletonList(
-        count: 4,
-        padding: EdgeInsets.all(16),
-      );
+      return const SkeletonList(count: 4, padding: EdgeInsets.all(16));
     }
-
     if (state.error != null && state.stations.isEmpty) {
       return ErrorState(
         message: formatApiError(state.error),
         code: state.error!.code,
         traceId: state.error!.traceId,
-        onRetry: () => _requestLocationAndSearch(),
+        onRetry: _requestLocationAndSearch,
       );
     }
-
     if (state.stations.isEmpty) {
       return EmptyState(
         icon: FontAwesomeIcons.locationDot,
@@ -1687,7 +1784,6 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
         ),
       );
     }
-
     return ListView.builder(
       controller: scrollController,
       padding: const EdgeInsets.all(16),
@@ -1704,30 +1800,26 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
             child: SkeletonListTile(),
           );
         }
-
         final station = state.stations[index];
-        final stationId = station['stationId'] as String? ?? '';
-        final isSelected = stationId == _selectedStationId;
-
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildStationCard(context, station, isSelected),
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildCompactStationCard(context, station),
         );
       },
     );
   }
 
-  Widget _buildStationCard(
-    BuildContext context,
-    Map<String, dynamic> station,
-    bool isSelected,
-  ) {
-    final theme = Theme.of(context);
+  Widget _buildCompactStationCard(
+      BuildContext context, Map<String, dynamic> station) {
+    final stationId = station['stationId'] as String? ?? '';
     final name = station['name'] as String? ?? 'Unnamed station';
     final address = station['address'] as String? ?? '';
     final trustScore = station['trustScore'] as int? ?? 0;
     final chargingSummary = station['chargingSummary'] as Map<String, dynamic>?;
     final totalPorts = chargingSummary?['totalPorts'] as int? ?? 0;
+    final availablePorts = chargingSummary?['availablePorts'] as int? ??
+        chargingSummary?['acPorts'] as int? ??
+        0;
     final maxPowerKw = chargingSummary?['maxPowerKw'] as double? ?? 0.0;
     final dcPorts = chargingSummary?['dcPorts'] as int? ?? 0;
     final acPorts = chargingSummary?['acPorts'] as int? ?? 0;
@@ -1735,347 +1827,253 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
     final batterySwap = station['batterySwap'] as Map<String, dynamic>?;
     final totalPiles = batterySwap?['totalPiles'] as int? ?? 0;
     final totalSlots = batterySwap?['totalSlots'] as int? ?? 0;
-    final availableBatteries = batterySwap?['availableBatteries'] as int? ?? 0;
+    final availableBatteries =
+        batterySwap?['availableBatteries'] as int? ?? 0;
+    final distanceKm = (station['distanceKm'] as num?)?.toDouble();
 
-    return StationCard(
-      title: name,
-      subtitle: address,
-      badges: [
-        ScoreBadge(score: trustScore),
-        // Battery-swap-only stations: show "X piles × Y pins" instead of "0 ports"
-        if (supportsBatterySwap && totalPorts == 0 && totalPiles > 0)
-          StatusPill(
-            label: '$totalPiles × ${totalSlots ~/ totalPiles} piles',
-            color: theme.colorScheme.primary,
-          )
-        else
-          StatusPill(
-            label: '$totalPorts ports',
-            color: theme.colorScheme.primary,
-          ),
-        if (supportsBatterySwap && totalPorts > 0)
-          StatusPill(
-            label: '+ $totalPiles piles',
-            color: Colors.teal,
-          ),
-        if (maxPowerKw > 0)
-          StatusPill(
-            label: 'Up to ${maxPowerKw.toStringAsFixed(0)}kW',
-            color: theme.colorScheme.secondary,
-          ),
-        if (dcPorts > 0)
-          StatusPill(
-            label: '$dcPorts DC',
-            color: Colors.blue,
-          ),
-        if (acPorts > 0)
-          StatusPill(
-            label: '$acPorts AC',
-            color: Colors.green,
-          ),
-        if (supportsBatterySwap && availableBatteries > 0)
-          StatusPill(
-            label: '$availableBatteries ready',
-            color: Colors.green,
-          ),
-      ],
+    final card = CompactStationCard(
+      stationId: stationId,
+      name: name,
+      address: address,
+      trustScore: trustScore,
+      totalPorts: totalPorts,
+      availablePorts: availablePorts,
+      maxPowerKw: maxPowerKw,
+      dcPorts: dcPorts,
+      acPorts: acPorts,
+      supportsBatterySwap: supportsBatterySwap,
+      totalPiles: totalPiles,
+      totalSlots: totalSlots,
+      availableBatteries: availableBatteries,
+      distanceKm: distanceKm,
+      isSelected: _selectedStationId == stationId,
       onTap: () {
-        final stationId = station['stationId'] as String? ?? '';
+        setState(() => _selectedStationId = stationId);
         final lat = station['lat'] as double?;
         final lng = station['lng'] as double?;
-
-        setState(() {
-          _selectedStationId = stationId;
-        });
-
         if (lat != null && lng != null) {
           _mapController.move(LatLng(lat, lng), 15.0);
         }
+      },
+    );
 
-        // Battery-swap-only stations: navigate to battery swap screen
-        if (supportsBatterySwap && totalPorts == 0) {
-          context.push('/battery-swap?stationId=$stationId');
-          return;
-        }
+    if (_selectedStationId == stationId) {
+      // Show selected preview below the card.
+      final isSwapOnly = supportsBatterySwap && totalPorts == 0;
+      return Column(
+        children: [
+          card,
+          const SizedBox(height: 8),
+          SelectedStationPreview(
+            name: name,
+            address: address,
+            distanceKm: distanceKm,
+            trustScore: trustScore,
+            totalPorts: totalPorts,
+            availablePorts: availablePorts,
+            maxPowerKw: maxPowerKw,
+            supportsBatterySwap: supportsBatterySwap,
+            totalPiles: totalPiles,
+            totalSlots: totalSlots,
+            availableBatteries: availableBatteries,
+            isBatterySwapOnly: isSwapOnly,
+            onRoute: () {
+              // Quick-action: open routing towards this station's coords
+              final lat = station['lat'] as double?;
+              final lng = station['lng'] as double?;
+              if (lat != null && lng != null) {
+                _onLongPressWithBatterySetup(LatLng(lat, lng));
+              } else {
+                context.push('/stations/$stationId');
+              }
+            },
+            onBookOrReserve: () {
+              if (isSwapOnly) {
+                context.push('/battery-swap?stationId=$stationId');
+              } else {
+                context.push('/stations/$stationId');
+              }
+            },
+            onClearSelection: () {
+              setState(() => _selectedStationId = null);
+            },
+          ),
+        ],
+      );
+    }
 
-        // Navigate to station detail
-        context.push('/stations/$stationId');
+    return card;
+  }
+
+  Widget _buildBatterySwapStationList(
+    BuildContext context,
+    ScrollController scrollController,
+  ) {
+    if (_currentLocation == null && _batterySwapStations.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (_batterySwapStations.isEmpty) {
+      return EmptyState(
+        icon: FontAwesomeIcons.batteryFull,
+        title: 'No battery swap stations nearby',
+        message:
+            'Try expanding the search radius or move to a different location.',
+        action: OutlinedButton.icon(
+          onPressed: _loadBatterySwapStationsForCurrentLocation,
+          icon: const FaIcon(FontAwesomeIcons.rotate, size: 14),
+          label: const Text('Reload'),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.all(16),
+      itemCount: _batterySwapStations.length,
+      itemBuilder: (context, index) {
+        final station = _batterySwapStations[index];
+        final isSelected = _selectedStationId == station.stationId;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: [
+              CompactSwapStationCard(
+                station: station,
+                isSelected: isSelected,
+                onTap: () {
+                  setState(() => _selectedStationId = station.stationId);
+                  final lat = station.lat;
+                  final lng = station.lng;
+                  if (lat != null && lng != null) {
+                    _mapController.move(LatLng(lat, lng), 15.0);
+                  }
+                },
+              ),
+              if (isSelected) ...[
+                const SizedBox(height: 8),
+                SelectedStationPreview(
+                  name: station.name ?? 'Unnamed station',
+                  address: station.address,
+                  distanceKm: station.distanceKm,
+                  trustScore: 0,
+                  supportsBatterySwap: true,
+                  totalPiles: station.totalPiles,
+                  totalSlots: station.totalSlots,
+                  availableBatteries: station.availableBatteries,
+                  isBatterySwapOnly: true,
+                  onRoute: () {
+                    final lat = station.lat;
+                    final lng = station.lng;
+                    if (lat != null && lng != null) {
+                      _onLongPressWithBatterySetup(LatLng(lat, lng));
+                    } else {
+                      context.push(
+                          '/battery-swap?stationId=${station.stationId}');
+                    }
+                  },
+                  onBookOrReserve: () =>
+                      context.push('/battery-swap?stationId=${station.stationId}'),
+                  onClearSelection: () =>
+                      setState(() => _selectedStationId = null),
+                ),
+              ],
+            ],
+          ),
+        );
       },
     );
   }
 
-  Future<void> _toggleBatterySwapMarkers(BuildContext context) async {
-    if (_showBatterySwapMarkers) {
-      setState(() {
-        _showBatterySwapMarkers = false;
-        _batterySwapStations = [];
-      });
-      return;
-    }
+  // ── Recommended-station sheet (route mode) ──────────────────────────
 
-    if (_currentLocation == null) {
-      try {
-        final position = await Geolocator.getCurrentPosition();
-        if (mounted) {
-          _currentLocation = LatLng(position.latitude, position.longitude);
-          await _loadBatterySwapStations(
-            _currentLocation!.latitude,
-            _currentLocation!.longitude,
-          );
-          setState(() {
-            _showBatterySwapMarkers = true;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          AppToast.showError(context, 'Could not get location for battery swap search.');
-        }
-      }
-      return;
-    }
-
-    if (mounted) {
-      await _loadBatterySwapStations(
-        _currentLocation!.latitude,
-        _currentLocation!.longitude,
-      );
-      setState(() {
-        _showBatterySwapMarkers = true;
-      });
-    }
+  void _showRecommendedStationSheet(
+      BuildContext context, RecommendedStation station) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _RecommendedStationSheet(
+        station: station,
+        onNavigate: () {
+          Navigator.pop(ctx);
+          context.push('/stations/${station.stationId}');
+        },
+      ),
+    );
   }
 
-  Future<void> _showBatterySwapFilterSheet(BuildContext context) async {
+  // ── Battery setup sheets ────────────────────────────────────────────
+
+  Future<void> _showBatterySetupDialog(
+      BuildContext context, RoutingState routingState) async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => _BatterySwapFilterSheet(
-        radiusKm: _batterySwapRadiusKm,
-        stations: _batterySwapStations,
+      builder: (ctx) => _BatterySetupSheet(
+        currentBattery: routingState.batteryPercent ?? 50,
+        currentRange: routingState.vehicleRangeKm ?? 300,
       ),
     );
 
-    if (result != null) {
-      setState(() {
-        _batterySwapRadiusKm = result['radiusKm'] as double;
-      });
-      if (_currentLocation != null) {
-        await _loadBatterySwapStations(
-          _currentLocation!.latitude,
-          _currentLocation!.longitude,
-        );
+    if (result != null && mounted) {
+      final battery = result['battery'] as int;
+      final range = result['range'] as double;
+      ref.read(routingProvider.notifier).setBatteryInfo(battery, range);
+      if (routingState.destination != null) {
+        setState(() => _mapFitBoundsVersion++);
+        ref
+            .read(routingProvider.notifier)
+            .selectDestinationByCoordinates(routingState.destination!);
       }
     }
   }
 
-  Future<void> _showFilterDialog(BuildContext context) async {
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => _FilterDialog(
-        radiusKm: _radiusKm,
-        minPowerKw: _minPowerKw,
-        hasAC: _hasAC,
-      ),
-    );
+  Future<void> _showBatterySetupIfNeeded(
+      BuildContext context, RoutingState routingState) async {
+    if (routingState.batteryPercent == null &&
+        routingState.vehicleRangeKm == null) {
+      final result = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => _BatterySetupSheet(
+          currentBattery: 50,
+          currentRange: 300,
+        ),
+      );
 
-    if (result != null) {
-      setState(() {
-        _radiusKm = result['radiusKm'] as double;
-        _minPowerKw = result['minPowerKw'] as double?;
-        _hasAC = result['hasAC'] as bool?;
-      });
-      await _onFilterChanged();
+      if (result != null && mounted) {
+        final battery = result['battery'] as int;
+        final range = result['range'] as double;
+        ref.read(routingProvider.notifier).setBatteryInfo(battery, range);
+        if (routingState.destination != null) {
+          setState(() => _mapFitBoundsVersion++);
+          ref
+              .read(routingProvider.notifier)
+              .selectDestinationByCoordinates(routingState.destination!);
+        }
+      }
     }
   }
-
-  Widget _buildSearchBar(BuildContext context, ThemeData theme) {
-    final tealColor = Colors.teal[800] ?? Colors.green[900] ?? Colors.teal;
-
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchController,
-            autofocus: false,
-            onChanged: (value) {
-              setState(() {});
-            },
-            decoration: InputDecoration(
-              hintText: 'Search stations by name...',
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: FaIcon(
-                  FontAwesomeIcons.magnifyingGlass,
-                  color: tealColor,
-                  size: 20,
-                ),
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: FaIcon(
-                        FontAwesomeIcons.xmark,
-                        color: Colors.grey[600],
-                        size: 16,
-                      ),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {});
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: tealColor, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            style: TextStyle(color: tealColor),
-          ),
-        );
-      },
-    );
-  }
 }
 
-/// Filter Dialog
-class _FilterDialog extends StatefulWidget {
-  final double radiusKm;
-  final double? minPowerKw;
-  final bool? hasAC;
+// ─────────────────────────────────────────────────────────────────────────
+//  Marker widgets
+// ─────────────────────────────────────────────────────────────────────────
 
-  const _FilterDialog({
-    required this.radiusKm,
-    this.minPowerKw,
-    this.hasAC,
-  });
-
-  @override
-  State<_FilterDialog> createState() => _FilterDialogState();
-}
-
-class _FilterDialogState extends State<_FilterDialog> {
-  late double _radiusKm;
-  double? _minPowerKw;
-  bool? _hasAC;
-
-  @override
-  void initState() {
-    super.initState();
-    _radiusKm = widget.radiusKm;
-    _minPowerKw = widget.minPowerKw;
-    _hasAC = widget.hasAC;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Filters'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Radius (km)',
-              helperText: 'Required: 0.1 - 100 km',
-            ),
-            keyboardType: TextInputType.number,
-            controller: TextEditingController(text: _radiusKm.toString()),
-            onChanged: (value) {
-              final parsed = double.tryParse(value);
-              if (parsed != null && parsed >= 0.1 && parsed <= 100) {
-                _radiusKm = parsed;
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Minimum power (kW) - Optional',
-              helperText: 'Applies to DC ports only',
-            ),
-            keyboardType: TextInputType.number,
-            controller: TextEditingController(
-              text: _minPowerKw?.toString() ?? '',
-            ),
-            onChanged: (value) {
-              if (value.isEmpty) {
-                _minPowerKw = null;
-              } else {
-                final parsed = double.tryParse(value);
-                if (parsed != null && parsed > 0) {
-                  _minPowerKw = parsed;
-                }
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          CheckboxListTile(
-            title: const Text('Has AC ports'),
-            value: _hasAC ?? false,
-            onChanged: (value) {
-              setState(() {
-                _hasAC = value;
-              });
-            },
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _minPowerKw = null;
-              _hasAC = null;
-            });
-          },
-          child: const Text('Clear options'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (_radiusKm < 0.1 || _radiusKm > 100) return;
-            Navigator.pop(context, {
-              'radiusKm': _radiusKm,
-              'minPowerKw': _minPowerKw,
-              'hasAC': _hasAC,
-            });
-          },
-          child: const Text('Apply'),
-        ),
-      ],
-    );
-  }
-}
-
-/// Battery swap map marker - distinct teal style
+/// Battery swap map marker.
 class BatterySwapMapMarker extends StatelessWidget {
   const BatterySwapMapMarker({super.key});
 
@@ -2107,7 +2105,55 @@ class BatterySwapMapMarker extends StatelessWidget {
   }
 }
 
-/// Battery Swap Filter Sheet - separate radius for battery swap stations
+/// Destination marker — red teardrop with center dot.
+class _DestinationMarker extends StatelessWidget {
+  const _DestinationMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: Colors.red,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: FaIcon(
+              FontAwesomeIcons.locationPin,
+              color: Colors.white,
+              size: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Filter sheets
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Battery Swap Filter Sheet — separate radius for battery swap stations.
 class _BatterySwapFilterSheet extends StatefulWidget {
   final double radiusKm;
   final List<BatterySwapStationModel> stations;
@@ -2147,8 +2193,8 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
           Row(
             children: [
               FaIcon(
-                FontAwesomeIcons.carBattery,
-                color: theme.colorScheme.primary,
+                FontAwesomeIcons.batteryFull,
+                color: const Color(0xFF00695C),
                 size: 20,
               ),
               const SizedBox(width: 10),
@@ -2181,38 +2227,28 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          StatefulBuilder(
-            builder: (ctx, setSheetState) {
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _radiusKm,
-                          min: 1,
-                          max: 50,
-                          divisions: 49,
-                          label: '${_radiusKm.toStringAsFixed(0)} km',
-                          onChanged: (v) {
-                            setSheetState(() => _radiusKm = v);
-                          },
-                        ),
-                      ),
-                      SizedBox(
-                        width: 56,
-                        child: Text(
-                          '${_radiusKm.toStringAsFixed(0)} km',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: _radiusKm,
+                  min: 1,
+                  max: 50,
+                  divisions: 49,
+                  label: '${_radiusKm.toStringAsFixed(0)} km',
+                  onChanged: (v) => setState(() => _radiusKm = v),
+                ),
+              ),
+              SizedBox(
+                width: 56,
+                child: Text(
+                  '${_radiusKm.toStringAsFixed(0)} km',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           if (widget.stations.isNotEmpty) ...[
@@ -2224,7 +2260,7 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 160,
+              height: 200,
               child: ListView.builder(
                 itemCount: widget.stations.length,
                 itemBuilder: (ctx, idx) {
@@ -2232,16 +2268,22 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
                   return ListTile(
                     dense: true,
                     leading: FaIcon(
-                      FontAwesomeIcons.carBattery,
+                      FontAwesomeIcons.batteryFull,
                       color: s.availableBatteries > 0
                           ? Colors.green
                           : Colors.orange,
                       size: 16,
                     ),
-                    title: Text(s.name ?? 'Unnamed station'),
+                    title: Text(
+                      s.name ?? 'Unnamed station',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     subtitle: Text(
                       '${s.availableBatteries} ready · ${s.distanceKm?.toStringAsFixed(1) ?? '?'} km away',
                       style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     trailing: FaIcon(
                       FontAwesomeIcons.chevronRight,
@@ -2262,7 +2304,8 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, {'radiusKm': _radiusKm}),
+                  onPressed: () =>
+                      Navigator.pop(context, {'radiusKm': _radiusKm}),
                   child: const Text('Apply'),
                 ),
               ),
@@ -2274,7 +2317,7 @@ class _BatterySwapFilterSheetState extends State<_BatterySwapFilterSheet> {
   }
 }
 
-/// Recommended Station Sheet - shows station details when tapped on route
+/// Recommended station sheet — full details when a route station is tapped.
 class _RecommendedStationSheet extends StatelessWidget {
   final RecommendedStation station;
   final VoidCallback onNavigate;
@@ -2331,7 +2374,8 @@ class _RecommendedStationSheet extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.orange,
                             borderRadius: BorderRadius.circular(8),
@@ -2353,9 +2397,13 @@ class _RecommendedStationSheet extends StatelessWidget {
                             size: 14,
                           ),
                           const SizedBox(width: 2),
-                          Text(
-                            station.rating!.toStringAsFixed(1),
-                            style: theme.textTheme.bodySmall,
+                          Flexible(
+                            child: Text(
+                              station.rating!.toStringAsFixed(1),
+                              style: theme.textTheme.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ],
@@ -2375,8 +2423,9 @@ class _RecommendedStationSheet extends StatelessWidget {
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          // Recommendation reason from backend
           if (station.recommendationReason != null) ...[
             const SizedBox(height: 8),
             Container(
@@ -2388,7 +2437,8 @@ class _RecommendedStationSheet extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  FaIcon(FontAwesomeIcons.circleInfo, color: Colors.green.shade700, size: 16),
+                  FaIcon(FontAwesomeIcons.circleInfo,
+                      color: Colors.green.shade700, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -2404,9 +2454,13 @@ class _RecommendedStationSheet extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          // Stats row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          // Use Wrap so 3-4 stat items flow onto multiple lines on
+          // narrow screens instead of overflowing horizontally.
+          Wrap(
+            alignment: WrapAlignment.spaceAround,
+            crossAxisAlignment: WrapCrossAlignment.start,
+            spacing: 16,
+            runSpacing: 12,
             children: [
               _buildStatItem(
                 context,
@@ -2443,7 +2497,6 @@ class _RecommendedStationSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Charging time row
           if (station.estimatedChargeMinutes > 0) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2453,33 +2506,46 @@ class _RecommendedStationSheet extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  FaIcon(Icons.access_time, color: theme.colorScheme.primary, size: 16),
+                  FaIcon(Icons.access_time,
+                      color: theme.colorScheme.primary, size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    'Estimated charging: ',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  Text(
-                    '~${station.estimatedChargeMinutes} min',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
+                  Flexible(
+                    child: Text(
+                      'Estimated charging: ',
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
-                  if (station.optimalChargingStopMinutes != null)
-                    Text(
-                      'Total stop: ~${station.optimalChargingStopMinutes!.toStringAsFixed(0)} min',
+                  Flexible(
+                    child: Text(
+                      '~${station.estimatedChargeMinutes} min',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (station.optimalChargingStopMinutes != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Total stop: ~${station.optimalChargingStopMinutes!.toStringAsFixed(0)} min',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 12),
           ],
-          // Connector types
           if (station.connectorTypes.isNotEmpty) ...[
             Text(
               'Connector Types',
@@ -2520,6 +2586,7 @@ class _RecommendedStationSheet extends StatelessWidget {
   ) {
     final theme = Theme.of(context);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         FaIcon(icon, color: Colors.orange, size: 20),
         const SizedBox(height: 4),
@@ -2528,65 +2595,25 @@ class _RecommendedStationSheet extends StatelessWidget {
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 }
 
-/// Destination marker widget — Google Maps style red teardrop with center dot.
-class _DestinationMarker extends StatelessWidget {
-  const _DestinationMarker();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Outer pulsing circle (shadow effect)
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-        ),
-        // Main teardrop shape
-        Container(
-          width: 28,
-          height: 28,
-          decoration: const BoxDecoration(
-            color: Colors.red,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: const Center(
-            child: FaIcon(
-              FontAwesomeIcons.locationPin,
-              color: Colors.white,
-              size: 14,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Battery setup sheet for EV users to input battery info
+/// Battery setup sheet for EV users to input battery info.
 class _BatterySetupSheet extends StatefulWidget {
   final int currentBattery;
   final double currentRange;
@@ -2618,7 +2645,9 @@ class _BatterySetupSheetState extends State<_BatterySetupSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 20,
+        left: 20,
+        right: 20,
+        top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: Column(
@@ -2627,19 +2656,23 @@ class _BatterySetupSheetState extends State<_BatterySetupSheet> {
         children: [
           Row(
             children: [
-              FaIcon(FontAwesomeIcons.carBattery, color: theme.colorScheme.primary, size: 20),
+              FaIcon(FontAwesomeIcons.carBattery,
+                  color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 10),
               Text(
                 'Vehicle Battery Info',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
-              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context)),
             ],
           ),
           const SizedBox(height: 20),
-          // Current battery
-          Text('Current Battery: ${_battery.toInt()}%', style: theme.textTheme.titleMedium),
+          Text('Current Battery: ${_battery.toInt()}%',
+              style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Slider(
             value: _battery,
@@ -2650,8 +2683,8 @@ class _BatterySetupSheetState extends State<_BatterySetupSheet> {
             onChanged: (v) => setState(() => _battery = v),
           ),
           const SizedBox(height: 16),
-          // Max range
-          Text('Max Range (at 100%): ${_range.toInt()} km', style: theme.textTheme.titleMedium),
+          Text('Max Range (at 100%): ${_range.toInt()} km',
+              style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Slider(
             value: _range,
@@ -2662,22 +2695,27 @@ class _BatterySetupSheetState extends State<_BatterySetupSheet> {
             onChanged: (v) => setState(() => _range = v),
           ),
           const SizedBox(height: 16),
-          // Remaining range display
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: remaining < 50 ? Colors.orange.shade50 : Colors.green.shade50,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: remaining < 50 ? Colors.orange.shade200 : Colors.green.shade200,
+                color: remaining < 50
+                    ? Colors.orange.shade200
+                    : Colors.green.shade200,
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 FaIcon(
-                  remaining < 50 ? FontAwesomeIcons.batteryHalf : FontAwesomeIcons.batteryFull,
-                  color: remaining < 50 ? Colors.orange.shade700 : Colors.green.shade700,
+                  remaining < 50
+                      ? FontAwesomeIcons.batteryHalf
+                      : FontAwesomeIcons.batteryFull,
+                  color: remaining < 50
+                      ? Colors.orange.shade700
+                      : Colors.green.shade700,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -2685,7 +2723,9 @@ class _BatterySetupSheetState extends State<_BatterySetupSheet> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: remaining < 50 ? Colors.orange.shade700 : Colors.green.shade700,
+                    color: remaining < 50
+                        ? Colors.orange.shade700
+                        : Colors.green.shade700,
                   ),
                 ),
               ],

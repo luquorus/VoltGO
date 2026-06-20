@@ -81,7 +81,7 @@ class VoucherManagementScreen extends ConsumerWidget {
     final vouchersAsync = ref.watch(adminVouchersProvider);
 
     return AdminScaffold(
-      title: 'Quản lý Voucher',
+      title: 'Voucher Management',
       body: vouchersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Lỗi: $e')),
