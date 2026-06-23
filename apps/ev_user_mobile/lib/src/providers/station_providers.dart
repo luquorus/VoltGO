@@ -671,7 +671,7 @@ class BatterySwapNotifier extends StateNotifier<BatterySwapState> {
   Future<BatterySwapReservationModel> pay(String reservationId) async {
     final response = await _repository.payBatterySwap(reservationId);
     await loadMyReservations();
-    return BatterySwapReservationModel.fromJson(response);
+    return response;
   }
 
   Future<BatterySwapReservationModel> getReservation(String reservationId) async {

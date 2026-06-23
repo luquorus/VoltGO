@@ -101,6 +101,21 @@ public class BatterySwapReservationEntity {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
+    /**
+     * ID of the voucher redemption applied to this reservation.
+     * Set when a FREE_SERVICE/BATTERY_SWAP voucher covers the full or partial cost.
+     */
+    @Column(name = "voucher_redemption_id", columnDefinition = "UUID")
+    private UUID voucherRedemptionId;
+
+    /**
+     * Discount amount in VND applied via voucher.
+     * Set when a voucher is applied via /api/ev/vouchers/redemptions/{id}/apply-to-swap.
+     * If >= basePriceVnd, the user pays nothing (free swap).
+     */
+    @Column(name = "discount_amount_vnd")
+    private Integer discountAmountVnd;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 

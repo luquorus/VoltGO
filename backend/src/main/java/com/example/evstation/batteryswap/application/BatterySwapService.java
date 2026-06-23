@@ -593,6 +593,21 @@ public class BatterySwapService {
             throw new BusinessException(ErrorCode.INVALID_STATE, "Cannot pay for a completed/cancelled/expired reservation");
         }
         Instant now = Instant.now(clock);
+
+        // If a voucher covers the full amount, auto-complete payment without real payment.
+        if (reservation.getVoucherRedemptionId() != null
+                && reservation.getDiscountAmountVnd() != null
+                && reservation.getDiscountAmountVnd() >= reservation.getBasePriceVnd()) {
+            reservation.setPaymentStatus(PaymentStatus.PAID);
+            reservation.setUpdatedAt(now);
+            reservation = reservationRepository.save(reservation);
+            writeAudit(userId, "EV_USER", "SWAP_PAY_VOUCHER", reservation.getId(),
+                    Map.of("stationId", reservation.getStationId().toString(),
+                            "voucherRedemptionId", reservation.getVoucherRedemptionId().toString(),
+                            "discountAmountVnd", String.valueOf(reservation.getDiscountAmountVnd())));
+            return toReservationDtoWithPileIndex(reservation, "EV_USER");
+        }
+
         reservation.setPaymentStatus(PaymentStatus.PAID);
         reservation.setUpdatedAt(now);
         reservation = reservationRepository.save(reservation);
@@ -924,6 +939,8 @@ public class BatterySwapService {
                 .note(reservation.getNote())
                 .swapCode(reservation.getSwapCode())
                 .swapDeadlineAt(reservation.getSwapDeadlineAt())
+                .voucherRedemptionId(reservation.getVoucherRedemptionId())
+                .discountAmountVnd(reservation.getDiscountAmountVnd())
                 .stationState(stateDto)
                 .build();
     }

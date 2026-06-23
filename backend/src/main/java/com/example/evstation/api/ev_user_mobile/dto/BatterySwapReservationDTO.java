@@ -55,6 +55,16 @@ public class BatterySwapReservationDTO {
      * Thời điểm hết hạn swap (appointment + 15 phút).
      */
     private Instant swapDeadlineAt;
+    /**
+     * ID của voucher redemption đã apply cho reservation này.
+     * Được set khi user apply voucher FREE_SERVICE cho battery swap.
+     */
+    private UUID voucherRedemptionId;
+    /**
+     * Số tiền giảm giá (VND) từ voucher.
+     * Nếu >= basePriceVnd thì user không cần thanh toán (swap miễn phí).
+     */
+    private Integer discountAmountVnd;
     private StationStateDTO stationState;
 
     @Data

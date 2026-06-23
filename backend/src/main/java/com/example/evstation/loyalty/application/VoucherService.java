@@ -6,6 +6,8 @@ import com.example.evstation.loyalty.domain.*;
 import com.example.evstation.loyalty.infrastructure.jpa.*;
 import com.example.evstation.booking.infrastructure.jpa.BookingJpaRepository;
 import com.example.evstation.booking.infrastructure.jpa.BookingEntity;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapReservationJpaRepository;
+import com.example.evstation.batteryswap.infrastructure.jpa.BatterySwapReservationEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,6 +28,7 @@ public class VoucherService {
     private final VoucherRedemptionJpaRepository redemptionRepository;
     private final LoyaltyPointService loyaltyPointService;
     private final BookingJpaRepository bookingRepository;
+    private final BatterySwapReservationJpaRepository swapReservationRepository;
     private final Clock clock;
 
     private static final String VOUCHER_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -204,15 +207,31 @@ public class VoucherService {
             }
         }
 
+        // Calculate discount amount
+        BatterySwapReservationEntity reservation = swapReservationRepository.findById(reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Battery swap reservation not found"));
+        long basePrice = reservation.getBasePriceVnd() != null ? reservation.getBasePriceVnd() : 0L;
+        int discountAmount = (int) basePrice; // FREE_SERVICE covers full price
+
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("reservationId", reservationId.toString());
         metadata.put("appliedAt", now.toString());
+        metadata.put("discountAmount", discountAmount);
+        metadata.put("basePriceVnd", basePrice);
+        metadata.put("voucherCode", redemption.getVoucherCode());
+        metadata.put("voucherName", def.getName());
 
         redemption.setStatus(RedemptionStatus.USED);
         redemption.setUsedAt(now);
         redemption.setBookingId(reservationId);
         redemption.setServiceType("BATTERY_SWAP");
         redemption.setMetadata(metadata);
+
+        // Link voucher to reservation so pay() can auto-complete if fully covered
+        reservation.setVoucherRedemptionId(redemptionId);
+        reservation.setDiscountAmountVnd(discountAmount);
+        reservation.setUpdatedAt(now);
+        swapReservationRepository.save(reservation);
 
         return redemptionRepository.save(redemption);
     }

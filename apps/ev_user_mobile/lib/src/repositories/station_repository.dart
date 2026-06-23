@@ -454,9 +454,10 @@ class StationRepository {
     }
   }
 
-  Future<Map<String, dynamic>> payBatterySwap(String reservationId) async {
+  Future<BatterySwapReservationModel> payBatterySwap(String reservationId) async {
     try {
-      return await _apiClient.payBatterySwap(reservationId);
+      final raw = await _apiClient.payBatterySwap(reservationId);
+      return BatterySwapReservationModel.fromJson(raw);
     } on ApiError {
       rethrow;
     } catch (e) {
