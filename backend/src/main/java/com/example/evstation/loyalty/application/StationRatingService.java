@@ -2,10 +2,13 @@ package com.example.evstation.loyalty.application;
 
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.common.config.CacheNames;
 import com.example.evstation.loyalty.domain.*;
 import com.example.evstation.loyalty.infrastructure.jpa.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class StationRatingService {
     private static final int MAX_RATINGS_PER_DAY = 3;
 
     @Transactional
+    @CacheEvict(value = {CacheNames.RATING_SUMMARY, CacheNames.RATING_PAGE}, allEntries = true)
     public StationRatingEntity submitRating(UUID userId, UUID stationId, UUID eligibilityId,
                                            int rating, String comment,
                                            UUID sourceId, EligibilityType type, Instant eligibleAt) {
@@ -86,6 +90,10 @@ public class StationRatingService {
         return entity;
     }
 
+    @Cacheable(
+            value = CacheNames.RATING_PAGE,
+            key = "#stationId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize"
+    )
     public Page<StationRatingEntity> getRatingsForStation(UUID stationId, Pageable pageable) {
         return ratingRepository.findByStationIdOrderByCreatedAtDesc(stationId, pageable);
     }
@@ -107,6 +115,7 @@ public class StationRatingService {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheNames.RATING_SUMMARY, CacheNames.RATING_PAGE, CacheNames.RATING_ID}, key = "#ratingId")
     public void hideRating(UUID ratingId) {
         ratingRepository.findById(ratingId).ifPresent(r -> {
             r.setStatus(RatingStatus.HIDDEN);
@@ -114,6 +123,7 @@ public class StationRatingService {
         });
     }
 
+    @Cacheable(value = CacheNames.RATING_SUMMARY, key = "#stationId")
     public StationRatingSummaryResult getRatingSummary(UUID stationId) {
         Double avg = ratingRepository.avgRatingByStationId(stationId, RatingStatus.ACTIVE);
         long total = ratingRepository.countActiveByStationId(stationId, RatingStatus.ACTIVE);

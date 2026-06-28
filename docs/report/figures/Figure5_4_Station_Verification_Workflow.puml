@@ -1,0 +1,80 @@
+@startuml Figure5_4_Station_Verification_Workflow
+!theme plain
+
+title "Figure 5.4: Station Data Contribution & Field Verification Workflow"
+
+|==1. Station Proposal Submission==|
+:EV User or Collaborator\nsubmits station proposal\n(CREATE_STATION or UPDATE_STATION);
+:#LightBlue:System creates **Change Request**\nstatus = DRAFT\n+ creates Station Version (DRAFT);
+:User calls submitChangeRequest();
+:**Risk Engine** assessChangeRequest()\ncalculates riskScore + riskReasons;
+:Change Request status = PENDING\n+ Station Version status = PENDING;
+|#PaleTurquoise:Audit log: SUBMIT_CHANGE_REQUEST\n(riskScore, riskLevel, riskReasons);
+
+|==2. Risk Gate==|
+if (riskScore >= 60?) then (Yes\nHIGH RISK)
+  :System creates **Verification Task** (OPEN)\n+ generates checklist from riskReasons\n+ stores station snapshot;
+  :Admin assigns task to Collaborator;
+  :Collaborator receives notification\n(TASK_ASSIGNED);
+  note right
+    **Collaborator travels to station**
+    GPS check-in: ST_Distance(collaborator, station) <= 200m
+    If > 200m → REJECTED
+  end note
+  :Collaborator performs\n**GPS Check-in** at site;
+  if (distance <= 200m?) then (No)
+    :System rejects check-in\n"Too far from station";
+  endif
+  :Collaborator answers **Checklist**\n(Yes / No / Unable to Verify\n+ mandatory supplementary note\nif No or Unable);
+  :Collaborator uploads\n**Evidence Photos** to MinIO;
+  :Verification Task status = SUBMITTED;
+  :Admin receives notification;
+  :Admin **Reviews Task**\n(PASS or FAIL);
+  if (Result = PASS?) then (Yes)
+    :Trust score recalculate (+20);
+    :Admin **Approves** Change Request;
+  else (No)
+    :Trust score recalculate (-20);
+    :Admin **Rejects** Change Request\n→ Station Version = REJECTED;
+    detach
+  endif
+else (No\nLOW/MEDIUM RISK)
+  :Admin **Approves** Change Request\n(no verification required);
+endif
+
+|==3. Publish Decision==|
+if (CR status = APPROVED?) then (Yes)
+  if (riskScore >= 60 AND\nverification PASS?) then (Yes)
+    :Admin **Publishes** Change Request;
+  else (No)
+    :System **BLOCKS** publish\n"High-risk CR requires\nverification PASS first";
+    detach
+  endif
+else (No\nREJECTED)
+  :Station Version = REJECTED;
+  detach
+endif
+
+|==4. Publish Execution==|
+note right
+  **Atomic publish operation**
+  Pessimistic lock on station row
+  (prevents concurrent publish)
+end note
+:System **Archives** old published version\n→ status = ARCHIVED;
+:System **Publishes** new version\n→ status = PUBLISHED + publishedAt;
+:System **Creates Charger Units**\nfrom charging ports;
+:System **Applies Battery Swap config**\nif BATTERY_SWAP service exists;
+:Change Request status = PUBLISHED;
+|#PaleTurquoise:Audit log: PUBLISH_STATION_VERSION;
+:**Trust score recalculates**\n(base + bonuses + penalties);
+:Submitter receives notification\n(CR is live);
+stop
+
+legend right
+  **Color Legend:**
+  #LightBlue = System action (Creation)
+  #PaleTurquoise = Audit logging
+end legend
+
+@enduml

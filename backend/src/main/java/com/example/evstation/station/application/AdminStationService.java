@@ -8,6 +8,7 @@ import com.example.evstation.auth.infrastructure.jpa.UserAccountJpaRepository;
 import com.example.evstation.batteryswap.application.SwapStationStateApplyService;
 import com.example.evstation.booking.application.ChargerUnitCreationService;
 import com.example.evstation.booking.infrastructure.jpa.BookingJpaRepository;
+import com.example.evstation.common.config.CacheNames;
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
 import com.example.evstation.station.domain.*;
@@ -22,6 +23,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -96,6 +98,8 @@ public class AdminStationService {
      * Create a new station (admin only, bypass workflow)
      */
     @Transactional
+    @CacheEvict(value = {CacheNames.STATION_DETAIL, CacheNames.STATION_RADIUS, CacheNames.STATION_SEARCH,
+            CacheNames.TRUST_SUMMARY}, allEntries = true)
     public AdminStationDTO createStation(CreateStationDTO request, UUID adminId) {
         log.info("Admin creating station: name={}, publishImmediately={}", 
                 request.getStationData().getName(), request.getPublishImmediately());
@@ -179,6 +183,8 @@ public class AdminStationService {
      * Update station (admin only, creates new version)
      */
     @Transactional
+    @CacheEvict(value = {CacheNames.STATION_DETAIL, CacheNames.STATION_RADIUS, CacheNames.STATION_SEARCH,
+            CacheNames.TRUST_SUMMARY}, allEntries = true)
     public AdminStationDTO updateStation(UUID stationId, UpdateStationDTO request, UUID adminId) {
         log.info("Admin updating station: {}, publishImmediately={}", stationId, request.getPublishImmediately());
         
@@ -282,6 +288,9 @@ public class AdminStationService {
      * - All report_issues
      */
     @Transactional
+    @CacheEvict(value = {CacheNames.STATION_DETAIL, CacheNames.STATION_RADIUS, CacheNames.STATION_SEARCH,
+            CacheNames.TRUST_SCORE, CacheNames.TRUST_BREAKDOWN, CacheNames.TRUST_ENTITY, CacheNames.TRUST_SUMMARY,
+            CacheNames.RATING_SUMMARY, CacheNames.RATING_PAGE}, allEntries = true)
     public void deleteStation(UUID stationId, UUID adminId) {
         log.info("Admin deleting station (hard delete): {}", stationId);
         

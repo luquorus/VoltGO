@@ -1,8 +1,10 @@
 package com.example.evstation.api.admin_web.dto;
 
 import com.example.evstation.station.domain.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,12 +13,14 @@ import java.util.UUID;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminStationDTO {
     private UUID stationId;
     private UUID providerId;
     private String providerEmail;
     private Instant stationCreatedAt;
-    
+
     // Current published version info
     private UUID publishedVersionId;
     private Integer publishedVersionNo;
@@ -32,32 +36,35 @@ public class AdminStationDTO {
     private Instant publishedAt;
     private UUID createdBy;
     private String createdByEmail;
-    
+
     // Services and ports
     private List<ServiceDTO> services;
-    
+
     // Trust score
     private Integer trustScore;
-    
+
     // Statistics
     private Long totalVersions;
     private Long activeBookings;
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ServiceDTO {
         private ServiceType type;
         private List<ChargingPortDTO> chargingPorts;
         private Integer totalBatteries;
         private BigDecimal avgChargePowerKw;
     }
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ChargingPortDTO {
         private PowerType powerType;
         private BigDecimal powerKw;
         private Integer portCount;
     }
 }
-

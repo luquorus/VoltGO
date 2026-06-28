@@ -1,8 +1,10 @@
 package com.example.evstation.api.admin_web.dto;
 
 import com.example.evstation.station.domain.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,6 +13,8 @@ import java.util.UUID;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminChangeRequestDTO {
     private UUID id;
     private ChangeRequestType type;
@@ -25,19 +29,21 @@ public class AdminChangeRequestDTO {
     private Instant createdAt;
     private Instant submittedAt;
     private Instant decidedAt;
-    
+
     // Verification status (for high-risk CRs)
     private Boolean hasVerificationTask;
     private Boolean hasPassedVerification;
-    
+
     // Station data
     private StationDataDTO stationData;
-    
+
     // Audit history
     private List<AuditLogDTO> auditLogs;
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class StationDataDTO {
         private String name;
         private String address;
@@ -49,9 +55,11 @@ public class AdminChangeRequestDTO {
         private PublicStatus publicStatus;
         private List<ServiceDTO> services;
     }
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ServiceDTO {
         private ServiceType type;
         private List<ChargingPortDTO> chargingPorts;
@@ -60,17 +68,21 @@ public class AdminChangeRequestDTO {
         /** Present when type == BATTERY_SWAP */
         private BigDecimal avgChargePowerKw;
     }
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ChargingPortDTO {
         private PowerType powerType;
         private BigDecimal powerKw;
         private Integer count;
     }
-    
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class AuditLogDTO {
         private String action;
         private UUID actorId;
@@ -79,4 +91,3 @@ public class AdminChangeRequestDTO {
         private Object metadata;
     }
 }
-

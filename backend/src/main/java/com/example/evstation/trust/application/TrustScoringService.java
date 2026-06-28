@@ -2,6 +2,7 @@ package com.example.evstation.trust.application;
 
 import com.example.evstation.api.admin_web.dto.StationTrustStationSummaryDTO;
 import com.example.evstation.api.admin_web.dto.StationTrustSummaryDTO;
+import com.example.evstation.common.config.CacheNames;
 import com.example.evstation.station.domain.ChangeRequestStatus;
 import com.example.evstation.station.infrastructure.jpa.ChangeRequestEntity;
 import com.example.evstation.station.infrastructure.jpa.ChangeRequestJpaRepository;
@@ -17,6 +18,9 @@ import com.example.evstation.verification.infrastructure.jpa.VerificationReviewE
 import com.example.evstation.verification.infrastructure.jpa.VerificationReviewJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,6 +78,12 @@ public class TrustScoringService {
      * @return The updated trust score
      */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.TRUST_SCORE, key = "#stationId"),
+            @CacheEvict(value = CacheNames.TRUST_BREAKDOWN, key = "#stationId"),
+            @CacheEvict(value = CacheNames.TRUST_ENTITY, key = "#stationId"),
+            @CacheEvict(value = CacheNames.TRUST_SUMMARY, allEntries = true)
+    })
     public int recalculate(UUID stationId) {
         log.info("Recalculating trust score for station: {}", stationId);
         
@@ -118,6 +128,7 @@ public class TrustScoringService {
      * Returns null if no trust score exists.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.TRUST_SCORE, key = "#stationId")
     public Optional<Integer> getTrustScore(UUID stationId) {
         return trustRepository.findById(stationId)
                 .map(StationTrustEntity::getScore);
@@ -127,6 +138,7 @@ public class TrustScoringService {
      * Get full trust breakdown for a station.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.TRUST_BREAKDOWN, key = "#stationId")
     public Optional<TrustBreakdown> getTrustBreakdown(UUID stationId) {
         return trustRepository.findById(stationId)
                 .map(entity -> TrustBreakdown.fromMap(entity.getBreakdown()));
@@ -136,6 +148,7 @@ public class TrustScoringService {
      * Get trust entity with full details.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.TRUST_ENTITY, key = "#stationId")
     public Optional<StationTrustEntity> getTrustEntity(UUID stationId) {
         return trustRepository.findById(stationId);
     }
@@ -145,6 +158,7 @@ public class TrustScoringService {
      * Trust is only tracked for CHARGING stations.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.TRUST_SUMMARY, key = "'global'")
     public StationTrustSummaryDTO getSummary() {
         List<StationTrustEntity> allTrust = trustRepository.findAllForChargingStations();
 

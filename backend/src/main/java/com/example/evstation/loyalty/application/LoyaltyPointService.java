@@ -2,6 +2,7 @@ package com.example.evstation.loyalty.application;
 
 import com.example.evstation.common.error.BusinessException;
 import com.example.evstation.common.error.ErrorCode;
+import com.example.evstation.common.config.CacheNames;
 import com.example.evstation.loyalty.domain.PointSource;
 import com.example.evstation.loyalty.domain.PointType;
 import com.example.evstation.loyalty.infrastructure.jpa.LoyaltyPointTransactionEntity;
@@ -10,6 +11,8 @@ import com.example.evstation.loyalty.infrastructure.jpa.LoyaltyUserProfileEntity
 import com.example.evstation.loyalty.infrastructure.jpa.LoyaltyUserProfileJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheNames.LOYALTY_PROFILE, CacheNames.LOYALTY_HISTORY}, key = "#userId")
     public LoyaltyPointTransactionEntity earnPoints(UUID userId, PointSource source, UUID sourceId,
                                                    String description, Map<String, Object> metadata) {
         if (sourceId != null && transactionRepository.countBySourceAndSourceId(source, sourceId) > 0) {
@@ -84,6 +88,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheNames.LOYALTY_PROFILE, CacheNames.LOYALTY_HISTORY}, key = "#userId")
     public LoyaltyPointTransactionEntity adjustPoints(UUID userId, int delta, String description) {
         LoyaltyUserProfileEntity profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(
@@ -107,6 +112,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheNames.LOYALTY_PROFILE, CacheNames.LOYALTY_HISTORY}, key = "#userId")
     public LoyaltyPointTransactionEntity redeemPoints(UUID userId, int amount, UUID redemptionId, String description) {
         LoyaltyUserProfileEntity profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "User profile not found"));
@@ -137,6 +143,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.LOYALTY_PROFILE, key = "#userId")
     public void incrementBookingCount(UUID userId) {
         profileRepository.findByUserId(userId).ifPresent(p -> {
             p.setTotalBookings(p.getTotalBookings() + 1);
@@ -145,6 +152,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.LOYALTY_PROFILE, key = "#userId")
     public void incrementSwapCount(UUID userId) {
         profileRepository.findByUserId(userId).ifPresent(p -> {
             p.setTotalSwaps(p.getTotalSwaps() + 1);
@@ -153,6 +161,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.LOYALTY_PROFILE, key = "#userId")
     public void incrementRatingCount(UUID userId) {
         profileRepository.findByUserId(userId).ifPresent(p -> {
             p.setTotalRatings(p.getTotalRatings() + 1);
@@ -161,6 +170,7 @@ public class LoyaltyPointService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.LOYALTY_PROFILE, key = "#userId")
     public void incrementContributionCount(UUID userId) {
         profileRepository.findByUserId(userId).ifPresent(p -> {
             p.setTotalContributions(p.getTotalContributions() + 1);
@@ -168,10 +178,15 @@ public class LoyaltyPointService {
         });
     }
 
+    @Cacheable(value = CacheNames.LOYALTY_PROFILE, key = "#userId")
     public Optional<LoyaltyUserProfileEntity> getProfile(UUID userId) {
         return profileRepository.findByUserId(userId);
     }
 
+    @Cacheable(
+            value = CacheNames.LOYALTY_HISTORY,
+            key = "#userId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize"
+    )
     public Page<LoyaltyPointTransactionEntity> getHistory(UUID userId, Pageable pageable) {
         return transactionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
